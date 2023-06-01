@@ -18,31 +18,12 @@ jobs:
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-      - name: Build and push ETL container
+      - name: Build and push container
         uses: docker/build-push-action@v3
         with:
           context: .
-          file: containers/etl/Dockerfile
+          file: Dockerfile
           push: true
-          tags: jeffquinnmsk/pan_preclinical_etl:latest
-          cache-from: type=registry,ref=jeffquinnmsk/pan_preclinical_etl:latest
-          cache-to: type=inline
-          buildargs: PSEUDO_VERSION=
-      - name: Build and push models container
-        uses: docker/build-push-action@v3
-        with:
-          context: .
-          file: containers/models/Dockerfile
-          push: true
-          tags: jeffquinnmsk/pan_preclinical_models:latest
-          cache-from: type=registry,ref=jeffquinnmsk/pan_preclinical_models:latest
-          cache-to: type=inline
-      - name: Build and push expression container
-        uses: docker/build-push-action@v3
-        with:
-          context: .
-          file: containers/expression/Dockerfile
-          push: true
-          tags: jeffquinnmsk/pan_preclinical_expression:latest
-          cache-from: type=registry,ref=jeffquinnmsk/pan_preclinical_expression:latest
+          tags: jeffquinnmsk/batchie:latest
+          cache-from: type=registry,ref=jeffquinnmsk/batchie:latest
           cache-to: type=inline
