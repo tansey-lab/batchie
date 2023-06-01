@@ -1,0 +1,48 @@
+name: Container Builds
+on:
+  push:
+    branches:
+      - 'main'
+jobs:
+  build-docker:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+      - name: Login to DockerHub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Build and push ETL container
+        uses: docker/build-push-action@v3
+        with:
+          context: .
+          file: containers/etl/Dockerfile
+          push: true
+          tags: jeffquinnmsk/pan_preclinical_etl:latest
+          cache-from: type=registry,ref=jeffquinnmsk/pan_preclinical_etl:latest
+          cache-to: type=inline
+          buildargs: PSEUDO_VERSION=
+      - name: Build and push models container
+        uses: docker/build-push-action@v3
+        with:
+          context: .
+          file: containers/models/Dockerfile
+          push: true
+          tags: jeffquinnmsk/pan_preclinical_models:latest
+          cache-from: type=registry,ref=jeffquinnmsk/pan_preclinical_models:latest
+          cache-to: type=inline
+      - name: Build and push expression container
+        uses: docker/build-push-action@v3
+        with:
+          context: .
+          file: containers/expression/Dockerfile
+          push: true
+          tags: jeffquinnmsk/pan_preclinical_expression:latest
+          cache-from: type=registry,ref=jeffquinnmsk/pan_preclinical_expression:latest
+          cache-to: type=inline
