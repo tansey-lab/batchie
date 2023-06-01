@@ -27,4 +27,3 @@ jobs:
           tags: jeffquinnmsk/batchie:latest
           cache-from: type=registry,ref=jeffquinnmsk/batchie:latest
           cache-to: type=inline
-          buildargs: PSEUDO_VERSION=
