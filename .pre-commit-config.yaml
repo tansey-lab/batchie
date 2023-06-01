@@ -22,12 +22,6 @@ repos:
     rev: 0.0.9
     hooks:
       - id: check_pdb_hook
-  - repo: https://github.com/pycqa/pydocstyle
-    rev: 6.3.0
-    hooks:
-      - id: pydocstyle
-        additional_dependencies: ["tomli"]
-        exclude: docs/
   - repo: https://github.com/rstcheck/rstcheck
     rev: 'v6.1.2'
     hooks:
