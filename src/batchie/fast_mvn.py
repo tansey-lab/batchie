@@ -1,16 +1,4 @@
-"""Fast sampling from a multivariate normal with covariance or precision
-    parameterization. Supports sparse arrays. Params:
-        - mu: If provided, assumes the model is N(mu, Q)
-        - mu_part: If provided, assumes the model is N(Q mu_part, Q).
-                    This is common in many conjugate Gibbs steps.
-        - sparse: If true, assumes we are working with a sparse Q
-        - precision: If true, assumes Q is a precision matrix (inverse covariance)
-        - chol_factor: If true, assumes Q is a (lower triangular) Cholesky
-                        decomposition of the covariance matrix
-                        (or of the precision matrix if precision=True).
-Author: Wesley Tansey
-Date: 5/8/2019
-"""
+"""Methods for sampling from multivariate normal distributions."""
 import numpy as np
 import scipy as sp
 from scipy.linalg import solve_triangular
@@ -19,13 +7,18 @@ from scipy.linalg import solve_triangular
 def sample_mvn_from_precision(
     Q, mu=None, mu_part=None, chol_factor=False, Q_shape=None
 ):
-    """Fast sampling from a multivariate normal with precision parameterization.
-    Supports sparse arrays. Params:
-        - mu: If provided, assumes the model is N(mu, Q^-1)
-        - mu_part: If provided, assumes the model is N(Q^-1 mu_part, Q^-1)
-        - sparse: If true, assumes we are working with a sparse Q
-        - chol_factor: If true, assumes Q is a (lower triangular) Cholesky
-                        decomposition of the precision matrix
+    """
+    Fast sampling from a multivariate normal with precision parameterization.
+
+    Supports sparse arrays.
+
+    :param Q: The precision matrix
+    :param mu: If provided, assumes the model is N(mu, Q^-1)
+    :param mu_part: If provided, assumes the model is N(Q^-1 mu_part, Q^-1)
+    :param chol_factor: If true, assumes Q is a (lower triangular) Cholesky
+    decomposition of the precision matrix
+    :param Q_shape:
+    :return:
     """
     assert np.any([Q_shape is not None, not chol_factor])
     Lt = np.linalg.cholesky(Q).T if not chol_factor else Q.T
@@ -44,13 +37,17 @@ def sample_mvn_from_precision(
 
 
 def sample_mvn_from_covariance(Q, mu=None, mu_part=None, chol_factor=False):
-    """Fast sampling from a multivariate normal with covariance parameterization.
-    Supports sparse arrays. Params:
-        - mu: If provided, assumes the model is N(mu, Q)
-        - mu_part: If provided, assumes the model is N(Q mu_part, Q)
-        - sparse: If true, assumes we are working with a sparse Q
-        - chol_factor: If true, assumes Q is a (lower triangular) Cholesky
-                        decomposition of the covariance matrix
+    """
+    Fast sampling from a multivariate normal with covariance parameterization.
+
+    Supports sparse arrays.
+
+    :param Q: The covariance matrix
+    :param mu: If provided, assumes the model is N(mu, Q^-1)
+    :param mu_part: If provided, assumes the model is N(Q^-1 mu_part, Q^-1)
+    :param chol_factor: If true, assumes Q is a (lower triangular) Cholesky
+    decomposition of the precision matrix
+    :return:
     """
     # Cholesky factor LL' = Q of the covariance matrix Q
     if chol_factor:
@@ -72,14 +69,16 @@ def sample_mvn_from_covariance(Q, mu=None, mu_part=None, chol_factor=False):
 def sample_mvn(
     Q, mu=None, mu_part=None, precision=False, chol_factor=False, Q_shape=None
 ):
-    """Fast sampling from a multivariate normal with covariance or precision
-    parameterization. Supports sparse arrays. Params:
-        - mu: If provided, assumes the model is N(mu, Q)
-        - mu_part: If provided, assumes the model is N(Q mu_part, Q)
-        - precision: If true, assumes Q is a precision matrix (inverse covariance)
-        - chol_factor: If true, assumes Q is a (lower triangular) Cholesky
-                        decomposition of the covariance matrix
-                        (or of the precision matrix if precision=True).
+    """
+    Fast sampling from a multivariate normal with covariance or precision.
+
+    :param Q:
+    :param mu:
+    :param mu_part:
+    :param precision:
+    :param chol_factor:
+    :param Q_shape:
+    :return:
     """
     assert np.any(
         (mu is None, mu_part is None)
