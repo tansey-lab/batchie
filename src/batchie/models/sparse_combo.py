@@ -3,9 +3,17 @@ from copy import deepcopy
 from scipy.special import logit
 from batchie.fast_mvn import sample_mvn_from_precision
 import warnings
-from batchie.interfaces import BayesianModel, Predictor, PredictorHolder
+from batchie.interfaces import BayesianModel, Predictor
 from batchie.datasets import ComboPlate
 from batchie.common import ArrayType
+
+
+def copy_array_with_control_treatments_set_to_zero(
+    arr: ArrayType, treatment_array: ArrayType
+):
+    arr = arr.copy()
+    arr[treatment_array == CONTROL_SENTINEL_VALUE] = 0.0
+    return arr
 
 
 class ComboPredictor(Predictor):
@@ -19,6 +27,7 @@ class ComboPredictor(Predictor):
         alpha: float,
         prec: float,
     ):
+        super().__init__()
         self.W = deepcopy(W)
         self.W0 = deepcopy(W0)
         self.V2 = deepcopy(V2)
@@ -27,29 +36,26 @@ class ComboPredictor(Predictor):
         self.alpha = alpha
         self.var = 1.0 / prec
 
-    def get(self, attr, ix):
-        # mask -1 for single controls
-        A = self.__getattribute__(attr)[ix].copy()
-        controls = np.where(ix == -1)[0]
-        if len(controls > 0):
-            A[controls] = 0.0
-        return A
-
     def predict(self, plate: ComboPlate, **kwargs):
         interaction2 = np.sum(
-            self.W[plate.cline] * self.get("V2", plate.dd1) * self.get("V2", plate.dd2),
+            self.W[plate.cline]
+            * copy_array_with_control_treatments_set_to_zero(self.V2, plate.dd1)
+            * copy_array_with_control_treatments_set_to_zero(self.V2, plate.dd2),
             -1,
         )
         interaction1 = np.sum(
             self.W[plate.cline]
-            * (self.get("V1", plate.dd1) + self.get("V1", plate.dd2)),
+            * (
+                copy_array_with_control_treatments_set_to_zero(self.V1, plate.dd1)
+                + copy_array_with_control_treatments_set_to_zero(self.V1, plate.dd2)
+            ),
             -1,
         )
         intercept = (
             self.alpha
             + self.W0[plate.cline]
-            + self.get("V0", plate.dd1)
-            + self.get("V0", plate.dd2)
+            + copy_array_with_control_treatments_set_to_zero(self.V0, plate.dd1)
+            + copy_array_with_control_treatments_set_to_zero(self.V0, plate.dd2)
         )
         Mu = intercept + interaction1 + interaction2
         return Mu
@@ -85,13 +91,11 @@ class SparseDrugCombo(BayesianModel):
         individual_eff: bool = True,
         mult_gamma_proc: bool = True,
         local_shrinkage: bool = True,
-        a0: float = 1.1,  # gamma prior hyperparmas for all precisions
+        a0: float = 1.1,  # gamma prior hyperparams for all precisions
         b0: float = 1.1,
         min_Mu: float = -10.0,
         max_Mu: float = 10.0,
-        **kwargs,
-    ) -> None:
-        super().__init__(**kwargs)
+    ):
         self.n_embedding_dimensions = n_embedding_dimensions  # embedding size
         self.n_doses = n_doses
         self.n_samples = n_samples
@@ -104,7 +108,6 @@ class SparseDrugCombo(BayesianModel):
         # for the next two see BHATTACHARYA and DUNSON (2011)
         self.local_shrinkage = local_shrinkage
         self.mult_gamma_proc = mult_gamma_proc
-        # self.dummy_last = int(has_controls)
 
         # data holders
         self.y = np.array([], dtype=np.float64)
@@ -180,13 +183,6 @@ class SparseDrugCombo(BayesianModel):
         )
         return pred
 
-    def encode_obs(self):
-        y = np.array(self.y, copy=False)
-        cline = np.array(self.cline, copy=False)
-        dd1 = np.array(self.dd1, copy=False)
-        dd2 = np.array(self.dd2, copy=False)
-        return (y, cline, dd1, dd2)
-
     def reset_model(self):
         self.W = self.W * 0.0
         self.W0 = self.W0 * 0.0
@@ -197,45 +193,33 @@ class SparseDrugCombo(BayesianModel):
         self.prec = 100.0
         self.Mu = np.zeros(0, np.float32)
 
-    def copy_array_with_control_treatments_set_to_zero(
-        self, arr: ArrayType, treatment_array: ArrayType
-    ):
-        arr = arr.copy()
-        arr[treatment_array == CONTROL_SENTINEL_VALUE] = 0.0
-        return arr
-
-    def _W_step(self) -> None:
+    def _W_step(self):
         """the strategy is to iterate over each cell line
         and solve the linear problem"""
-        y, _, dd1, dd2 = self.encode_obs()
         for c in range(self.n_samples):
             cidx = self.cline == c
-            if len(cidx) == 0:
+            if cidx.sum() == 0:
                 # no data seen yet, sample from prior
                 stddev = 1.0 / np.sqrt(self.tau)
                 self.W[c] = np.random.normal(0.0, stddev)
                 continue
             tmp1 = (
-                self.copy_array_with_control_treatments_set_to_zero(self.V2, self.dd1)[
+                copy_array_with_control_treatments_set_to_zero(self.V2, self.dd1)[cidx]
+                * copy_array_with_control_treatments_set_to_zero(self.V2, self.dd2)[
                     cidx
                 ]
-                * self.copy_array_with_control_treatments_set_to_zero(
-                    self.V2, self.dd2
-                )[cidx]
             )
 
             tmp2 = (
-                self.copy_array_with_control_treatments_set_to_zero(self.V1, self.dd1)[
+                copy_array_with_control_treatments_set_to_zero(self.V1, self.dd1)[cidx]
+                * copy_array_with_control_treatments_set_to_zero(self.V1, self.dd2)[
                     cidx
                 ]
-                * self.copy_array_with_control_treatments_set_to_zero(
-                    self.V1, self.dd2
-                )[cidx]
             )
 
             X = tmp1 + tmp2
             old_contrib = X @ self.W[c]
-            resid = y[cidx] - self.Mu[cidx] + old_contrib
+            resid = self.y[cidx] - self.Mu[cidx] + old_contrib
 
             Xt = X.transpose()
             prec = self.prec
@@ -250,19 +234,17 @@ class SparseDrugCombo(BayesianModel):
             except:
                 warnings.warn("Numeric instability in Gibbs W-step...")
 
-    def _W0_step(self) -> None:
-        y, _, *_ = self.encode_obs()
+    def _W0_step(self):
         for c in range(self.n_samples):
             cidx = self.cline == 1
-            if len(cidx) == 0:
+            if cidx.sum() == 0:
                 # sample from prior
                 stddev = 1.0 / np.sqrt(self.tau0)
                 self.W0[c] = np.random.normal(0.0, stddev)
             else:
-                resid = y[cidx] - self.Mu[cidx] + self.W0[c]
-                # resid = np.clip(resid, -10.0, 10.0)
+                resid = self.y[cidx] - self.Mu[cidx] + self.W0[c]
                 old_contrib = self.W0[c]
-                N = len(cidx)
+                N = cidx.sum()
                 mean = self.prec * resid.sum() / (self.prec * N + self.tau0)
                 stddev = 1.0 / np.sqrt(self.prec * N + self.tau0)
                 self.W0[c] = np.random.normal(mean, stddev)
@@ -273,7 +255,6 @@ class SparseDrugCombo(BayesianModel):
         but the trick is to handle the case when drug-pair appears in first
         postition and when it appears in second position
         and solve the linear problem"""
-        y, cline, dd1, dd2 = self.encode_obs()
         for m in range(self.n_doses):
             # slice where m, k appears as drug1
             idx1 = self.dd1 == m
@@ -293,13 +274,13 @@ class SparseDrugCombo(BayesianModel):
                 )
             else:
                 X1 = (
-                    self.W[cline[idx1]]
-                    * self.copy_array_with_control_treatments_set_to_zero(self.V2, dd2)[
+                    self.W[self.cline[idx1]]
+                    * copy_array_with_control_treatments_set_to_zero(self.V2, self.dd2)[
                         idx1
                     ]
                 )
                 old_contrib1 = X1 @ self.V2[m]
-                resid1 = y[idx1] - self.Mu[idx1] + old_contrib1
+                resid1 = self.y[idx1] - self.Mu[idx1] + old_contrib1
 
             if idx2.sum() == 0:
                 resid2 = []
@@ -309,13 +290,13 @@ class SparseDrugCombo(BayesianModel):
                 )
             else:
                 X2 = (
-                    self.W[cline[idx2]]
-                    * self.copy_array_with_control_treatments_set_to_zero(self.V2, dd1)[
+                    self.W[self.cline[idx2]]
+                    * copy_array_with_control_treatments_set_to_zero(self.V2, self.dd1)[
                         idx2
                     ]
                 )
                 old_contrib2 = X2 @ self.V2[m]
-                resid2 = y[idx2] - self.Mu[idx2] + old_contrib2
+                resid2 = self.y[idx2] - self.Mu[idx2] + old_contrib2
 
             # combine slices of data
             X = np.concatenate([X1, X2])
@@ -343,7 +324,6 @@ class SparseDrugCombo(BayesianModel):
         but the trick is to handle the case when drug-pair appears in first
         postition and when it appears in second position
         and solve the linear problem"""
-        y, cline, dd1, dd2 = self.encode_obs()
         for m in range(self.n_doses):
             # slice where m, k appears as drug1
             idx1 = self.dd1 == m
@@ -362,9 +342,9 @@ class SparseDrugCombo(BayesianModel):
                     0, self.n_embedding_dimensions
                 )
             else:
-                X1 = self.W[cline[idx1]]
+                X1 = self.W[self.cline[idx1]]
                 old_contrib1 = X1 @ self.V1[m]
-                resid1 = y[idx1] - self.Mu[idx1] + old_contrib1
+                resid1 = self.y[idx1] - self.Mu[idx1] + old_contrib1
 
             if idx2.sum() == 0:
                 resid2 = []
@@ -373,19 +353,17 @@ class SparseDrugCombo(BayesianModel):
                     0, self.n_embedding_dimensions
                 )
             else:
-                X2 = self.W[cline[idx2]]
+                X2 = self.W[self.cline[idx2]]
                 old_contrib2 = X2 @ self.V1[m]
-                resid2 = y[idx2] - self.Mu[idx2] + old_contrib2
+                resid2 = self.y[idx2] - self.Mu[idx2] + old_contrib2
 
             # combine slices of data
             X = np.concatenate([X1, X2])
             resid = np.concatenate([resid1, resid2])
-            # resid = np.clip(resid, -10.0, 10.0)
             old_contrib = np.concatenate([old_contrib1, old_contrib2])
             idx = idx1 | idx2
 
             # sample form posterior
-            # X = np.clip(X, -10.0, 10.0)
             Xt = X.transpose()
             mu_part = (Xt @ resid) * self.prec
             Q = (Xt @ X) * self.prec
@@ -399,12 +377,11 @@ class SparseDrugCombo(BayesianModel):
                 warnings.warn("Numeric instability in Gibbs V-step...")
 
     def _V0_step(self) -> None:
-        y, cline, dd1, dd2 = self.encode_obs()
         for m in range(self.n_doses):
             # slice where m, k appears as drug1
-            idx1 = dd1 == m
+            idx1 = self.dd1 == m
             # slice where m, k appears as drug2
-            idx2 = dd2 == m
+            idx2 = self.dd2 == m
 
             if (idx1.sum() + idx2.sum()) == 0:
                 # no data seen yet, sample from prior
@@ -414,22 +391,21 @@ class SparseDrugCombo(BayesianModel):
 
             old_value = self.V0[m]
 
-            if len(idx1) == 0:
+            if idx1.sum() == 0:
                 resid1 = []
             else:
-                resid1 = y[idx1] - self.Mu[idx1] + old_value
+                resid1 = self.y[idx1] - self.Mu[idx1] + old_value
 
             # slice where m, k appears as drug2
             if idx2.sum() == 0:
                 resid2 = []
             else:
-                resid2 = y[idx2] - self.Mu[idx2] + old_value
+                resid2 = self.y[idx2] - self.Mu[idx2] + old_value
 
             # combine slices of data
             resid = np.concatenate([resid1, resid2])
-            # resid = np.clip(resid, -10.0, 10.0)
             idx = idx1 | idx2
-            N = len(idx)
+            N = idx.sum()
             mean = self.prec * resid.sum() / (self.prec * N + self.phi0[m] * self.eta0)
             stddev = 1.0 / np.sqrt(self.prec * N + self.phi0[m] * self.eta0)
             self.V0[m] = np.random.normal(mean, stddev)
@@ -439,7 +415,6 @@ class SparseDrugCombo(BayesianModel):
         if self.n_obs == 0:
             self.prec = np.random.gamma(self.a0, 1.0 / self.b0)
             return
-        # self._reconstruct_Mu()
         sse = np.square(self.y - self.Mu).sum()
         an = self.a0 + 0.5 * self.n_obs
         bn = self.b0 + 0.5 * sse
@@ -508,14 +483,12 @@ class SparseDrugCombo(BayesianModel):
             an = 2 + 0.5 * self.n_samples * self.n_embedding_dimensions
             bn = 1 + 0.5 * (tmp * parssq).sum()
             self.gam[0] = np.random.gamma(an, 1.0 / (bn + 1e-3))
-            # self.gam[0] = np.clip(self.gam[0], 1.0, 10000.0)
             # sample all others
             for d in range(1, self.n_embedding_dimensions):
                 tmp = np.cumprod(self.gam)[d:] / self.gam[d]
                 an = 3 + 0.5 * self.n_samples * (self.n_embedding_dimensions - d)
                 bn = 1 + 0.5 * (tmp * parssq[:, d:]).sum()
                 self.gam[d] = np.random.gamma(an, 1.0 / (bn + 1e-3))
-                # self.gam[d] = np.clip(self.gam[d], 0.5, 100.0)
             self.tau = np.cumprod(self.gam)
         else:
             an = self.a0 + 0.5 * self.n_samples
@@ -541,8 +514,7 @@ class SparseDrugCombo(BayesianModel):
         if self.fake_intercept:
             self.alpha = np.mean(self.y)
         else:
-            y, *_ = self.encode_obs()
-            mean = (y - self.Mu + self.alpha).mean()
+            mean = (self.y - self.Mu + self.alpha).mean()
             stddev = 1.0 / np.sqrt(self.n_obs)
             self.alpha = np.random.normal(mean, stddev)
         self.Mu += self.alpha - old_value
@@ -567,28 +539,27 @@ class SparseDrugCombo(BayesianModel):
         if self.n_obs == 0:
             return
         # Reconstruct the entire matrix of means, excluding the upper triangular portion
-        _, cline, dd1, dd2 = self.encode_obs()
         interaction2 = np.sum(
             (
-                self.W[cline]
-                * self.copy_array_with_control_treatments_set_to_zero(self.V2, dd1)
-                * self.copy_array_with_control_treatments_set_to_zero(self.V2, dd2)
+                self.W[self.cline]
+                * copy_array_with_control_treatments_set_to_zero(self.V2, self.dd1)
+                * copy_array_with_control_treatments_set_to_zero(self.V2, self.dd2)
             ),
             -1,
         )
         interaction1 = np.sum(
-            self.W[cline]
+            self.W[self.cline]
             * (
-                self.copy_array_with_control_treatments_set_to_zero(self.V1, dd1)
-                + self.copy_array_with_control_treatments_set_to_zero(self.V1, dd2)
+                copy_array_with_control_treatments_set_to_zero(self.V1, self.dd1)
+                + copy_array_with_control_treatments_set_to_zero(self.V1, self.dd2)
             ),
             -1,
         )
         intercept = (
             self.alpha
-            + self.W0[cline]
-            + self.copy_array_with_control_treatments_set_to_zero(self.V0, dd1)
-            + self.copy_array_with_control_treatments_set_to_zero(self.V0, dd2)
+            + self.W0[self.cline]
+            + copy_array_with_control_treatments_set_to_zero(self.V0, self.dd1)
+            + copy_array_with_control_treatments_set_to_zero(self.V0, self.dd2)
         )
         self.Mu = intercept + interaction1 + interaction2
         if clip:
@@ -597,23 +568,23 @@ class SparseDrugCombo(BayesianModel):
     def predict(self, cline: ArrayType, dd1: ArrayType, dd2: ArrayType):
         interaction2 = np.sum(
             self.W[cline]
-            * self.copy_array_with_control_treatments_set_to_zero(self.V2, dd1)
-            * self.copy_array_with_control_treatments_set_to_zero(self.V2, dd2),
+            * copy_array_with_control_treatments_set_to_zero(self.V2, dd1)
+            * copy_array_with_control_treatments_set_to_zero(self.V2, dd2),
             -1,
         )
         interaction1 = np.sum(
             self.W[cline]
             * (
-                self.copy_array_with_control_treatments_set_to_zero(self.V1, dd1)
-                + self.copy_array_with_control_treatments_set_to_zero(self.V1, dd2)
+                copy_array_with_control_treatments_set_to_zero(self.V1, dd1)
+                + copy_array_with_control_treatments_set_to_zero(self.V1, dd2)
             ),
             -1,
         )
         intercept = (
             self.alpha
             + self.W0[cline]
-            + self.copy_array_with_control_treatments_set_to_zero(self.V0, dd1)
-            + self.copy_array_with_control_treatments_set_to_zero(self.V0, dd2)
+            + copy_array_with_control_treatments_set_to_zero(self.V0, dd1)
+            + copy_array_with_control_treatments_set_to_zero(self.V0, dd2)
         )
         Mu = intercept + interaction1 + interaction2
         return Mu
@@ -621,13 +592,13 @@ class SparseDrugCombo(BayesianModel):
     def predict_single_drug(self, cline: ArrayType, dd1: ArrayType):
         interaction1 = np.sum(
             self.W[cline]
-            * self.copy_array_with_control_treatments_set_to_zero(self.V1, dd1),
+            * copy_array_with_control_treatments_set_to_zero(self.V1, dd1),
             -1,
         )
         intercept = (
             self.alpha
             + self.W0[cline]
-            + self.copy_array_with_control_treatments_set_to_zero(self.V0, dd1)
+            + copy_array_with_control_treatments_set_to_zero(self.V0, dd1)
         )
         Mu = intercept + interaction1
         return Mu
@@ -635,8 +606,8 @@ class SparseDrugCombo(BayesianModel):
     def bliss(self, cline: ArrayType, dd1: ArrayType, dd2: ArrayType):
         interaction2 = np.sum(
             self.W[cline]
-            * self.copy_array_with_control_treatments_set_to_zero(self.V2, dd1)
-            * self.copy_array_with_control_treatments_set_to_zero(self.V2, dd2),
+            * copy_array_with_control_treatments_set_to_zero(self.V2, dd1)
+            * copy_array_with_control_treatments_set_to_zero(self.V2, dd2),
             -1,
         )
         return interaction2
