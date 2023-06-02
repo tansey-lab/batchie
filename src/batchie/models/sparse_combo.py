@@ -114,9 +114,6 @@ class SparseDrugCombo(BayesianModel):
         self.cline = np.array([], dtype=np.int32)
         self.dd1 = np.array([], dtype=np.float64)
         self.dd2 = np.array([], dtype=np.float64)
-        self.cline_idxs = defaultdict(list)
-        self.dd1_idxs = defaultdict(list)
-        self.dd2_idxs = defaultdict(list)
 
         # hyperpriors
         self.a0 = a0  # inverse gamma param 1 for prec
@@ -217,7 +214,7 @@ class SparseDrugCombo(BayesianModel):
         and solve the linear problem"""
         y, _, dd1, dd2 = self.encode_obs()
         for c in range(self.n_samples):
-            cidx = np.array(self.cline_idxs[c], copy=False)
+            cidx = self.cline == c
             if len(cidx) == 0:
                 # no data seen yet, sample from prior
                 stddev = 1.0 / np.sqrt(self.tau)
@@ -277,7 +274,7 @@ class SparseDrugCombo(BayesianModel):
                 self.V2[m] = np.random.normal(0, stddev)
                 continue
 
-            if len(idx1) == 0:
+            if idx1.sum() == 0:
                 resid1 = []
                 old_contrib1 = []
                 X1 = np.array([], dtype=np.float32).reshape(
@@ -288,7 +285,7 @@ class SparseDrugCombo(BayesianModel):
                 old_contrib1 = X1 @ self.V2[m]
                 resid1 = y[idx1] - self.Mu[idx1] + old_contrib1
 
-            if len(idx2) == 0:
+            if idx2.sum() == 0:
                 resid2 = []
                 old_contrib2 = []
                 X2 = np.array([], dtype=np.float32).reshape(
@@ -304,7 +301,7 @@ class SparseDrugCombo(BayesianModel):
             resid = np.concatenate([resid1, resid2])
             # resid = np.clip(resid, -10.0, 10.0)
             old_contrib = np.concatenate([old_contrib1, old_contrib2])
-            idx = np.concatenate([idx1, idx2])
+            idx = idx1 | idx2
 
             # sample form posterior
             # X = np.clip(X, -10.0, 10.0)
