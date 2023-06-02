@@ -102,9 +102,6 @@ class BayesianModel:
     def mcmc_step(self):
         raise NotImplementedError
 
-    def update(self, plate: Plate, y: ArrayType, **kwargs):
-        raise NotImplementedError
-
     def update_list(self, plates: list[Plate], ys: list[ArrayType]):
         for plate, y in zip(plates, ys):
             self.update(plate, y)
