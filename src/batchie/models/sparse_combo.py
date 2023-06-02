@@ -1,7 +1,4 @@
 import numpy as np
-import pandas as pd
-from collections import defaultdict
-from typing import Optional, Union
 from copy import deepcopy
 from scipy.special import logit
 from batchie.fast_mvn import sample_mvn_from_precision
@@ -70,6 +67,9 @@ def interactions_to_logits(
         viability = interaction + single_effects
     y_logit = logit(np.clip(viability, a_min=0.01, a_max=0.99))
     return y_logit
+
+
+CONTROL_SENTINEL_VALUE = -1
 
 
 class SparseDrugCombo(BayesianModel):
@@ -168,15 +168,11 @@ class SparseDrugCombo(BayesianModel):
     def n_obs(self):
         return self.y.size
 
-    def _update(self, y, cline, dd1, dd2):
+    def update(self, y, cline, dd1, dd2):
         self.y = np.concatenate([self.y, y])
         self.cline = np.concatenate([self.cline, cline])
         self.dd1 = np.concatenate([self.dd1, dd1])
         self.dd2 = np.concatenate([self.dd2, dd2])
-
-    def update(self, plate: ComboPlate, y: ArrayType):
-        for y_, cline, dd1, dd2 in zip(y, plate.cline, plate.dd1, plate.dd2):
-            self._update(y_, cline, dd1, dd2)
 
     def predictor(self) -> ComboPredictor:
         pred = ComboPredictor(
@@ -201,13 +197,12 @@ class SparseDrugCombo(BayesianModel):
         self.prec = 100.0
         self.Mu = np.zeros(0, np.float32)
 
-    def get(self, attr, ix):
-        # mask -1 for single controls
-        A = self.__getattribute__(attr)[ix].copy()
-        controls = np.where(ix == -1)[0]
-        if len(controls > 0):
-            A[controls] = 0.0
-        return A
+    def copy_array_with_control_treatments_set_to_zero(
+        self, arr: ArrayType, treatment_array: ArrayType
+    ):
+        arr = arr.copy()
+        arr[treatment_array == CONTROL_SENTINEL_VALUE] = 0.0
+        return arr
 
     def _W_step(self) -> None:
         """the strategy is to iterate over each cell line
@@ -220,8 +215,24 @@ class SparseDrugCombo(BayesianModel):
                 stddev = 1.0 / np.sqrt(self.tau)
                 self.W[c] = np.random.normal(0.0, stddev)
                 continue
-            tmp1 = self.get("V2", dd1[cidx]) * self.get("V2", dd2[cidx])
-            tmp2 = self.get("V1", dd1[cidx]) + self.get("V1", dd2[cidx])
+            tmp1 = (
+                self.copy_array_with_control_treatments_set_to_zero(self.V2, self.dd1)[
+                    cidx
+                ]
+                * self.copy_array_with_control_treatments_set_to_zero(
+                    self.V2, self.dd2
+                )[cidx]
+            )
+
+            tmp2 = (
+                self.copy_array_with_control_treatments_set_to_zero(self.V1, self.dd1)[
+                    cidx
+                ]
+                * self.copy_array_with_control_treatments_set_to_zero(
+                    self.V1, self.dd2
+                )[cidx]
+            )
+
             X = tmp1 + tmp2
             old_contrib = X @ self.W[c]
             resid = y[cidx] - self.Mu[cidx] + old_contrib
@@ -281,7 +292,12 @@ class SparseDrugCombo(BayesianModel):
                     0, self.n_embedding_dimensions
                 )
             else:
-                X1 = self.W[cline[idx1]] * self.get("V2", dd2[idx1])
+                X1 = (
+                    self.W[cline[idx1]]
+                    * self.copy_array_with_control_treatments_set_to_zero(self.V2, dd2)[
+                        idx1
+                    ]
+                )
                 old_contrib1 = X1 @ self.V2[m]
                 resid1 = y[idx1] - self.Mu[idx1] + old_contrib1
 
@@ -292,7 +308,12 @@ class SparseDrugCombo(BayesianModel):
                     0, self.n_embedding_dimensions
                 )
             else:
-                X2 = self.W[cline[idx2]] * self.get("V2", dd1[idx2])
+                X2 = (
+                    self.W[cline[idx2]]
+                    * self.copy_array_with_control_treatments_set_to_zero(self.V2, dd1)[
+                        idx2
+                    ]
+                )
                 old_contrib2 = X2 @ self.V2[m]
                 resid2 = y[idx2] - self.Mu[idx2] + old_contrib2
 
@@ -548,13 +569,26 @@ class SparseDrugCombo(BayesianModel):
         # Reconstruct the entire matrix of means, excluding the upper triangular portion
         _, cline, dd1, dd2 = self.encode_obs()
         interaction2 = np.sum(
-            self.W[cline] * self.get("V2", dd1) * self.get("V2", dd2), -1
+            (
+                self.W[cline]
+                * self.copy_array_with_control_treatments_set_to_zero(self.V2, dd1)
+                * self.copy_array_with_control_treatments_set_to_zero(self.V2, dd2)
+            ),
+            -1,
         )
         interaction1 = np.sum(
-            self.W[cline] * (self.get("V1", dd1) + self.get("V1", dd2)), -1
+            self.W[cline]
+            * (
+                self.copy_array_with_control_treatments_set_to_zero(self.V1, dd1)
+                + self.copy_array_with_control_treatments_set_to_zero(self.V1, dd2)
+            ),
+            -1,
         )
         intercept = (
-            self.alpha + self.W0[cline] + self.get("V0", dd1) + self.get("V0", dd2)
+            self.alpha
+            + self.W0[cline]
+            + self.copy_array_with_control_treatments_set_to_zero(self.V0, dd1)
+            + self.copy_array_with_control_treatments_set_to_zero(self.V0, dd2)
         )
         self.Mu = intercept + interaction1 + interaction2
         if clip:
@@ -562,26 +596,48 @@ class SparseDrugCombo(BayesianModel):
 
     def predict(self, cline: ArrayType, dd1: ArrayType, dd2: ArrayType):
         interaction2 = np.sum(
-            self.W[cline] * self.get("V2", dd1) * self.get("V2", dd2), -1
+            self.W[cline]
+            * self.copy_array_with_control_treatments_set_to_zero(self.V2, dd1)
+            * self.copy_array_with_control_treatments_set_to_zero(self.V2, dd2),
+            -1,
         )
         interaction1 = np.sum(
-            self.W[cline] * (self.get("V1", dd1) + self.get("V1", dd2)), -1
+            self.W[cline]
+            * (
+                self.copy_array_with_control_treatments_set_to_zero(self.V1, dd1)
+                + self.copy_array_with_control_treatments_set_to_zero(self.V1, dd2)
+            ),
+            -1,
         )
         intercept = (
-            self.alpha + self.W0[cline] + self.get("V0", dd1) + self.get("V0", dd2)
+            self.alpha
+            + self.W0[cline]
+            + self.copy_array_with_control_treatments_set_to_zero(self.V0, dd1)
+            + self.copy_array_with_control_treatments_set_to_zero(self.V0, dd2)
         )
         Mu = intercept + interaction1 + interaction2
         return Mu
 
     def predict_single_drug(self, cline: ArrayType, dd1: ArrayType):
-        interaction1 = np.sum(self.W[cline] * self.get("V1", dd1), -1)
-        intercept = self.alpha + self.W0[cline] + self.get("V0", dd1)
+        interaction1 = np.sum(
+            self.W[cline]
+            * self.copy_array_with_control_treatments_set_to_zero(self.V1, dd1),
+            -1,
+        )
+        intercept = (
+            self.alpha
+            + self.W0[cline]
+            + self.copy_array_with_control_treatments_set_to_zero(self.V0, dd1)
+        )
         Mu = intercept + interaction1
         return Mu
 
     def bliss(self, cline: ArrayType, dd1: ArrayType, dd2: ArrayType):
         interaction2 = np.sum(
-            self.W[cline] * self.get("V2", dd1) * self.get("V2", dd2), -1
+            self.W[cline]
+            * self.copy_array_with_control_treatments_set_to_zero(self.V2, dd1)
+            * self.copy_array_with_control_treatments_set_to_zero(self.V2, dd2),
+            -1,
         )
         return interaction2
 
