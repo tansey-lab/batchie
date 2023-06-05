@@ -32,7 +32,8 @@ dependencies = [
     "omegaconf==2.1.1",
     "pandas>=2,<3",
     "scipy>=1.7,<2",
-    "tqdm"
+    "tqdm",
+    "h5py>=3.8,<4"
 ]
 
 [project.optional-dependencies]
