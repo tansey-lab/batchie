@@ -38,7 +38,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["check-manifest"]
-test = ["pytest", "tox"]
+test = ["pytest", "pytest-mock", "tox"]
 
 [project.urls]
 "Homepage" = "https://github.com/tansey-lab/batchie"
