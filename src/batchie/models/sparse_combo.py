@@ -1,5 +1,4 @@
 import numpy as np
-from copy import deepcopy
 from scipy.special import logit
 from batchie.fast_mvn import sample_mvn_from_precision
 import warnings
@@ -8,6 +7,7 @@ from batchie.datasets import ComboPlate
 from batchie.common import ArrayType
 from numpy.random import BitGenerator
 from typing import Optional
+from tqdm import trange
 
 
 def copy_array_with_control_treatments_set_to_zero(
@@ -30,11 +30,11 @@ class ComboPredictor(Predictor):
         prec: float,
     ):
         super().__init__()
-        self.W = deepcopy(W)
-        self.W0 = deepcopy(W0)
-        self.V2 = deepcopy(V2)
-        self.V1 = deepcopy(V1)
-        self.V0 = deepcopy(V0)
+        self.W = W
+        self.W0 = W0
+        self.V2 = V2
+        self.V1 = V1
+        self.V0 = V0
         self.alpha = alpha
         self.var = 1.0 / prec
 
@@ -78,6 +78,26 @@ def interactions_to_logits(
 
 
 CONTROL_SENTINEL_VALUE = -1
+
+
+def sample(
+    model: BayesianModel,
+    chain_index: int,
+    n_burnin: int,
+    n_samples: int,
+    thin: int,
+    disable_progress_bar=False,
+):
+    for _ in trange(n_burnin, disable=disable_progress_bar):
+        self.model.mcmc_step()
+
+    predictors = []
+    total_steps = n * self.thin
+    for s in trange(total_steps, disable=self.disable_progress_bar):
+        self.model.mcmc_step()
+        if ((s + 1) % self.thin) == 0:
+            predictors.append(self.model.predictor())
+    return predictors
 
 
 class SparseDrugCombo(BayesianModel):
@@ -183,7 +203,13 @@ class SparseDrugCombo(BayesianModel):
 
     def predictor(self) -> ComboPredictor:
         pred = ComboPredictor(
-            self.W, self.W0, self.V2, self.V1, self.V0, self.alpha, self.prec
+            self.W.copy(),
+            self.W0.copy(),
+            self.V2.copy(),
+            self.V1.copy(),
+            self.V0.copy(),
+            self.alpha,
+            self.prec,
         )
         return pred
 

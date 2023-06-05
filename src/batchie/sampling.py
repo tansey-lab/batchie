@@ -1,50 +1,33 @@
-from copy import deepcopy
-import numpy as np
+import numpy.random
 from tqdm import trange
-from batchie.datasets import Plate
-
-BayesianModel, Predictor,
-
+from batchie.interfaces import BayesianModel, Predictor
+from typing import Callable, List
 from common import ArrayType
 
 
-class Sampler:
-    def __init__(
-        self,
-        model: BayesianModel,
-        thin: int,
-        burnin: int,
-        seed: int,
-        verbose: bool = True,
-        rng=None,
-    ):
-        if rng is None:
-            self.rng = np.random.default_rng()
-        else:
-            self.rng = rng
+def sample(
+    model_factory: Callable[[numpy.random.BitGenerator], BayesianModel],
+    seed: int,
+    n_chains: int,
+    chain_index: int,
+    n_burnin: int,
+    n_samples: int,
+    thin: int,
+    disable_progress_bar=False,
+) -> List[Predictor]:
+    seeds = numpy.random.SeedSequence(seed).spawn(n_chains)
+    rng = numpy.random.default_rng(seeds[chain_index])
 
-        self.model = deepcopy(model)
-        self.thin = thin
-        self.burnin = burnin
-        self.disable_progress_bar = not verbose
+    model = model_factory(rng)
 
-    def sample(self, n: int) -> list[Predictor]:
-        ## OPTIONAL: reset the model before sampling
-        self.model.reset_model()
+    for _ in trange(n_burnin, disable=disable_progress_bar):
+        model.mcmc_step()
 
-        for _ in trange(self.burnin, disable=self.disable_progress_bar):
-            self.model.mcmc_step()
+    predictors = []
+    total_steps = n_samples * thin
+    for step_index in trange(total_steps, disable=disable_progress_bar):
+        model.mcmc_step()
+        if ((step_index + 1) % thin) == 0:
+            predictors.append(model.predictor())
 
-        predictors = []
-        total_steps = n * self.thin
-        for s in trange(total_steps, disable=self.disable_progress_bar):
-            self.model.mcmc_step()
-            if ((s + 1) % self.thin) == 0:
-                predictors.append(self.model.predictor())
-        return predictors
-
-    def update(self, plate: Plate, y: ArrayType) -> None:
-        self.model.update(plate, y)
-
-    def update_list(self, plates: list[Plate], ys: list[ArrayType]) -> None:
-        self.model.update_list(plates, ys)
+    return predictors
