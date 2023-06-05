@@ -2,7 +2,6 @@ import numpy.random
 from tqdm import trange
 from batchie.interfaces import BayesianModel, Predictor
 from typing import Callable, List
-from common import ArrayType
 
 
 def sample(

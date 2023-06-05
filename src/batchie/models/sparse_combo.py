@@ -80,26 +80,6 @@ def interactions_to_logits(
 CONTROL_SENTINEL_VALUE = -1
 
 
-def sample(
-    model: BayesianModel,
-    chain_index: int,
-    n_burnin: int,
-    n_samples: int,
-    thin: int,
-    disable_progress_bar=False,
-):
-    for _ in trange(n_burnin, disable=disable_progress_bar):
-        self.model.mcmc_step()
-
-    predictors = []
-    total_steps = n * self.thin
-    for s in trange(total_steps, disable=self.disable_progress_bar):
-        self.model.mcmc_step()
-        if ((s + 1) % self.thin) == 0:
-            predictors.append(self.model.predictor())
-    return predictors
-
-
 class SparseDrugCombo(BayesianModel):
     """Simple Gibbs sampler for Sparse Representation"""
 
