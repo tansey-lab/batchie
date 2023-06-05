@@ -1,78 +1,101 @@
 import numpy as np
-from batchie.interfaces import Plate
+from batchie.common import ArrayType
+import h5py
 
 
-class ComboPlate(Plate):
+def numpy_array_is_0_indexed_integers(arr: ArrayType):
+    # Test numpy array arr contains integers, or something that can be safely cast to int32
+    if not np.issubdtype(arr.dtype, int):
+        return False
+
+    return np.all(np.sort(np.unique(arr)) == np.arange(np.unique(arr).shape[0]))
+
+
+class Dataset:
     def __init__(
         self,
-        idx: np.ndarray,
-        cline: np.ndarray,
-        dd1: np.ndarray,
-        dd2: np.ndarray,
-        **kwargs,
+        treatments: ArrayType,
+        observations: ArrayType,
+        sample_ids: ArrayType,
+        plate_ids: ArrayType,
     ):
-        super().__init__(**kwargs)
-        self.idx = idx
-        self.cline = cline
-        self.dd1 = np.maximum(dd1, dd2)
-        self.dd2 = np.minimum(dd1, dd2)
+        n_experiments = observations.shape[0]
+        if sample_ids.shape[0] != n_experiments:
+            raise ValueError("sample_ids must have same length as observations")
 
-    ## Concatenates current plate with all plates in plate_list
-    ## Only considers unique triplets
-    def combine(self, plate_list: list["ComboPlate"], **kwargs) -> "ComboPlate":
-        current_set = set()
-        idx = []
-        cline = []
-        dd1 = []
-        dd2 = []
-        for i, c, d1, d2 in zip(self.idx, self.cline, self.dd1, self.dd2):
-            if ((c, d1, d2) not in current_set) and ((c, d2, d1) not in current_set):
-                idx.append(i)
-                cline.append(c)
-                dd1.append(d1)
-                dd2.append(d2)
-                current_set.add((c, d1, d2))
+        if treatments.shape[0] != n_experiments:
+            raise ValueError("treatments must have same length as observations")
 
-        for p in plate_list:
-            for i, c, d1, d2 in zip(p.idx, p.cline, p.dd1, p.dd2):
-                if ((c, d1, d2) not in current_set) and (
-                    (c, d2, d1) not in current_set
-                ):
-                    idx.append(i)
-                    cline.append(c)
-                    dd1.append(d1)
-                    dd2.append(d2)
-                    current_set.add((c, d1, d2))
+        if plate_ids.shape[0] != n_experiments:
+            raise ValueError("plate_ids must have same length as observations")
 
-        idx = np.array(idx, dtype=np.int32)
-        cline = np.array(cline, dtype=np.int32)
-        dd1 = np.array(dd1, dtype=np.int32)
-        dd2 = np.array(dd2, dtype=np.int32)
-        plate = ComboPlate(idx, cline, dd1, dd2)
-        return plate
+        # Assert sample_ids and plate_ids are integers between 0 and the unique number of samples/plates
+        if not numpy_array_is_0_indexed_integers(sample_ids):
+            raise ValueError(
+                "sample_ids must be integers between 0 and the unique number of samples"
+            )
 
-    def size(self):
-        return len(self.idx)
+        if not numpy_array_is_0_indexed_integers(plate_ids):
+            raise ValueError(
+                "plate_ids must be integers between 0 and the unique number of plates"
+            )
 
-    def split(self, new_size: int) -> tuple["ComboPlate", "ComboPlate"]:
-        n = self.size()
-        assert new_size <= n, "Attempted to subsample more indices than exist!"
+        if not numpy_array_is_0_indexed_integers(treatments):
+            raise ValueError(
+                "treatments must be integers between 0 and the unique number of treatments"
+            )
 
-        indices = np.random.choice(n, size=new_size, replace=False)
-        idx = self.idx[indices]
-        cline = self.cline[indices]
-        dd1 = self.dd1[indices]
-        dd2 = self.dd2[indices]
-        plate1 = ComboPlate(idx, cline, dd1, dd2)
+        if not np.issubdtype(observations.dtype, float):
+            raise ValueError("observations must be floats")
 
-        indices_rem = np.setdiff1d(np.arange(n), indices)
-        idx_rem = self.idx[indices_rem]
-        cline_rem = self.cline[indices_rem]
-        dd1_rem = self.dd1[indices_rem]
-        dd2_rem = self.dd2[indices_rem]
-        plate2 = ComboPlate(idx_rem, cline_rem, dd1_rem, dd2_rem)
-        return (plate1, plate2)
+        self.treatments = treatments
+        self.observations = observations
+        self.sample_ids = sample_ids
+        self.plate_ids = plate_ids
 
-    def subsample(self, new_size: int) -> "ComboPlate":
-        plate1, _ = self.split(new_size)
-        return plate1
+    def get_plate(self, plate_id: int):
+        return (
+            self.treatments[self.plate_ids == plate_id, :],
+            self.sample_ids[self.plate_ids == plate_id],
+            self.observations[self.plate_ids == plate_id],
+        )
+
+    @property
+    def unique_plate_ids(self):
+        return np.unique(self.plate_ids)
+
+    @property
+    def unique_sample_ids(self):
+        return np.unique(self.sample_ids)
+
+    @property
+    def unique_treatments(self):
+        return np.unique(self.treatments)
+
+    @property
+    def n_treatments(self):
+        return self.treatments.shape[1]
+
+    def save_h5(self, fn):
+        """Save all arrays to h5"""
+        with h5py.File(fn, "w") as f:
+            f.create_dataset("treatments", data=self.treatments)
+            f.create_dataset("observations", data=self.observations)
+            f.create_dataset("sample_ids", data=self.sample_ids)
+            f.create_dataset("plate_ids", data=self.plate_ids)
+
+    @staticmethod
+    def load_h5(path):
+        """Load saved data from h5 archive"""
+        with h5py.File(path, "r") as f:
+            treatments = f["treatments"][:]
+            observations = f["observations"][:]
+            sample_ids = f["sample_ids"][:]
+            plate_ids = f["plate_ids"][:]
+
+        return Dataset(
+            treatments=treatments,
+            observations=observations,
+            sample_ids=sample_ids,
+            plate_ids=plate_ids,
+        )

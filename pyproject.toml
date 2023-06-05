@@ -32,12 +32,13 @@ dependencies = [
     "omegaconf==2.1.1",
     "pandas>=2,<3",
     "scipy>=1.7,<2",
-    "tqdm"
+    "tqdm",
+    "h5py>=3.8,<4"
 ]
 
 [project.optional-dependencies]
 dev = ["check-manifest"]
-test = ["pytest", "tox"]
+test = ["pytest", "pytest-mock", "tox"]
 
 [project.urls]
 "Homepage" = "https://github.com/tansey-lab/batchie"
