@@ -3,11 +3,9 @@ from scipy.special import logit
 from batchie.fast_mvn import sample_mvn_from_precision
 import warnings
 from batchie.interfaces import BayesianModel, Predictor
-from batchie.datasets import ComboPlate
 from batchie.common import ArrayType
 from numpy.random import BitGenerator
 from typing import Optional
-from tqdm import trange
 
 
 def copy_array_with_control_treatments_set_to_zero(
@@ -18,7 +16,7 @@ def copy_array_with_control_treatments_set_to_zero(
     return arr
 
 
-class ComboPredictor(Predictor):
+class ComboPredictor:
     def __init__(
         self,
         W: ArrayType,
@@ -38,7 +36,7 @@ class ComboPredictor(Predictor):
         self.alpha = alpha
         self.var = 1.0 / prec
 
-    def predict(self, plate: ComboPlate, **kwargs):
+    def predict(self, plate, **kwargs):
         interaction2 = np.sum(
             self.W[plate.cline]
             * copy_array_with_control_treatments_set_to_zero(self.V2, plate.dd1)
