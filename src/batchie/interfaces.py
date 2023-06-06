@@ -105,3 +105,18 @@ class BayesianModel:
     def update_list(self, plates: list[Plate], ys: list[ArrayType]):
         for plate, y in zip(plates, ys):
             self.update(plate, y)
+
+
+class ResultsHolder:
+    def add_mcmc_sample(self, sample):
+        raise NotImplementedError
+
+    def get_mcmc_sample(self, step_index: int):
+        raise NotImplementedError
+
+    def save_h5(self, fn: str):
+        raise NotImplementedError
+
+    @staticmethod
+    def load_h5(path: str):
+        raise NotImplementedError

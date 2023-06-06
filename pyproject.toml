@@ -27,9 +27,7 @@ classifiers = [
 ]
 
 dependencies = [
-    "joblib==1.1.0",
     "numpy>=1.2,<2",
-    "omegaconf==2.1.1",
     "pandas>=2,<3",
     "scipy>=1.7,<2",
     "tqdm",
