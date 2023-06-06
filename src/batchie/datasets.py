@@ -53,11 +53,12 @@ class Dataset:
         self.sample_ids = sample_ids
         self.plate_ids = plate_ids
 
-    def get_plate(self, plate_id: int):
-        return (
-            self.treatments[self.plate_ids == plate_id, :],
-            self.sample_ids[self.plate_ids == plate_id],
-            self.observations[self.plate_ids == plate_id],
+    def get_plate(self, plate_id: int) -> "Dataset":
+        return Dataset(
+            treatments=self.treatments[self.plate_ids == plate_id, :],
+            sample_ids=self.sample_ids[self.plate_ids == plate_id],
+            observations=self.observations[self.plate_ids == plate_id],
+            plate_ids=self.plate_ids[self.plate_ids == plate_id],
         )
 
     @property
