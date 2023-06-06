@@ -1,5 +1,5 @@
 import numpy as np
-from batchie.common import ArrayType
+from batchie.common import ArrayType, CONTROL_SENTINEL_VALUE
 import h5py
 
 
@@ -8,7 +8,13 @@ def numpy_array_is_0_indexed_integers(arr: ArrayType):
     if not np.issubdtype(arr.dtype, int):
         return False
 
-    return np.all(np.sort(np.unique(arr)) == np.arange(np.unique(arr).shape[0]))
+    if CONTROL_SENTINEL_VALUE in arr:
+        return np.all(
+            np.sort(np.unique(arr))
+            == np.concatenate([[-1], np.arange(np.unique(arr).shape[0] - 1)])
+        )
+    else:
+        return np.all(np.sort(np.unique(arr)) == np.arange(np.unique(arr).shape[0]))
 
 
 class Dataset:

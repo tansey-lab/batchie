@@ -2,7 +2,7 @@ import numpy as np
 from scipy.special import logit
 from batchie.fast_mvn import sample_mvn_from_precision
 import warnings
-from batchie.interfaces import BayesianModel
+from batchie.interfaces import BayesianModel, ResultsHolder
 from batchie.common import ArrayType, copy_array_with_control_treatments_set_to_zero
 from numpy.random import BitGenerator
 from typing import Optional
@@ -12,54 +12,6 @@ from dataclasses import dataclass
 from batchie.datasets import Dataset
 
 logger = logging.getLogger(__name__)
-
-
-class ComboPredictor:
-    def __init__(
-        self,
-        W: ArrayType,
-        W0: ArrayType,
-        V2: ArrayType,
-        V1: ArrayType,
-        V0: ArrayType,
-        alpha: float,
-        prec: float,
-    ):
-        super().__init__()
-        self.W = W
-        self.W0 = W0
-        self.V2 = V2
-        self.V1 = V1
-        self.V0 = V0
-        self.alpha = alpha
-        self.var = 1.0 / prec
-
-    def predict(self, plate, **kwargs):
-        interaction2 = np.sum(
-            self.W[plate.cline]
-            * copy_array_with_control_treatments_set_to_zero(self.V2, plate.dd1)
-            * copy_array_with_control_treatments_set_to_zero(self.V2, plate.dd2),
-            -1,
-        )
-        interaction1 = np.sum(
-            self.W[plate.cline]
-            * (
-                copy_array_with_control_treatments_set_to_zero(self.V1, plate.dd1)
-                + copy_array_with_control_treatments_set_to_zero(self.V1, plate.dd2)
-            ),
-            -1,
-        )
-        intercept = (
-            self.alpha
-            + self.W0[plate.cline]
-            + copy_array_with_control_treatments_set_to_zero(self.V0, plate.dd1)
-            + copy_array_with_control_treatments_set_to_zero(self.V0, plate.dd2)
-        )
-        Mu = intercept + interaction1 + interaction2
-        return Mu
-
-    def variance(self):
-        return self.var
 
 
 def interactions_to_logits(
@@ -86,7 +38,7 @@ class SparseDrugComboMCMCSample:
     prec: float
 
 
-class SparseDrugComboResults:
+class SparseDrugComboResults(ResultsHolder):
     def __init__(
         self,
         n_unique_samples: int,
@@ -134,7 +86,7 @@ class SparseDrugComboResults:
     def is_complete(self):
         return self._cursor == self.n_mcmc_steps
 
-    def get_mcmc_sample(self, step_index) -> SparseDrugComboMCMCSample:
+    def get_mcmc_sample(self, step_index: int) -> SparseDrugComboMCMCSample:
         """Get one sample from the MCMC chain"""
         # Test if this is beyond the step we are current at with the cursor
         if step_index >= self._cursor:
@@ -165,7 +117,7 @@ class SparseDrugComboResults:
         self.prec[self._cursor] = sample.prec
         self._cursor += 1
 
-    def save_h5(self, fn):
+    def save_h5(self, fn: str):
         """Save all arrays to h5"""
         with h5py.File(fn, "w") as f:
             f.create_dataset("V2", data=self.V2)
@@ -180,7 +132,7 @@ class SparseDrugComboResults:
             f.attrs["cursor"] = self._cursor
 
     @staticmethod
-    def load_h5(path):
+    def load_h5(path: str):
         """Load saved data from h5 archive"""
         with h5py.File(path, "r") as f:
             n_unique_samples = f["W"].shape[1]

@@ -5,6 +5,7 @@ import pytest
 import shutil
 from batchie import datasets
 import numpy.testing
+from batchie.common import CONTROL_SENTINEL_VALUE
 
 
 def test_dataset_initialization_succeeds_under_correct_condition():
@@ -52,6 +53,22 @@ def test_dataset_serialization():
         numpy.testing.assert_array_equal(dset.plate_ids, dset_loaded.plate_ids)
     finally:
         shutil.rmtree(tempdir)
+
+
+def test_dataset_initialization_succeeds_control_sentinel():
+    datasets.Dataset(
+        treatments=np.array([[0, 0], [0, 1], [1, 0], [1, CONTROL_SENTINEL_VALUE]]),
+        observations=np.array([0.1, 0.2, 0.3, 0.4]),
+        sample_ids=np.array([0, 1, 2, 3]),
+        plate_ids=np.array([0, 0, 1, 1]),
+    )
+
+    datasets.Dataset(
+        treatments=np.array([[0, 0], [0, 0], [0, 0], [0, CONTROL_SENTINEL_VALUE]]),
+        observations=np.array([0.1, 0.2, 0.3, 0.4]),
+        sample_ids=np.array([0, 1, 2, 3]),
+        plate_ids=np.array([0, 0, 1, 1]),
+    )
 
 
 def test_dataset_initialization_fails_bad_dtypes():
