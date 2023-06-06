@@ -1,8 +1,10 @@
+import os.path
+
 import numpy as np
 import pandas as pd
 from scipy.special import logit, expit
+
 from batchie.data import Dataset
-import os.path
 
 
 def load_data(path: str) -> Dataset:

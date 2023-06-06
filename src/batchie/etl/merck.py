@@ -1,7 +1,9 @@
+import os
+
 import numpy as np
-import os, pickle
 import pandas as pd
 from scipy.special import logit, expit
+
 from batchie.data import Dataset
 
 
