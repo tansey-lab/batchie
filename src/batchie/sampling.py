@@ -1,7 +1,9 @@
+from typing import Callable
+
 import numpy.random
 from tqdm import trange
-from batchie.interfaces import BayesianModel, Predictor, ResultsHolder
-from typing import Callable, List
+
+from batchie.interfaces import BayesianModel, ResultsHolder
 
 
 def sample(

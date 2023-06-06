@@ -1,6 +1,7 @@
-import numpy as np
-from batchie.common import ArrayType, CONTROL_SENTINEL_VALUE
 import h5py
+import numpy as np
+
+from batchie.common import ArrayType, CONTROL_SENTINEL_VALUE
 
 
 def numpy_array_is_0_indexed_integers(arr: ArrayType):

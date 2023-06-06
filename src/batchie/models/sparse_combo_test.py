@@ -1,6 +1,7 @@
 import numpy as np
+from batchie.data import Dataset
+
 from batchie.models.sparse_combo import SparseDrugCombo
-from batchie.datasets import Dataset
 
 
 def test_sparse_drug_combo_mcmc_step_with_observed_data():

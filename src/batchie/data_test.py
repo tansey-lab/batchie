@@ -1,15 +1,17 @@
-import tempfile
 import os.path
-import numpy as np
-import pytest
 import shutil
-from batchie import datasets
+import tempfile
+
+import numpy as np
 import numpy.testing
+import pytest
+
+from batchie.data import Dataset
 from batchie.common import CONTROL_SENTINEL_VALUE
 
 
 def test_dataset_initialization_succeeds_under_correct_condition():
-    datasets.Dataset(
+    Dataset(
         treatments=np.array([[0, 0], [0, 1], [1, 0], [1, 1]]),
         observations=np.array([0.1, 0.2, 0.3, 0.4]),
         sample_ids=np.array([0, 1, 2, 3]),
@@ -18,7 +20,7 @@ def test_dataset_initialization_succeeds_under_correct_condition():
 
 
 def test_dataset_properties():
-    dset = datasets.Dataset(
+    dset = Dataset(
         treatments=np.array([[0, 0], [0, 1], [1, 0], [1, 1]]),
         observations=np.array([0.1, 0.2, 0.3, 0.4]),
         sample_ids=np.array([0, 1, 2, 3]),
@@ -32,7 +34,7 @@ def test_dataset_properties():
 
 
 def test_dataset_serialization():
-    dset = datasets.Dataset(
+    dset = Dataset(
         treatments=np.array([[0, 0], [0, 1], [1, 0], [1, 1]]),
         observations=np.array([0.1, 0.2, 0.3, 0.4]),
         sample_ids=np.array([0, 1, 2, 3]),
@@ -45,7 +47,7 @@ def test_dataset_serialization():
     try:
         dset.save_h5(fn)
 
-        dset_loaded = datasets.Dataset.load_h5(fn)
+        dset_loaded = Dataset.load_h5(fn)
 
         numpy.testing.assert_array_equal(dset.treatments, dset_loaded.treatments)
         numpy.testing.assert_array_equal(dset.observations, dset_loaded.observations)
@@ -56,14 +58,14 @@ def test_dataset_serialization():
 
 
 def test_dataset_initialization_succeeds_control_sentinel():
-    datasets.Dataset(
+    Dataset(
         treatments=np.array([[0, 0], [0, 1], [1, 0], [1, CONTROL_SENTINEL_VALUE]]),
         observations=np.array([0.1, 0.2, 0.3, 0.4]),
         sample_ids=np.array([0, 1, 2, 3]),
         plate_ids=np.array([0, 0, 1, 1]),
     )
 
-    datasets.Dataset(
+    Dataset(
         treatments=np.array([[0, 0], [0, 0], [0, 0], [0, CONTROL_SENTINEL_VALUE]]),
         observations=np.array([0.1, 0.2, 0.3, 0.4]),
         sample_ids=np.array([0, 1, 2, 3]),
@@ -73,7 +75,7 @@ def test_dataset_initialization_succeeds_control_sentinel():
 
 def test_dataset_initialization_fails_bad_dtypes():
     with pytest.raises(ValueError, match="observations must be floats"):
-        datasets.Dataset(
+        Dataset(
             treatments=np.array([[0, 0], [0, 1], [1, 0], [1, 1]]),
             observations=np.array([0, 0, 0, 1]),
             sample_ids=np.array([0, 1, 2, 3]),
@@ -84,7 +86,7 @@ def test_dataset_initialization_fails_bad_dtypes():
         ValueError,
         match="treatments must be integers between 0 and the unique number of treatments",
     ):
-        datasets.Dataset(
+        Dataset(
             treatments=np.array([[0, 0], [0, 1], [1, 0], [3, 1]]),
             observations=np.array([0.1, 0.2, 0.3, 0.4]),
             sample_ids=np.array([0, 1, 2, 3]),
@@ -95,7 +97,7 @@ def test_dataset_initialization_fails_bad_dtypes():
         ValueError,
         match="plate_ids must be integers between 0 and the unique number of plates",
     ):
-        datasets.Dataset(
+        Dataset(
             treatments=np.array([[0, 0], [0, 1], [1, 0], [1, 1]]),
             observations=np.array([0.1, 0.2, 0.3, 0.4]),
             sample_ids=np.array([0, 1, 2, 3]),
@@ -106,7 +108,7 @@ def test_dataset_initialization_fails_bad_dtypes():
         ValueError,
         match="sample_ids must be integers between 0 and the unique number of samples",
     ):
-        datasets.Dataset(
+        Dataset(
             treatments=np.array([[0, 0], [0, 1], [1, 0], [1, 1]]),
             observations=np.array([0.1, 0.2, 0.3, 0.4]),
             sample_ids=np.array([0, 1, 2, 4]),
@@ -116,7 +118,7 @@ def test_dataset_initialization_fails_bad_dtypes():
     with pytest.raises(
         ValueError, match="sample_ids must have same length as observations"
     ):
-        datasets.Dataset(
+        Dataset(
             treatments=np.array([[0, 0], [0, 1], [1, 0], [1, 1]]),
             observations=np.array([0.1, 0.2, 0.3, 0.4]),
             sample_ids=np.array([0, 1, 2, 3, 4]),
@@ -126,7 +128,7 @@ def test_dataset_initialization_fails_bad_dtypes():
     with pytest.raises(
         ValueError, match="plate_ids must have same length as observations"
     ):
-        datasets.Dataset(
+        Dataset(
             treatments=np.array([[0, 0], [0, 1], [1, 0], [1, 1]]),
             observations=np.array([0.1, 0.2, 0.3, 0.4]),
             sample_ids=np.array([0, 1, 2, 3]),
@@ -136,7 +138,7 @@ def test_dataset_initialization_fails_bad_dtypes():
     with pytest.raises(
         ValueError, match="treatments must have same length as observations"
     ):
-        datasets.Dataset(
+        Dataset(
             treatments=np.array([[0, 0], [0, 1], [1, 0]]),
             observations=np.array([0.1, 0.2, 0.3, 0.4]),
             sample_ids=np.array([0, 1, 2, 3]),

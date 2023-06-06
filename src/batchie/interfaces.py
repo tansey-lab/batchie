@@ -1,6 +1,7 @@
-import numpy as np
-from typing import Union
 import pickle
+from typing import Union
+
+import numpy as np
 
 from batchie.common import ArrayType
 

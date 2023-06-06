@@ -1,15 +1,17 @@
-import numpy as np
-from scipy.special import logit
-from batchie.fast_mvn import sample_mvn_from_precision
-import warnings
-from batchie.interfaces import BayesianModel, ResultsHolder
-from batchie.common import ArrayType, copy_array_with_control_treatments_set_to_zero
-from numpy.random import BitGenerator
-from typing import Optional
 import logging
-import h5py
+import warnings
 from dataclasses import dataclass
-from batchie.datasets import Dataset
+from typing import Optional
+
+import h5py
+import numpy as np
+from batchie.data import Dataset
+from numpy.random import BitGenerator
+from scipy.special import logit
+
+from batchie.common import ArrayType, copy_array_with_control_treatments_set_to_zero
+from batchie.fast_mvn import sample_mvn_from_precision
+from batchie.interfaces import BayesianModel, ResultsHolder
 
 logger = logging.getLogger(__name__)
 
