@@ -2,7 +2,7 @@ import numpy as np
 import os
 import pandas as pd
 from scipy.special import logit
-from batchie.sparse_combo.datasets import ComboDataset, ComboPlate
+from batchie.data import Dataset
 
 
 def load_sarcoma(
@@ -10,7 +10,7 @@ def load_sarcoma(
     round_10_validation: bool = False,
     round_15_random_validation: bool = False,
     round_15_targeted_validation: bool = False,
-) -> ComboDataset:
+) -> Dataset:
     df = pd.read_csv(os.path.join(path, "sarcoma.csv"))
     df = df[~df["Failed QC"]]
     df.drop(columns=["Failed QC", "Raw count"], inplace=True)
@@ -134,29 +134,27 @@ def load_sarcoma(
     ## Sort by iteration
     df.sort_values(by=["Iteration", "Plate"], ignore_index=True, inplace=True)
 
-    ## Pull out viabilities
-    y_viability = df["Viability"].values.copy()
-    y_logit = logit(np.clip(y_viability, a_min=0.01, a_max=0.99))
-    df.drop(columns=["Viability"], inplace=True)
-
-    ## Create plates
-    plates = {}
-    grouping = df.groupby("Iteration").indices
-    for iteration, idx in grouping.items():
-        sub_df = df.iloc[idx]
-        sub_grouping = sub_df.groupby("Plate").indices
-        for plate_num, sub_idx in sub_grouping.items():
-            plate_df = sub_df.iloc[sub_idx]
-            plate = ComboPlate(
-                idx=plate_df.index.values.copy(),
-                cline=plate_df.cline.values,
-                dd1=plate_df.drugdose1.values,
-                dd2=plate_df.drugdose2.values,
-            )
-            plate_key = str(iteration) + "+" + str(plate_num)
-            plates[plate_key] = plate
-
-    dataset = ComboDataset(
-        X=df, y=y_logit, plates=plates, clines2id=cline2id, drugdoses2id=drugdoses2id
+    uniq_iter_plate_values = (
+        df[["Iteration", "Plate"]]
+        .drop_duplicates()
+        .sort_values(by=["Iteration", "Plate"], ignore_index=True)
+        .to_records(index=False)
     )
-    return dataset
+
+    iter_plate_to_plate_id = {
+        tuple(rec): idx for idx, rec in enumerate(uniq_iter_plate_values)
+    }
+
+    df["plate_id"] = df.apply(
+        lambda r: iter_plate_to_plate_id[r["Iteration"], r["Plate"]], axis=1
+    )
+
+    ## Pull out viabilities
+    df["y_logit"] = logit(np.clip(df["Viability"], a_min=0.01, a_max=0.99))
+
+    return Dataset(
+        observations=df.y_logit.to_numpy(),
+        treatments=df[["drugdose1", "drugdose2"]].to_numpy(),
+        sample_ids=df.cline.to_numpy(),
+        plate_ids=df.plate_id.to_numpy(),
+    )

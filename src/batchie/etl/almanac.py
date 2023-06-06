@@ -2,10 +2,11 @@ import numpy as np
 import pandas as pd
 from scipy.special import logit, expit
 from batchie.data import Dataset
+import os
 
 
 def load_data(path: str) -> Dataset:
-    data = load_almanac(path)
+    data = load_almanac(os.path.join(path, "ComboDrugGrowth_Nov2017.csv"))
 
     ## Place into canonical order
     X = data["X"]

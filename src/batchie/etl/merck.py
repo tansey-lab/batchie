@@ -2,42 +2,13 @@ import numpy as np
 import os, pickle
 import pandas as pd
 from scipy.special import logit, expit
-from batchie.sparse_combo.datasets import (
-    ComboDataset,
-    dataset_from_dict,
-    interaction_effectify,
-)
+from batchie.data import Dataset
 
 
-def load_data(
-    path: str,
-    cline_frac: float = 1.0,
-    dd_frac: float = 1.0,
-    drug_frac: float = 1.0,
-    fake_plates: str = "sarcoma",
-    warm_start: bool = True,
-    per_cell: int = 3,
-    revealed_init_frac: float = 0.0,
-    revealed_clines: int = -1,
-    revealed_sarcoma_dd_frac: float = 0.0,
-    combo_only: bool = True,
-    holdout_frac: float = 0.1,
-    min_plate_obs: int = 50,
-    nmerge_pass: int = 1,
-    interactions: bool = False,
-    transform: str = "log",
-) -> tuple[ComboDataset, list[str]]:
-    ## Load clean data if it exists
-    clean_fname = os.path.join(path, "merck_clean.pkl")
-    if os.path.exists(clean_fname):
-        with open(clean_fname, "rb") as io:
-            data = pickle.load(io)
-    else:
-        combo_fname = os.path.join(path, "156849_1_supp_1_w2lrww.xls")
-        single_fname = os.path.join(path, "156849_1_supp_0_w2lh45.xlsx")
-        data = load_and_process_merck(combo_fname, single_fname)
-        with open(clean_fname, "wb") as io:
-            pickle.dump(data, io, protocol=pickle.HIGHEST_PROTOCOL)
+def load_data(path: str) -> Dataset:
+    combo_fname = os.path.join(path, "156849_1_supp_1_w2lrww.xls")
+    single_fname = os.path.join(path, "156849_1_supp_0_w2lh45.xlsx")
+    data = load_and_process_merck(combo_fname, single_fname)
 
     ## Place into canonical order
     X = data["X"]
@@ -67,35 +38,12 @@ def load_data(
         ["drug1", "drug2", "dose1", "dose2"]
     ].astype(int)
 
-    if interactions:
-        X_mean, _ = interaction_effectify(X=X_mean, transform=transform)
-
-    if (drug_frac < 0.5) or (dd_frac < 0.5):
-        sarcoma_group_size = 10
-    else:
-        sarcoma_group_size = 20
-
-    dataset, selected = dataset_from_dict(
-        X=X_mean,
-        cline_frac=cline_frac,
-        dd_frac=dd_frac,
-        drug_frac=drug_frac,
-        fake_plates=fake_plates,
-        sarcoma_group_size=sarcoma_group_size,
-        warm_start=warm_start,
-        per_cell=per_cell,
-        revealed_init_frac=revealed_init_frac,
-        revealed_clines=revealed_clines,
-        revealed_sarcoma_dd_frac=revealed_sarcoma_dd_frac,
-        combo_only=combo_only,
-        holdout_frac=holdout_frac,
-        min_plate_obs=min_plate_obs,
-        nmerge_pass=nmerge_pass,
-        interactions=interactions,
-        transform=transform,
-        **kwargs,
+    return Dataset(
+        observations=X_mean.y_viability.to_numpy(),
+        treatments=X_mean[["drugdose1", "drugdose2"]].to_numpy(),
+        sample_ids=X_mean.cline.to_numpy(),
+        plate_ids=X_mean.plate.to_numpy(),
     )
-    return (dataset, selected)
 
 
 def load_and_process_merck(
