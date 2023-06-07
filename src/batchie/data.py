@@ -95,7 +95,7 @@ class Dataset:
         )
 
     @property
-    def n_observations(self):
+    def n_experiments(self):
         return self.observations.shape[0]
 
     @property
@@ -159,7 +159,7 @@ def randomly_subsample_dataset(
         )
         rng = np.random.default_rng()
 
-    to_keep_vector = np.ones(dataset.n_observations, dtype=bool)
+    to_keep_vector = np.ones(dataset.n_experiments, dtype=bool)
 
     # Select all values where the treatment class is in one of the randomly select proportions
     if treatment_class_fraction is not None:
@@ -173,3 +173,58 @@ def randomly_subsample_dataset(
         to_keep_vector = to_keep_vector & np.all(
             np.isin(dataset.treatment_classes, treatment_classes_to_keep), axis=1
         )
+
+    if treatment_fraction is not None:
+        choices = np.unique(dataset.treatments.flatten())
+        choices = choices[choices != CONTROL_SENTINEL_VALUE]
+        n_to_keep = int(treatment_fraction * choices.size)
+        logger.info(
+            f"Randomly selecting {n_to_keep} treatments out of {choices.size} total"
+        )
+
+        treatments_to_keep = rng.choice(choices, size=n_to_keep, replace=False)
+        #  We don't want to drop controls, so we add it back in
+        treatments_to_keep = np.concatenate(
+            [CONTROL_SENTINEL_VALUE], treatments_to_keep
+        )
+        to_keep_vector = to_keep_vector & np.all(
+            np.isin(dataset.treatments, treatments_to_keep), axis=1
+        )
+
+    if sample_fraction is not None:
+        choices = np.unique(dataset.sample_ids.flatten())
+        n_to_keep = int(sample_fraction * choices.size)
+        logger.info(
+            f"Randomly selecting {n_to_keep} samples out of {choices.size} total"
+        )
+
+        samples_to_keep = rng.choice(choices, size=n_to_keep, replace=False)
+        to_keep_vector = to_keep_vector & np.isin(dataset.sample_ids, samples_to_keep)
+
+    if np.sum(to_keep_vector) == 0:
+        raise ValueError("No experiments left after subsampling")
+
+    logger.info(
+        f"Keeping {np.sum(to_keep_vector)} experiments out of {dataset.n_experiments} total"
+    )
+
+    # Create two new dataset objects, one with the experiments to keep, and one with the experiments to drop
+    dataset_of_kept_experiments = Dataset(
+        treatments=dataset.treatments[to_keep_vector, :],
+        observations=dataset.observations[to_keep_vector],
+        sample_ids=dataset.sample_ids[to_keep_vector],
+        plate_ids=dataset.plate_ids[to_keep_vector],
+        treatment_classes=dataset.treatment_classes[to_keep_vector, :],
+        treatment_doses=dataset.treatment_doses[to_keep_vector, :],
+    )
+
+    dataset_of_dropped_experiments = Dataset(
+        treatments=dataset.treatments[~to_keep_vector, :],
+        observations=dataset.observations[~to_keep_vector],
+        sample_ids=dataset.sample_ids[~to_keep_vector],
+        plate_ids=dataset.plate_ids[~to_keep_vector],
+        treatment_classes=dataset.treatment_classes[~to_keep_vector, :],
+        treatment_doses=dataset.treatment_doses[~to_keep_vector, :],
+    )
+
+    return dataset_of_kept_experiments, dataset_of_dropped_experiments

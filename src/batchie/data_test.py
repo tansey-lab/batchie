@@ -6,7 +6,7 @@ import numpy as np
 import numpy.testing
 import pytest
 
-from batchie.data import Dataset
+from batchie.data import Dataset, randomly_subsample_dataset
 from batchie.common import CONTROL_SENTINEL_VALUE
 
 
@@ -16,6 +16,8 @@ def test_dataset_initialization_succeeds_under_correct_condition():
         observations=np.array([0.1, 0.2, 0.3, 0.4]),
         sample_ids=np.array([0, 1, 2, 3]),
         plate_ids=np.array([0, 0, 1, 1]),
+        treatment_classes=np.array([[0, 0], [0, 1], [1, 0], [1, 1]]),
+        treatment_doses=np.array([[0, 0], [0, 1], [1, 0], [1, 1]]),
     )
 
 
@@ -25,6 +27,8 @@ def test_dataset_properties():
         observations=np.array([0.1, 0.2, 0.3, 0.4]),
         sample_ids=np.array([0, 1, 2, 3]),
         plate_ids=np.array([0, 0, 1, 1]),
+        treatment_classes=np.array([[0, 0], [0, 1], [1, 0], [1, 1]]),
+        treatment_doses=np.array([[0, 0], [0, 1], [1, 0], [1, 1]]),
     )
 
     assert dset.n_treatments == 2
@@ -39,6 +43,8 @@ def test_dataset_serialization():
         observations=np.array([0.1, 0.2, 0.3, 0.4]),
         sample_ids=np.array([0, 1, 2, 3]),
         plate_ids=np.array([0, 0, 1, 1]),
+        treatment_classes=np.array([[0, 0], [0, 1], [1, 0], [1, 1]]),
+        treatment_doses=np.array([[0, 0], [0, 1], [1, 0], [1, 1]]),
     )
 
     tempdir = tempfile.mkdtemp()
@@ -63,6 +69,8 @@ def test_dataset_initialization_succeeds_control_sentinel():
         observations=np.array([0.1, 0.2, 0.3, 0.4]),
         sample_ids=np.array([0, 1, 2, 3]),
         plate_ids=np.array([0, 0, 1, 1]),
+        treatment_classes=np.array([[0, 0], [0, 1], [1, 0], [1, 1]]),
+        treatment_doses=np.array([[0, 0], [0, 1], [1, 0], [1, 1]]),
     )
 
     Dataset(
@@ -70,6 +78,8 @@ def test_dataset_initialization_succeeds_control_sentinel():
         observations=np.array([0.1, 0.2, 0.3, 0.4]),
         sample_ids=np.array([0, 1, 2, 3]),
         plate_ids=np.array([0, 0, 1, 1]),
+        treatment_classes=np.array([[0, 0], [0, 1], [1, 0], [1, 1]]),
+        treatment_doses=np.array([[0, 0], [0, 1], [1, 0], [1, 1]]),
     )
 
 
@@ -80,6 +90,8 @@ def test_dataset_initialization_fails_bad_dtypes():
             observations=np.array([0, 0, 0, 1]),
             sample_ids=np.array([0, 1, 2, 3]),
             plate_ids=np.array([0, 0, 1, 1]),
+            treatment_classes=np.array([[0, 0], [0, 1], [1, 0], [1, 1]]),
+            treatment_doses=np.array([[0, 0], [0, 1], [1, 0], [1, 1]]),
         )
 
     with pytest.raises(
@@ -91,6 +103,8 @@ def test_dataset_initialization_fails_bad_dtypes():
             observations=np.array([0.1, 0.2, 0.3, 0.4]),
             sample_ids=np.array([0, 1, 2, 3]),
             plate_ids=np.array([0, 0, 1, 1]),
+            treatment_classes=np.array([[0, 0], [0, 1], [1, 0], [1, 1]]),
+            treatment_doses=np.array([[0, 0], [0, 1], [1, 0], [1, 1]]),
         )
 
     with pytest.raises(
@@ -102,6 +116,8 @@ def test_dataset_initialization_fails_bad_dtypes():
             observations=np.array([0.1, 0.2, 0.3, 0.4]),
             sample_ids=np.array([0, 1, 2, 3]),
             plate_ids=np.array([0, 0, 1, 4]),
+            treatment_classes=np.array([[0, 0], [0, 1], [1, 0], [1, 1]]),
+            treatment_doses=np.array([[0, 0], [0, 1], [1, 0], [1, 1]]),
         )
 
     with pytest.raises(
@@ -113,6 +129,8 @@ def test_dataset_initialization_fails_bad_dtypes():
             observations=np.array([0.1, 0.2, 0.3, 0.4]),
             sample_ids=np.array([0, 1, 2, 4]),
             plate_ids=np.array([0, 0, 1, 1]),
+            treatment_classes=np.array([[0, 0], [0, 1], [1, 0], [1, 1]]),
+            treatment_doses=np.array([[0, 0], [0, 1], [1, 0], [1, 1]]),
         )
 
     with pytest.raises(
@@ -123,6 +141,8 @@ def test_dataset_initialization_fails_bad_dtypes():
             observations=np.array([0.1, 0.2, 0.3, 0.4]),
             sample_ids=np.array([0, 1, 2, 3, 4]),
             plate_ids=np.array([0, 0, 1, 1]),
+            treatment_classes=np.array([[0, 0], [0, 1], [1, 0], [1, 1]]),
+            treatment_doses=np.array([[0, 0], [0, 1], [1, 0], [1, 1]]),
         )
 
     with pytest.raises(
@@ -133,14 +153,37 @@ def test_dataset_initialization_fails_bad_dtypes():
             observations=np.array([0.1, 0.2, 0.3, 0.4]),
             sample_ids=np.array([0, 1, 2, 3]),
             plate_ids=np.array([0, 0, 1, 1, 1]),
+            treatment_classes=np.array([[0, 0], [0, 1], [1, 0], [1, 1]]),
+            treatment_doses=np.array([[0, 0], [0, 1], [1, 0], [1, 1]]),
         )
 
     with pytest.raises(
-        ValueError, match="treatments must have same length as observations"
+        ValueError,
+        match="treatments, treatment_classes, treatment_doses must all have the same shape",
     ):
         Dataset(
             treatments=np.array([[0, 0], [0, 1], [1, 0]]),
             observations=np.array([0.1, 0.2, 0.3, 0.4]),
             sample_ids=np.array([0, 1, 2, 3]),
             plate_ids=np.array([0, 0, 1, 1, 1]),
+            treatment_classes=np.array([[0, 0], [0, 1], [1, 0], [1, 1]]),
+            treatment_doses=np.array([[0, 0], [0, 1], [1, 0], [1, 1]]),
         )
+
+
+def test_randomly_subsample_dataset():
+    test_dataset = Dataset(
+        treatments=np.array([[0, 0], [0, 1], [1, 0], [1, 1]]),
+        observations=np.array([0.1, 0.2, 0.3, 0.4]),
+        sample_ids=np.array([0, 1, 2, 3]),
+        plate_ids=np.array([0, 0, 1, 1]),
+        treatment_classes=np.array([[0, 0], [0, 1], [1, 0], [1, 1]]),
+        treatment_doses=np.array([[0, 0], [0, 1], [1, 0], [1, 1]]),
+    )
+
+    to_keep, to_drop = randomly_subsample_dataset(
+        dataset=test_dataset, sample_fraction=0.75
+    )
+
+    assert to_keep.n_experiments == 3
+    assert to_drop.n_experiments == 1
