@@ -7,7 +7,6 @@ import pandas
 
 from batchie.common import ArrayType, CONTROL_SENTINEL_VALUE
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -25,46 +24,58 @@ def numpy_array_is_0_indexed_integers(arr: ArrayType):
         return np.all(np.sort(np.unique(arr)) == np.arange(np.unique(arr).shape[0]))
 
 
-def encode_array_to_0_indexed_ids(
-    arr: ArrayType,
-    should_be_replaced_with_sentinel_value: Optional[Callable[[Any], bool]] = None,
-    sentinel_value: Optional[int] = None,
+def treatment_name_is_control(x):
+    return pandas.isna(x) or not x
+
+
+def treatment_dose_is_control(x):
+    return pandas.isna(x) or x == 0 or not x
+
+
+def encode_treatment_arrays_to_0_indexed_ids(
+    treatment_name_arr: ArrayType,
+    treatment_dose_arr: ArrayType,
+    name_is_control: Callable[[Any], bool] = treatment_name_is_control,
+    dose_is_control: Callable[[Any], bool] = treatment_dose_is_control,
+    sentinel_value: int = -1,
 ):
-    df = pandas.DataFrame(arr)
+    is_control = np.array([name_is_control(x) for x in treatment_name_arr]) | np.array(
+        [dose_is_control(x) for x in treatment_dose_arr]
+    )
+
+    name_dose_arr = np.vstack([treatment_name_arr, treatment_dose_arr]).T
+
+    df = pandas.DataFrame(name_dose_arr, columns=["name", "dose"])
+
+    df["is_control"] = is_control
 
     df = df.drop_duplicates()
 
-    df = df.sort_values(by=df.columns.tolist())
+    df_no_controls = df[~df.is_control][["name", "dose"]]
 
-    df = df.reset_index(drop=True)
+    df_no_controls = df_no_controls.sort_values(by=df_no_controls.columns.tolist())
 
-    new_arr = df.to_numpy()
+    df_no_controls = df_no_controls.reset_index(drop=True)
 
-    if len(new_arr.shape) == 2 and new_arr.shape[1] == 1:
-        new_arr = np.flatten(new_arr)
-    else:
-        new_arr = [tuple(x) for x in new_arr]
+    new_arr = df_no_controls.to_numpy()
 
-    mapping = dict(zip(new_arr, df.index))
+    mapping = dict(zip([tuple(x) for x in new_arr], df_no_controls.index))
 
-    if len(arr.shape) == 2 and arr.shape[1] > 1:
-        return np.array(
-            [
-                mapping[tuple(x)]
-                if not should_be_replaced_with_sentinel_value(x)
-                else sentinel_value
-                for x in arr
-            ]
-        )
-    else:
-        return np.array(
-            [
-                mapping[x]
-                if not should_be_replaced_with_sentinel_value(x)
-                else sentinel_value
-                for x in arr
-            ]
-        )
+    df_controls = df[df.is_control][["name", "dose"]]
+    df_controls_arr = df_controls.to_numpy()
+
+    for row in df_controls_arr:
+        mapping[tuple(row)] = sentinel_value
+
+    return np.array([mapping[tuple(x)] for x in name_dose_arr])
+
+
+def encode_1d_array_to_0_indexed_ids(arr: ArrayType):
+    unique_values = np.unique(arr)
+
+    mapping = dict(zip(unique_values, np.arange(len(unique_values))))
+
+    return np.array([mapping[x] for x in arr])
 
 
 class DatasetSubset:
@@ -126,9 +137,9 @@ class Dataset:
         ):
             raise ValueError("All arrays must have the same number of experiments")
 
-        if treatment_names.shape == treatment_doses.shape:
+        if treatment_names.shape != treatment_doses.shape:
             raise ValueError(
-                "treatment_classes, treatment_doses must have the same shape, "
+                "treatment_names, treatment_doses must have the same shape, "
                 "but got shapes {}, {}".format(
                     treatment_names.shape, treatment_doses.shape
                 )
@@ -140,23 +151,20 @@ class Dataset:
         dose_class_combos = []
         for i in range(treatment_names.shape[1]):
             dose_class_combos.append(
-                np.vstack(treatment_names[:, i], treatment_doses[:, i])
+                np.vstack([treatment_names[:, i], treatment_doses[:, i]]).T
             )
         all_dose_class_combos = np.concatenate(dose_class_combos)
-        all_dose_class_combos_encoded = encode_array_to_0_indexed_ids(
-            all_dose_class_combos,
-            should_be_replaced_with_sentinel_value=lambda x: any(
-                [pandas.isna(y) for y in x]
-            )
-            or any([y == CONTROL_SENTINEL_VALUE for y in x]),
+        all_dose_class_combos_encoded = encode_treatment_arrays_to_0_indexed_ids(
+            treatment_name_arr=all_dose_class_combos[:, 0],
+            treatment_dose_arr=all_dose_class_combos[:, 1],
             sentinel_value=CONTROL_SENTINEL_VALUE,
         )
 
         self.treatment_ids = np.vstack(
             np.split(all_dose_class_combos_encoded, treatment_names.shape[1])
-        )
-        self.sample_ids = encode_array_to_0_indexed_ids(sample_names)
-        self.plate_ids = encode_array_to_0_indexed_ids(plate_names)
+        ).T
+        self.sample_ids = encode_1d_array_to_0_indexed_ids(sample_names)
+        self.plate_ids = encode_1d_array_to_0_indexed_ids(plate_names)
         self.observations = observations
         self.sample_names = sample_names
         self.plate_names = plate_names
