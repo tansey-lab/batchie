@@ -43,8 +43,8 @@ def load_data(path: str) -> Dataset:
     return Dataset(
         observations=X_mean.y_viability.to_numpy(),
         treatments=X_mean[["drugdose1", "drugdose2"]].to_numpy(),
-        sample_ids=X_mean.cline.to_numpy(),
-        plate_ids=X_mean.plate.to_numpy(),
+        sample_names=X_mean.cline.to_numpy(),
+        plate_names=X_mean.plate.to_numpy(),
     )
 
 

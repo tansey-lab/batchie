@@ -1,7 +1,9 @@
 import h5py
 import numpy as np
 import logging
-from typing import Optional
+from typing import Optional, Callable, Any
+
+import pandas
 
 from batchie.common import ArrayType, CONTROL_SENTINEL_VALUE
 
@@ -23,76 +25,146 @@ def numpy_array_is_0_indexed_integers(arr: ArrayType):
         return np.all(np.sort(np.unique(arr)) == np.arange(np.unique(arr).shape[0]))
 
 
+def encode_array_to_0_indexed_ids(
+    arr: ArrayType,
+    should_be_replaced_with_sentinel_value: Optional[Callable[[Any], bool]] = None,
+    sentinel_value: Optional[int] = None,
+):
+    df = pandas.DataFrame(arr)
+
+    df = df.drop_duplicates()
+
+    df = df.sort_values(by=df.columns.tolist())
+
+    df = df.reset_index(drop=True)
+
+    new_arr = df.to_numpy()
+
+    if len(new_arr.shape) == 2 and new_arr.shape[1] == 1:
+        new_arr = np.flatten(new_arr)
+    else:
+        new_arr = [tuple(x) for x in new_arr]
+
+    mapping = dict(zip(new_arr, df.index))
+
+    if len(arr.shape) == 2 and arr.shape[1] > 1:
+        return np.array(
+            [
+                mapping[tuple(x)]
+                if not should_be_replaced_with_sentinel_value(x)
+                else sentinel_value
+                for x in arr
+            ]
+        )
+    else:
+        return np.array(
+            [
+                mapping[x]
+                if not should_be_replaced_with_sentinel_value(x)
+                else sentinel_value
+                for x in arr
+            ]
+        )
+
+
+class DatasetSubset:
+    def __init__(self, dataset: "Dataset", selection_vector: ArrayType):
+        self.dataset = dataset
+
+        if not np.issubdtype(selection_vector.dtype, bool):
+            raise ValueError("selection_vector must be bool")
+
+        if selection_vector.shape[0] != dataset.n_experiments:
+            raise ValueError(
+                "selection_vector must have same number of rows as dataset"
+            )
+
+        self.selection_vector = selection_vector
+
+    @property
+    def n_experiments(self):
+        return self.selection_vector.sum()
+
+    @property
+    def plate_ids(self):
+        return self.dataset.plate_ids[self.selection_vector]
+
+    @property
+    def sample_ids(self):
+        return self.dataset.sample_ids[self.selection_vector]
+
+    @property
+    def treatment_ids(self):
+        return self.dataset.treatment_ids[self.selection_vector]
+
+
 class Dataset:
     def __init__(
         self,
-        treatments: ArrayType,
-        treatment_classes: ArrayType,
+        treatment_names: ArrayType,
         treatment_doses: ArrayType,
         observations: ArrayType,
-        sample_ids: ArrayType,
-        plate_ids: ArrayType,
+        sample_names: ArrayType,
+        plate_names: ArrayType,
     ):
-        n_experiments = observations.shape[0]
-
-        if not treatments.shape == treatment_classes.shape == treatment_doses.shape:
-            raise ValueError(
-                "treatments, treatment_classes, treatment_doses must all have the same shape, "
-                "but got shapes {}, {}, {}".format(
-                    treatments.shape, treatment_classes.shape, treatment_doses.shape
+        if (
+            len(
+                set(
+                    [
+                        x.shape[0]
+                        for x in [
+                            treatment_names,
+                            treatment_doses,
+                            observations,
+                            sample_names,
+                            plate_names,
+                        ]
+                    ]
                 )
             )
+            != 1
+        ):
+            raise ValueError("All arrays must have the same number of experiments")
 
-        if sample_ids.shape[0] != n_experiments:
-            raise ValueError("sample_ids must have same length as observations")
-
-        if treatments.shape[0] != n_experiments:
-            raise ValueError("treatments must have same length as observations")
-
-        if plate_ids.shape[0] != n_experiments:
-            raise ValueError("plate_ids must have same length as observations")
-
-        if treatment_classes.shape[0] != n_experiments:
-            raise ValueError("treatment_classes must have same length as observations")
-
-        if treatment_doses.shape[0] != n_experiments:
-            raise ValueError("treatment_doses must have same length as observations")
-
-        # Assert sample_ids and plate_ids are integers between 0 and the unique number of samples/plates
-        if not numpy_array_is_0_indexed_integers(sample_ids):
+        if treatment_names.shape == treatment_doses.shape:
             raise ValueError(
-                "sample_ids must be integers between 0 and the unique number of samples"
-            )
-
-        if not numpy_array_is_0_indexed_integers(plate_ids):
-            raise ValueError(
-                "plate_ids must be integers between 0 and the unique number of plates"
-            )
-
-        if not numpy_array_is_0_indexed_integers(treatments):
-            raise ValueError(
-                "treatments must be integers between 0 and the unique number of treatments"
+                "treatment_classes, treatment_doses must have the same shape, "
+                "but got shapes {}, {}".format(
+                    treatment_names.shape, treatment_doses.shape
+                )
             )
 
         if not np.issubdtype(observations.dtype, float):
             raise ValueError("observations must be floats")
 
-        self.treatments = treatments
+        dose_class_combos = []
+        for i in range(treatment_names.shape[1]):
+            dose_class_combos.append(
+                np.vstack(treatment_names[:, i], treatment_doses[:, i])
+            )
+        all_dose_class_combos = np.concatenate(dose_class_combos)
+        all_dose_class_combos_encoded = encode_array_to_0_indexed_ids(
+            all_dose_class_combos,
+            should_be_replaced_with_sentinel_value=lambda x: any(
+                [pandas.isna(y) for y in x]
+            )
+            or any([y == CONTROL_SENTINEL_VALUE for y in x]),
+            sentinel_value=CONTROL_SENTINEL_VALUE,
+        )
+
+        self.treatment_ids = np.vstack(
+            np.split(all_dose_class_combos_encoded, treatment_names.shape[1])
+        )
+        self.sample_ids = encode_array_to_0_indexed_ids(sample_names)
+        self.plate_ids = encode_array_to_0_indexed_ids(plate_names)
         self.observations = observations
-        self.sample_ids = sample_ids
-        self.plate_ids = plate_ids
-        self.treatment_classes = treatment_classes
+        self.sample_names = sample_names
+        self.plate_names = plate_names
+        self.treatment_names = treatment_names
         self.treatment_doses = treatment_doses
 
-    def get_plate(self, plate_id: int) -> "Dataset":
-        return Dataset(
-            treatments=self.treatments[self.plate_ids == plate_id, :],
-            sample_ids=self.sample_ids[self.plate_ids == plate_id],
-            observations=self.observations[self.plate_ids == plate_id],
-            plate_ids=self.plate_ids[self.plate_ids == plate_id],
-            treatment_classes=self.treatment_classes[self.plate_ids == plate_id],
-            treatment_doses=self.treatment_doses[self.plate_ids == plate_id],
-        )
+    def get_plate(self, plate_id: int) -> DatasetSubset:
+        return DatasetSubset(self, self.plate_ids == plate_id)
 
     @property
     def n_experiments(self):
@@ -108,41 +180,35 @@ class Dataset:
 
     @property
     def unique_treatments(self):
-        return np.unique(self.treatments)
+        return np.unique(self.treatment_ids)
 
     @property
     def n_treatments(self):
-        return self.treatments.shape[1]
+        return self.treatment_ids.shape[1]
 
     def save_h5(self, fn):
         """Save all arrays to h5"""
         with h5py.File(fn, "w") as f:
-            f.create_dataset("treatments", data=self.treatments)
+            f.create_dataset("treatment_names", data=self.treatment_names)
+            f.create_dataset("treatment_doses", data=self.treatment_names)
+            f.create_dataset("treatment_ids", data=self.treatment_ids)
             f.create_dataset("observations", data=self.observations)
             f.create_dataset("sample_ids", data=self.sample_ids)
+            f.create_dataset("sample_names", data=self.sample_names)
             f.create_dataset("plate_ids", data=self.plate_ids)
-            f.create_dataset("treatment_classes", data=self.treatment_classes)
-            f.create_dataset("treatment_doses", data=self.treatment_doses)
+            f.create_dataset("plate_names", data=self.plate_names)
 
     @staticmethod
     def load_h5(path):
         """Load saved data from h5 archive"""
         with h5py.File(path, "r") as f:
-            treatments = f["treatments"][:]
-            observations = f["observations"][:]
-            sample_ids = f["sample_ids"][:]
-            plate_ids = f["plate_ids"][:]
-            treatment_classes = f["treatment_classes"][:]
-            treatment_doses = f["treatment_doses"][:]
-
-        return Dataset(
-            treatments=treatments,
-            observations=observations,
-            sample_ids=sample_ids,
-            plate_ids=plate_ids,
-            treatment_classes=treatment_classes,
-            treatment_doses=treatment_doses,
-        )
+            return Dataset(
+                treatment_names=f["treatment_names"][:],
+                treatment_doses=f["treatment_doses"][:],
+                observations=f["observations"][:],
+                sample_names=f["sample_names"][:],
+                plate_names=f["plate_names"][:],
+            )
 
 
 def randomly_subsample_dataset(
@@ -212,18 +278,18 @@ def randomly_subsample_dataset(
     dataset_of_kept_experiments = Dataset(
         treatments=dataset.treatments[to_keep_vector, :],
         observations=dataset.observations[to_keep_vector],
-        sample_ids=dataset.sample_ids[to_keep_vector],
-        plate_ids=dataset.plate_ids[to_keep_vector],
-        treatment_classes=dataset.treatment_classes[to_keep_vector, :],
+        sample_names=dataset.sample_ids[to_keep_vector],
+        plate_names=dataset.plate_ids[to_keep_vector],
+        treatment_names=dataset.treatment_classes[to_keep_vector, :],
         treatment_doses=dataset.treatment_doses[to_keep_vector, :],
     )
 
     dataset_of_dropped_experiments = Dataset(
         treatments=dataset.treatments[~to_keep_vector, :],
         observations=dataset.observations[~to_keep_vector],
-        sample_ids=dataset.sample_ids[~to_keep_vector],
-        plate_ids=dataset.plate_ids[~to_keep_vector],
-        treatment_classes=dataset.treatment_classes[~to_keep_vector, :],
+        sample_names=dataset.sample_ids[~to_keep_vector],
+        plate_names=dataset.plate_ids[~to_keep_vector],
+        treatment_names=dataset.treatment_classes[~to_keep_vector, :],
         treatment_doses=dataset.treatment_doses[~to_keep_vector, :],
     )
 

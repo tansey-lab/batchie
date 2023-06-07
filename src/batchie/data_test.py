@@ -14,9 +14,9 @@ def test_dataset_initialization_succeeds_under_correct_condition():
     Dataset(
         treatments=np.array([[0, 0], [0, 1], [1, 0], [1, 1]]),
         observations=np.array([0.1, 0.2, 0.3, 0.4]),
-        sample_ids=np.array([0, 1, 2, 3]),
-        plate_ids=np.array([0, 0, 1, 1]),
-        treatment_classes=np.array([[0, 0], [0, 1], [1, 0], [1, 1]]),
+        sample_names=np.array([0, 1, 2, 3]),
+        plate_names=np.array([0, 0, 1, 1]),
+        treatment_names=np.array([[0, 0], [0, 1], [1, 0], [1, 1]]),
         treatment_doses=np.array([[0, 0], [0, 1], [1, 0], [1, 1]]),
     )
 
@@ -25,9 +25,9 @@ def test_dataset_properties():
     dset = Dataset(
         treatments=np.array([[0, 0], [0, 1], [1, 0], [1, 1]]),
         observations=np.array([0.1, 0.2, 0.3, 0.4]),
-        sample_ids=np.array([0, 1, 2, 3]),
-        plate_ids=np.array([0, 0, 1, 1]),
-        treatment_classes=np.array([[0, 0], [0, 1], [1, 0], [1, 1]]),
+        sample_names=np.array([0, 1, 2, 3]),
+        plate_names=np.array([0, 0, 1, 1]),
+        treatment_names=np.array([[0, 0], [0, 1], [1, 0], [1, 1]]),
         treatment_doses=np.array([[0, 0], [0, 1], [1, 0], [1, 1]]),
     )
 
@@ -41,9 +41,9 @@ def test_dataset_serialization():
     dset = Dataset(
         treatments=np.array([[0, 0], [0, 1], [1, 0], [1, 1]]),
         observations=np.array([0.1, 0.2, 0.3, 0.4]),
-        sample_ids=np.array([0, 1, 2, 3]),
-        plate_ids=np.array([0, 0, 1, 1]),
-        treatment_classes=np.array([[0, 0], [0, 1], [1, 0], [1, 1]]),
+        sample_names=np.array([0, 1, 2, 3]),
+        plate_names=np.array([0, 0, 1, 1]),
+        treatment_names=np.array([[0, 0], [0, 1], [1, 0], [1, 1]]),
         treatment_doses=np.array([[0, 0], [0, 1], [1, 0], [1, 1]]),
     )
 
@@ -67,18 +67,18 @@ def test_dataset_initialization_succeeds_control_sentinel():
     Dataset(
         treatments=np.array([[0, 0], [0, 1], [1, 0], [1, CONTROL_SENTINEL_VALUE]]),
         observations=np.array([0.1, 0.2, 0.3, 0.4]),
-        sample_ids=np.array([0, 1, 2, 3]),
-        plate_ids=np.array([0, 0, 1, 1]),
-        treatment_classes=np.array([[0, 0], [0, 1], [1, 0], [1, 1]]),
+        sample_names=np.array([0, 1, 2, 3]),
+        plate_names=np.array([0, 0, 1, 1]),
+        treatment_names=np.array([[0, 0], [0, 1], [1, 0], [1, 1]]),
         treatment_doses=np.array([[0, 0], [0, 1], [1, 0], [1, 1]]),
     )
 
     Dataset(
         treatments=np.array([[0, 0], [0, 0], [0, 0], [0, CONTROL_SENTINEL_VALUE]]),
         observations=np.array([0.1, 0.2, 0.3, 0.4]),
-        sample_ids=np.array([0, 1, 2, 3]),
-        plate_ids=np.array([0, 0, 1, 1]),
-        treatment_classes=np.array([[0, 0], [0, 1], [1, 0], [1, 1]]),
+        sample_names=np.array([0, 1, 2, 3]),
+        plate_names=np.array([0, 0, 1, 1]),
+        treatment_names=np.array([[0, 0], [0, 1], [1, 0], [1, 1]]),
         treatment_doses=np.array([[0, 0], [0, 1], [1, 0], [1, 1]]),
     )
 
@@ -88,9 +88,9 @@ def test_dataset_initialization_fails_bad_dtypes():
         Dataset(
             treatments=np.array([[0, 0], [0, 1], [1, 0], [1, 1]]),
             observations=np.array([0, 0, 0, 1]),
-            sample_ids=np.array([0, 1, 2, 3]),
-            plate_ids=np.array([0, 0, 1, 1]),
-            treatment_classes=np.array([[0, 0], [0, 1], [1, 0], [1, 1]]),
+            sample_names=np.array([0, 1, 2, 3]),
+            plate_names=np.array([0, 0, 1, 1]),
+            treatment_names=np.array([[0, 0], [0, 1], [1, 0], [1, 1]]),
             treatment_doses=np.array([[0, 0], [0, 1], [1, 0], [1, 1]]),
         )
 
@@ -101,9 +101,9 @@ def test_dataset_initialization_fails_bad_dtypes():
         Dataset(
             treatments=np.array([[0, 0], [0, 1], [1, 0], [3, 1]]),
             observations=np.array([0.1, 0.2, 0.3, 0.4]),
-            sample_ids=np.array([0, 1, 2, 3]),
-            plate_ids=np.array([0, 0, 1, 1]),
-            treatment_classes=np.array([[0, 0], [0, 1], [1, 0], [1, 1]]),
+            sample_names=np.array([0, 1, 2, 3]),
+            plate_names=np.array([0, 0, 1, 1]),
+            treatment_names=np.array([[0, 0], [0, 1], [1, 0], [1, 1]]),
             treatment_doses=np.array([[0, 0], [0, 1], [1, 0], [1, 1]]),
         )
 
@@ -114,9 +114,9 @@ def test_dataset_initialization_fails_bad_dtypes():
         Dataset(
             treatments=np.array([[0, 0], [0, 1], [1, 0], [1, 1]]),
             observations=np.array([0.1, 0.2, 0.3, 0.4]),
-            sample_ids=np.array([0, 1, 2, 3]),
-            plate_ids=np.array([0, 0, 1, 4]),
-            treatment_classes=np.array([[0, 0], [0, 1], [1, 0], [1, 1]]),
+            sample_names=np.array([0, 1, 2, 3]),
+            plate_names=np.array([0, 0, 1, 4]),
+            treatment_names=np.array([[0, 0], [0, 1], [1, 0], [1, 1]]),
             treatment_doses=np.array([[0, 0], [0, 1], [1, 0], [1, 1]]),
         )
 
@@ -127,9 +127,9 @@ def test_dataset_initialization_fails_bad_dtypes():
         Dataset(
             treatments=np.array([[0, 0], [0, 1], [1, 0], [1, 1]]),
             observations=np.array([0.1, 0.2, 0.3, 0.4]),
-            sample_ids=np.array([0, 1, 2, 4]),
-            plate_ids=np.array([0, 0, 1, 1]),
-            treatment_classes=np.array([[0, 0], [0, 1], [1, 0], [1, 1]]),
+            sample_names=np.array([0, 1, 2, 4]),
+            plate_names=np.array([0, 0, 1, 1]),
+            treatment_names=np.array([[0, 0], [0, 1], [1, 0], [1, 1]]),
             treatment_doses=np.array([[0, 0], [0, 1], [1, 0], [1, 1]]),
         )
 
@@ -139,9 +139,9 @@ def test_dataset_initialization_fails_bad_dtypes():
         Dataset(
             treatments=np.array([[0, 0], [0, 1], [1, 0], [1, 1]]),
             observations=np.array([0.1, 0.2, 0.3, 0.4]),
-            sample_ids=np.array([0, 1, 2, 3, 4]),
-            plate_ids=np.array([0, 0, 1, 1]),
-            treatment_classes=np.array([[0, 0], [0, 1], [1, 0], [1, 1]]),
+            sample_names=np.array([0, 1, 2, 3, 4]),
+            plate_names=np.array([0, 0, 1, 1]),
+            treatment_names=np.array([[0, 0], [0, 1], [1, 0], [1, 1]]),
             treatment_doses=np.array([[0, 0], [0, 1], [1, 0], [1, 1]]),
         )
 
@@ -151,9 +151,9 @@ def test_dataset_initialization_fails_bad_dtypes():
         Dataset(
             treatments=np.array([[0, 0], [0, 1], [1, 0], [1, 1]]),
             observations=np.array([0.1, 0.2, 0.3, 0.4]),
-            sample_ids=np.array([0, 1, 2, 3]),
-            plate_ids=np.array([0, 0, 1, 1, 1]),
-            treatment_classes=np.array([[0, 0], [0, 1], [1, 0], [1, 1]]),
+            sample_names=np.array([0, 1, 2, 3]),
+            plate_names=np.array([0, 0, 1, 1, 1]),
+            treatment_names=np.array([[0, 0], [0, 1], [1, 0], [1, 1]]),
             treatment_doses=np.array([[0, 0], [0, 1], [1, 0], [1, 1]]),
         )
 
@@ -164,9 +164,9 @@ def test_dataset_initialization_fails_bad_dtypes():
         Dataset(
             treatments=np.array([[0, 0], [0, 1], [1, 0]]),
             observations=np.array([0.1, 0.2, 0.3, 0.4]),
-            sample_ids=np.array([0, 1, 2, 3]),
-            plate_ids=np.array([0, 0, 1, 1, 1]),
-            treatment_classes=np.array([[0, 0], [0, 1], [1, 0], [1, 1]]),
+            sample_names=np.array([0, 1, 2, 3]),
+            plate_names=np.array([0, 0, 1, 1, 1]),
+            treatment_names=np.array([[0, 0], [0, 1], [1, 0], [1, 1]]),
             treatment_doses=np.array([[0, 0], [0, 1], [1, 0], [1, 1]]),
         )
 
@@ -175,9 +175,9 @@ def test_randomly_subsample_dataset():
     test_dataset = Dataset(
         treatments=np.array([[0, 0], [0, 1], [1, 0], [1, 1]]),
         observations=np.array([0.1, 0.2, 0.3, 0.4]),
-        sample_ids=np.array([0, 1, 2, 3]),
-        plate_ids=np.array([0, 0, 1, 1]),
-        treatment_classes=np.array([[0, 0], [0, 1], [1, 0], [1, 1]]),
+        sample_names=np.array([0, 1, 2, 3]),
+        plate_names=np.array([0, 0, 1, 1]),
+        treatment_names=np.array([[0, 0], [0, 1], [1, 0], [1, 1]]),
         treatment_doses=np.array([[0, 0], [0, 1], [1, 0], [1, 1]]),
     )
 

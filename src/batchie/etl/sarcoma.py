@@ -157,6 +157,6 @@ def load_sarcoma(
     return Dataset(
         observations=df.y_logit.to_numpy(),
         treatments=df[["drugdose1", "drugdose2"]].to_numpy(),
-        sample_ids=df.cline.to_numpy(),
-        plate_ids=df.plate_id.to_numpy(),
+        sample_names=df.cline.to_numpy(),
+        plate_names=df.plate_id.to_numpy(),
     )

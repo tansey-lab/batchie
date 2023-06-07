@@ -11,9 +11,9 @@ def test_sparse_drug_combo_mcmc_step_with_observed_data():
 
     dataset = Dataset(
         observations=np.array([0.1, 0.2, 0.3, 0.4, 0.5]),
-        sample_ids=np.array([0, 1, 2, 3, 4]),
+        sample_names=np.array([0, 1, 2, 3, 4]),
         treatments=np.array([[0, 1], [0, 1], [0, 1], [0, 1], [-1, -1]]),
-        plate_ids=np.array([0, 0, 0, 0, 0]),
+        plate_names=np.array([0, 0, 0, 0, 0]),
     )
 
     model.add_observations(dataset)
