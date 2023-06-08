@@ -155,8 +155,9 @@ def load_sarcoma(
     df["y_logit"] = logit(np.clip(df["Viability"], a_min=0.01, a_max=0.99))
 
     return Dataset(
-        observations=df.y_logit.to_numpy(),
-        treatments=df[["drugdose1", "drugdose2"]].to_numpy(),
-        sample_names=df.cline.to_numpy(),
-        plate_names=df.plate_id.to_numpy(),
+        observations=df.y_logit.to_numpy().astype(float),
+        treatment_names=df[["drug1", "drug2"]].fillna("").to_numpy().astype(str),
+        treatment_doses=df[["dose1", "dose2"]].to_numpy().astype(float),
+        sample_names=df.cline.to_numpy().astype(str),
+        plate_names=df.plate_id.to_numpy().astype(str),
     )

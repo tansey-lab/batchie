@@ -5,6 +5,7 @@ import tempfile
 import numpy as np
 import numpy.testing
 import pytest
+import h5py
 
 from batchie.data import (
     Dataset,
@@ -26,8 +27,9 @@ def test_encode_treatment_arrays_to_0_indexed_ids():
 
 def test_encode_treatment_arrays_with_controls_to_0_indexed_ids():
     result = encode_treatment_arrays_to_0_indexed_ids(
-        treatment_name_arr=np.array(["a", "b", np.nan, "b"], dtype=object),
+        treatment_name_arr=np.array(["a", "b", "", "b"], dtype=object),
         treatment_dose_arr=np.array([1, 2, 3, 0]),
+        control_treatment_name="",
     )
 
     assert result.size == 4
@@ -38,10 +40,12 @@ def test_encode_treatment_arrays_with_controls_to_0_indexed_ids():
 def test_dataset_initialization_succeeds_under_correct_condition():
     result = Dataset(
         observations=np.array([0.1, 0.2, 0.3, 0.4]),
-        sample_names=np.array(["a", "b", "c", "d"]),
-        plate_names=np.array(["a", "a", "b", "b"]),
-        treatment_names=np.array([["a", "b"], ["a", "b"], ["a", "b"], ["a", "b"]]),
-        treatment_doses=np.array([[2, 2], [1, 2], [2, 1], [2, 0]]),
+        sample_names=np.array(["a", "b", "c", "d"], dtype=str),
+        plate_names=np.array(["a", "a", "b", "b"], dtype=str),
+        treatment_names=np.array(
+            [["a", "b"], ["a", "b"], ["a", "b"], ["a", "b"]], dtype=str
+        ),
+        treatment_doses=np.array([[2.0, 2.0], [1.0, 2.0], [2.0, 1.0], [2.0, 0]]),
     )
 
     assert result.n_experiments == 4
@@ -54,12 +58,14 @@ def test_dataset_initialization_succeeds_under_correct_condition():
 
 def test_dataset_serialization():
     dset = Dataset(
-        treatments=np.array([[0, 0], [0, 1], [1, 0], [1, 1]]),
         observations=np.array([0.1, 0.2, 0.3, 0.4]),
-        sample_names=np.array([0, 1, 2, 3]),
-        plate_names=np.array([0, 0, 1, 1]),
-        treatment_names=np.array([[0, 0], [0, 1], [1, 0], [1, 1]]),
-        treatment_doses=np.array([[0, 0], [0, 1], [1, 0], [1, 1]]),
+        sample_names=np.array(["a", "b", "c", "d"], dtype=str),
+        plate_names=np.array(["a", "a", "b", "b"], dtype=str),
+        treatment_names=np.array(
+            [["a", "b"], ["a", "b"], ["a", "b"], ["a", "b"]], dtype=str
+        ),
+        treatment_doses=np.array([[2.0, 2.0], [1.0, 2.0], [2.0, 1.0], [2.0, 0]]),
+        control_treatment_name="zzz",
     )
 
     tempdir = tempfile.mkdtemp()
@@ -70,22 +76,36 @@ def test_dataset_serialization():
 
         dset_loaded = Dataset.load_h5(fn)
 
-        numpy.testing.assert_array_equal(dset.treatments, dset_loaded.treatments)
-        numpy.testing.assert_array_equal(dset.observations, dset_loaded.observations)
-        numpy.testing.assert_array_equal(dset.sample_ids, dset_loaded.sample_ids)
-        numpy.testing.assert_array_equal(dset.plate_ids, dset_loaded.plate_ids)
+        numpy.testing.assert_array_equal(dset_loaded.plate_ids, np.array([0, 0, 1, 1]))
+        numpy.testing.assert_array_equal(dset_loaded.sample_ids, np.array([0, 1, 2, 3]))
+        numpy.testing.assert_array_equal(
+            dset_loaded.treatment_ids, np.array([[1, 3], [0, 3], [1, 2], [1, -1]])
+        )
+        numpy.testing.assert_array_equal(
+            dset_loaded.treatment_names,
+            np.array([["a", "b"], ["a", "b"], ["a", "b"], ["a", "b"]]),
+        )
+        numpy.testing.assert_array_equal(
+            dset_loaded.treatment_doses,
+            np.array([[2.0, 2.0], [1.0, 2.0], [2.0, 1.0], [2.0, 0]]),
+        )
+        numpy.testing.assert_array_equal(
+            dset_loaded.sample_names, np.array(["a", "b", "c", "d"])
+        )
+        assert dset_loaded.control_treatment_name == "zzz"
     finally:
         shutil.rmtree(tempdir)
 
 
 def test_randomly_subsample_dataset():
     test_dataset = Dataset(
-        treatments=np.array([[0, 0], [0, 1], [1, 0], [1, 1]]),
         observations=np.array([0.1, 0.2, 0.3, 0.4]),
-        sample_names=np.array([0, 1, 2, 3]),
-        plate_names=np.array([0, 0, 1, 1]),
-        treatment_names=np.array([[0, 0], [0, 1], [1, 0], [1, 1]]),
-        treatment_doses=np.array([[0, 0], [0, 1], [1, 0], [1, 1]]),
+        sample_names=np.array(["a", "b", "c", "d"], dtype=str),
+        plate_names=np.array(["a", "a", "b", "b"], dtype=str),
+        treatment_names=np.array(
+            [["a", "b"], ["a", "b"], ["a", "b"], ["a", "b"]], dtype=str
+        ),
+        treatment_doses=np.array([[2.0, 2.0], [1.0, 2.0], [2.0, 1.0], [2.0, 0]]),
     )
 
     to_keep, to_drop = randomly_subsample_dataset(

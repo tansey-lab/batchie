@@ -24,24 +24,15 @@ def numpy_array_is_0_indexed_integers(arr: ArrayType):
         return np.all(np.sort(np.unique(arr)) == np.arange(np.unique(arr).shape[0]))
 
 
-def treatment_name_is_control(x):
-    return pandas.isna(x) or not x
-
-
-def treatment_dose_is_control(x):
-    return pandas.isna(x) or x == 0 or not x
-
-
 def encode_treatment_arrays_to_0_indexed_ids(
     treatment_name_arr: ArrayType,
     treatment_dose_arr: ArrayType,
-    name_is_control: Callable[[Any], bool] = treatment_name_is_control,
-    dose_is_control: Callable[[Any], bool] = treatment_dose_is_control,
+    control_treatment_name: str = "",
     sentinel_value: int = -1,
 ):
-    is_control = np.array([name_is_control(x) for x in treatment_name_arr]) | np.array(
-        [dose_is_control(x) for x in treatment_dose_arr]
-    )
+    is_control = np.array(
+        [x == control_treatment_name for x in treatment_name_arr]
+    ) | np.array([x <= 0 for x in treatment_dose_arr])
 
     name_dose_arr = np.vstack([treatment_name_arr, treatment_dose_arr]).T
 
@@ -117,7 +108,9 @@ class Dataset:
         observations: ArrayType,
         sample_names: ArrayType,
         plate_names: ArrayType,
+        control_treatment_name="",
     ):
+        self.control_treatment_name = control_treatment_name
         if (
             len(
                 set(
@@ -144,19 +137,31 @@ class Dataset:
                     treatment_names.shape, treatment_doses.shape
                 )
             )
+        if not np.issubdtype(treatment_doses.dtype, float):
+            raise ValueError("treatment_doses must be floats")
 
         if not np.issubdtype(observations.dtype, float):
             raise ValueError("observations must be floats")
 
+        if not np.issubdtype(treatment_names.dtype, str):
+            raise ValueError("treatment_names must be strings")
+
+        if not np.issubdtype(plate_names.dtype, str):
+            raise ValueError("plate_names must be strings")
+
+        if not np.issubdtype(sample_names.dtype, str):
+            raise ValueError("sample_names must be strings")
+
         dose_class_combos = []
         for i in range(treatment_names.shape[1]):
-            dose_class_combos.append(
-                np.vstack([treatment_names[:, i], treatment_doses[:, i]]).T
-            )
-        all_dose_class_combos = np.concatenate(dose_class_combos)
+            dose_class_combos.append((treatment_names[:, i], treatment_doses[:, i]))
+        all_dose_names = np.concatenate([x[0] for x in dose_class_combos])
+        all_drug_names = np.concatenate([x[1] for x in dose_class_combos])
+
         all_dose_class_combos_encoded = encode_treatment_arrays_to_0_indexed_ids(
-            treatment_name_arr=all_dose_class_combos[:, 0],
-            treatment_dose_arr=all_dose_class_combos[:, 1],
+            treatment_name_arr=all_dose_names,
+            treatment_dose_arr=all_drug_names,
+            control_treatment_name=self.control_treatment_name,
             sentinel_value=CONTROL_SENTINEL_VALUE,
         )
 
@@ -197,25 +202,29 @@ class Dataset:
     def save_h5(self, fn):
         """Save all arrays to h5"""
         with h5py.File(fn, "w") as f:
-            f.create_dataset("treatment_names", data=self.treatment_names)
-            f.create_dataset("treatment_doses", data=self.treatment_names)
+            f.create_dataset(
+                "treatment_names", data=np.char.encode(self.treatment_names)
+            )
+            f.create_dataset("treatment_doses", data=self.treatment_doses)
             f.create_dataset("treatment_ids", data=self.treatment_ids)
             f.create_dataset("observations", data=self.observations)
             f.create_dataset("sample_ids", data=self.sample_ids)
-            f.create_dataset("sample_names", data=self.sample_names)
+            f.create_dataset("sample_names", data=np.char.encode(self.sample_names))
             f.create_dataset("plate_ids", data=self.plate_ids)
-            f.create_dataset("plate_names", data=self.plate_names)
+            f.create_dataset("plate_names", data=np.char.encode(self.plate_names))
+            f.attrs["control_treatment_name"] = self.control_treatment_name
 
     @staticmethod
     def load_h5(path):
         """Load saved data from h5 archive"""
         with h5py.File(path, "r") as f:
             return Dataset(
-                treatment_names=f["treatment_names"][:],
+                treatment_names=np.char.decode(f["treatment_names"][:], "utf-8"),
                 treatment_doses=f["treatment_doses"][:],
                 observations=f["observations"][:],
-                sample_names=f["sample_names"][:],
-                plate_names=f["plate_names"][:],
+                sample_names=np.char.decode(f["sample_names"][:], "utf-8"),
+                plate_names=np.char.decode(f["plate_names"][:], "utf-8"),
+                control_treatment_name=f.attrs["control_treatment_name"],
             )
 
 
@@ -237,7 +246,7 @@ def randomly_subsample_dataset(
 
     # Select all values where the treatment class is in one of the randomly select proportions
     if treatment_class_fraction is not None:
-        choices = np.unique(dataset.treatment_classes.flatten())
+        choices = np.unique(dataset.treatment_ids.flatten())
         n_to_keep = int(treatment_class_fraction * choices.size)
         logger.info(
             f"Randomly selecting {n_to_keep} treatment classes out of {choices.size} total"
@@ -245,11 +254,11 @@ def randomly_subsample_dataset(
 
         treatment_classes_to_keep = rng.choice(choices, size=n_to_keep, replace=False)
         to_keep_vector = to_keep_vector & np.all(
-            np.isin(dataset.treatment_classes, treatment_classes_to_keep), axis=1
+            np.isin(dataset.treatment_ids, treatment_classes_to_keep), axis=1
         )
 
     if treatment_fraction is not None:
-        choices = np.unique(dataset.treatments.flatten())
+        choices = np.unique(dataset.treatment_ids.flatten())
         choices = choices[choices != CONTROL_SENTINEL_VALUE]
         n_to_keep = int(treatment_fraction * choices.size)
         logger.info(
@@ -262,7 +271,7 @@ def randomly_subsample_dataset(
             [CONTROL_SENTINEL_VALUE], treatments_to_keep
         )
         to_keep_vector = to_keep_vector & np.all(
-            np.isin(dataset.treatments, treatments_to_keep), axis=1
+            np.isin(dataset.treatment_ids, treatments_to_keep), axis=1
         )
 
     if sample_fraction is not None:
@@ -283,22 +292,12 @@ def randomly_subsample_dataset(
     )
 
     # Create two new dataset objects, one with the experiments to keep, and one with the experiments to drop
-    dataset_of_kept_experiments = Dataset(
-        treatments=dataset.treatments[to_keep_vector, :],
-        observations=dataset.observations[to_keep_vector],
-        sample_names=dataset.sample_ids[to_keep_vector],
-        plate_names=dataset.plate_ids[to_keep_vector],
-        treatment_names=dataset.treatment_classes[to_keep_vector, :],
-        treatment_doses=dataset.treatment_doses[to_keep_vector, :],
+    dataset_of_kept_experiments = DatasetSubset(
+        dataset=dataset, selection_vector=to_keep_vector
     )
 
-    dataset_of_dropped_experiments = Dataset(
-        treatments=dataset.treatments[~to_keep_vector, :],
-        observations=dataset.observations[~to_keep_vector],
-        sample_names=dataset.sample_ids[~to_keep_vector],
-        plate_names=dataset.plate_ids[~to_keep_vector],
-        treatment_names=dataset.treatment_classes[~to_keep_vector, :],
-        treatment_doses=dataset.treatment_doses[~to_keep_vector, :],
+    dataset_of_dropped_experiments = DatasetSubset(
+        dataset=dataset, selection_vector=~to_keep_vector
     )
 
     return dataset_of_kept_experiments, dataset_of_dropped_experiments
