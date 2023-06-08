@@ -37,10 +37,11 @@ def load_data(path: str) -> Dataset:
     ].astype(int)
 
     return Dataset(
-        observations=X_mean.y_viability.to_numpy(),
-        treatments=X_mean[["drugdose1", "drugdose2"]].to_numpy(),
-        sample_ids=X_mean.cline.to_numpy(),
-        plate_ids=X_mean.plate.to_numpy(),
+        observations=X_mean.y_viability.to_numpy().astype(float),
+        treatment_names=X_mean[["drug1", "drug2"]].fillna("").to_numpy().astype(str),
+        treatment_doses=X_mean[["dose1", "dose2"]].to_numpy().astype(float),
+        sample_names=X_mean.cline.to_numpy().astype(str),
+        plate_names=X_mean.plate.to_numpy().astype(str),
     )
 
 

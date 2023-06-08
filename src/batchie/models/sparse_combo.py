@@ -263,8 +263,8 @@ class SparseDrugCombo(BayesianModel):
 
         self.y = np.concatenate([self.y, data.observations])
         self.sample_ids = np.concatenate([self.sample_ids, data.sample_ids])
-        self.treatment_1 = np.concatenate([self.treatment_1, data.treatments[:, 0]])
-        self.treatment_2 = np.concatenate([self.treatment_2, data.treatments[:, 1]])
+        self.treatment_1 = np.concatenate([self.treatment_1, data.treatment_ids[:, 0]])
+        self.treatment_2 = np.concatenate([self.treatment_2, data.treatment_ids[:, 1]])
 
     def reset_model(self):
         self.W = self.W * 0.0
