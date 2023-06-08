@@ -193,11 +193,27 @@ class Dataset:
 
     @property
     def unique_treatments(self):
-        return np.unique(self.treatment_ids)
+        return np.setdiff1d(np.unique(self.treatment_ids), [CONTROL_SENTINEL_VALUE])
 
     @property
     def n_treatments(self):
         return self.treatment_ids.shape[1]
+
+    def subset(self, selection_vector: ArrayType):
+        if not np.issubdtype(selection_vector.dtype, bool):
+            raise ValueError("selection_vector must be bool")
+
+        if not selection_vector.size == self.n_experiments:
+            raise ValueError("selection_vector must have same length as dataset")
+
+        return Dataset(
+            treatment_names=self.treatment_names[selection_vector],
+            treatment_doses=self.treatment_doses[selection_vector],
+            observations=self.observations[selection_vector],
+            sample_names=self.sample_names[selection_vector],
+            plate_names=self.plate_names[selection_vector],
+            control_treatment_name=self.control_treatment_name,
+        )
 
     def save_h5(self, fn):
         """Save all arrays to h5"""
@@ -301,3 +317,37 @@ def randomly_subsample_dataset(
     )
 
     return dataset_of_kept_experiments, dataset_of_dropped_experiments
+
+
+def filter_dataset_to_treatments_that_appear_in_at_least_one_combo(dataset: Dataset):
+    if dataset.n_treatments < 2:
+        raise ValueError("Dataset must have at least 2 treatments")
+
+    treatment_ids: ArrayType = dataset.treatment_ids
+
+    treatment_selection_vector = np.all(
+        ~((treatment_ids == CONTROL_SENTINEL_VALUE).reshape(treatment_ids.shape)),
+        axis=1,
+    )
+
+    treatments_to_select = np.unique(
+        treatment_ids[treatment_selection_vector].flatten()
+    )
+    treatments_to_select_plus_controls = np.concatenate(
+        [treatments_to_select, [CONTROL_SENTINEL_VALUE]]
+    )
+
+    logger.info(
+        "Filtering {}/{} treatments that appear in at least one combo".format(
+            treatments_to_select.size, dataset.n_treatments
+        )
+    )
+
+    experiment_selection_vector = np.all(
+        np.in1d(treatment_ids, treatments_to_select_plus_controls).reshape(
+            treatment_ids.shape
+        ),
+        axis=1,
+    )
+
+    return dataset.subset(experiment_selection_vector)
