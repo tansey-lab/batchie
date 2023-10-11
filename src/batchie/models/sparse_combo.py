@@ -11,7 +11,7 @@ from scipy.special import logit
 
 from batchie.common import ArrayType, copy_array_with_control_treatments_set_to_zero
 from batchie.fast_mvn import sample_mvn_from_precision
-from batchie.interfaces import BayesianModel, ResultsHolder
+from batchie.interfaces import BayesianModel, BayesianModelSample, ResultsHolder
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +28,7 @@ def interactions_to_logits(
 
 
 @dataclass
-class SparseDrugComboMCMCSample:
+class SparseDrugComboMCMCSample(BayesianModelSample):
     """A single sample from the MCMC chain for the sparse drug combo model"""
 
     W: ArrayType
@@ -275,6 +275,52 @@ class SparseDrugCombo(BayesianModel):
         self.alpha = 0.0
         self.prec = 100.0
         self.Mu = np.zeros(0, np.float32)
+
+    def set_model_state(self, model_state: SparseDrugComboMCMCSample):
+        self.W = model_state.W
+        self.W0 = model_state.W0
+        self.V2 = model_state.V2
+        self.V1 = model_state.V1
+        self.V0 = model_state.V0
+        self.alpha = model_state.alpha
+        self.prec = model_state.prec
+        self._reconstruct_Mu()
+
+    def mcmc_step(self):
+        self.num_mcmc_steps += 1
+        self._reconstruct_Mu(clip=False)
+        self._alpha_step()
+        self._W0_step()
+        self._V0_step()
+        self._W_step()
+        self._V2_step()
+        self._V1_step()
+        self._prec_W0_step()
+        self._prec_V0_step()
+        self._prec_obs_step()
+        self._prec_V2_step()
+        self._prec_V1_step()
+        self._prec_W_step()
+
+    def get_model_state(self) -> SparseDrugComboMCMCSample:
+        return SparseDrugComboMCMCSample(
+            prec=self.prec,
+            alpha=self.alpha,
+            W0=self.W0.copy(),
+            V0=self.V0.copy(),
+            W=self.W.copy(),
+            V2=self.V2.copy(),
+            V1=self.V1.copy(),
+        )
+
+    def predict(self, data: Dataset):
+        state = self.get_model_state()
+        if data.n_treatments == 1:
+            return predict_single_drug(state, data)
+        elif data.n_treatments == 2:
+            return predict(state, data)
+        else:
+            raise NotImplementedError("SparseDrugCombo only supports 1 or 2 treatments")
 
     def _W_step(self):
         """the strategy is to iterate over each cell line
@@ -622,32 +668,6 @@ class SparseDrugCombo(BayesianModel):
             self.alpha = self.rng.normal(mean, stddev)
         self.Mu += self.alpha - old_value
 
-    def mcmc_step(self) -> SparseDrugComboMCMCSample:
-        self.num_mcmc_steps += 1
-        self._reconstruct_Mu(clip=False)
-        self._alpha_step()
-        self._W0_step()
-        self._V0_step()
-        self._W_step()
-        self._V2_step()
-        self._V1_step()
-        self._prec_W0_step()
-        self._prec_V0_step()
-        self._prec_obs_step()
-        self._prec_V2_step()
-        self._prec_V1_step()
-        self._prec_W_step()
-
-        return SparseDrugComboMCMCSample(
-            prec=self.prec,
-            alpha=self.alpha,
-            W0=self.W0.copy(),
-            V0=self.V0.copy(),
-            W=self.W.copy(),
-            V2=self.V2.copy(),
-            V1=self.V1.copy(),
-        )
-
     def _reconstruct_Mu(self, clip=True):
         if self.n_obs == 0:
             return
@@ -686,7 +706,7 @@ class SparseDrugCombo(BayesianModel):
         if clip:
             self.Mu = np.clip(self.Mu, self.min_Mu, self.max_Mu)
 
-    def ess_pars(self):
+    def _ess_pars(self):
         return [1.0 / np.sqrt(self.prec)] + self.Mu.tolist()
 
 
