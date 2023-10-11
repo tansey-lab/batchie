@@ -130,6 +130,11 @@ class Dataset:
         ):
             raise ValueError("All arrays must have the same number of experiments")
 
+        if len(treatment_names.shape) != 2:
+            raise ValueError("treatment_names must be a column vector")
+        if len(treatment_doses.shape) != 2:
+            raise ValueError("treatment_doses must be a column vector")
+
         if treatment_names.shape != treatment_doses.shape:
             raise ValueError(
                 "treatment_names, treatment_doses must have the same shape, "
