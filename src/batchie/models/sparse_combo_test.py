@@ -87,7 +87,12 @@ def test_results_holder_accumulate(test_dataset):
         n_unique_samples=test_dataset.n_samples,
     )
 
-    results_holder = sparse_combo.SparseDrugComboResults(n_mcmc_steps=2, model=model)
+    results_holder = sparse_combo.SparseDrugComboResults(
+        n_mcmc_steps=2,
+        n_embedding_dimensions=5,
+        n_unique_treatments=test_dataset.n_treatments,
+        n_unique_samples=test_dataset.n_samples,
+    )
 
     while not results_holder.is_complete:
         model.mcmc_step()

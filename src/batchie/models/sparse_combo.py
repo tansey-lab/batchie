@@ -77,8 +77,8 @@ class SparseDrugCombo(BayesianModel):
 
         # indicators for each entry AND sparse query of specific combos
         self.sample_ids = np.array([], dtype=np.int32)
-        self.treatment_1 = np.array([], dtype=np.float64)
-        self.treatment_2 = np.array([], dtype=np.float64)
+        self.treatment_1 = np.array([], dtype=np.int32)
+        self.treatment_2 = np.array([], dtype=np.int32)
 
         # hyperpriors
         self.a0 = a0  # inverse gamma param 1 for prec

@@ -10,7 +10,7 @@ def copy_array_with_control_treatments_set_to_zero(
 ):
     results = []
     for idx in treatment_array:
-        if idx != -1:
+        if idx != CONTROL_SENTINEL_VALUE:
             results.append(arr[idx])
         else:
             results.append(np.zeros_like(arr[0]))
