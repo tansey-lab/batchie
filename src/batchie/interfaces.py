@@ -1,4 +1,4 @@
-from batchie.data import Dataset
+from batchie.data import Data
 
 
 class BayesianModelSample:
@@ -37,13 +37,13 @@ class BayesianModel:
     def get_model_state(self) -> BayesianModelSample:
         raise NotImplementedError
 
-    def predict(self, data: Dataset):
+    def predict(self, data: Data):
         raise NotImplementedError
 
     def mcmc_step(self):
         raise NotImplementedError
 
-    def add_observations(self, data: Dataset):
+    def add_observations(self, data: Data):
         raise NotImplementedError
 
     def n_obs(self) -> int:

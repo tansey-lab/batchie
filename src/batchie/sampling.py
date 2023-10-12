@@ -31,6 +31,6 @@ def sample(
     for step_index in trange(total_steps, disable=disable_progress_bar):
         step_sample = model.mcmc_step()
         if ((step_index + 1) % thin) == 0:
-            results.add_mcmc_sample(step_sample)
+            results.add_mcmc_sample(model.get_model_state())
 
     return results

@@ -69,7 +69,25 @@ def encode_1d_array_to_0_indexed_ids(arr: ArrayType):
     return np.array([mapping[x] for x in arr])
 
 
-class DatasetSubset:
+class Data:
+    @property
+    def unique_plate_ids(self):
+        return np.unique(self.plate_ids)
+
+    @property
+    def unique_sample_ids(self):
+        return np.unique(self.sample_ids)
+
+    @property
+    def unique_treatments(self):
+        return np.setdiff1d(np.unique(self.treatment_ids), [CONTROL_SENTINEL_VALUE])
+
+    @property
+    def n_treatments(self):
+        return self.treatment_ids.shape[1]
+
+
+class DatasetSubset(Data):
     def __init__(self, dataset: "Dataset", selection_vector: ArrayType):
         self.dataset = dataset
 
@@ -99,8 +117,24 @@ class DatasetSubset:
     def treatment_ids(self):
         return self.dataset.treatment_ids[self.selection_vector]
 
+    @property
+    def unique_plate_ids(self):
+        return np.unique(self.plate_ids)
 
-class Dataset:
+    @property
+    def unique_sample_ids(self):
+        return np.unique(self.sample_ids)
+
+    @property
+    def unique_treatments(self):
+        return np.setdiff1d(np.unique(self.treatment_ids), [CONTROL_SENTINEL_VALUE])
+
+    @property
+    def n_treatments(self):
+        return self.treatment_ids.shape[1]
+
+
+class Dataset(Data):
     def __init__(
         self,
         treatment_names: ArrayType,
@@ -259,7 +293,7 @@ def randomly_subsample_dataset(
     treatment_fraction: Optional[float] = None,
     sample_fraction: Optional[float] = None,
     rng: Optional[np.random.BitGenerator] = None,
-):
+) -> (DatasetSubset, DatasetSubset):
     if rng is None:
         logger.warning(
             "No random number generator provided to randomly_subsample_dataset, using default. "
@@ -328,7 +362,9 @@ def randomly_subsample_dataset(
     return dataset_of_kept_experiments, dataset_of_dropped_experiments
 
 
-def filter_dataset_to_treatments_that_appear_in_at_least_one_combo(dataset: Dataset):
+def filter_dataset_to_treatments_that_appear_in_at_least_one_combo(
+    dataset: Dataset,
+) -> Dataset:
     if dataset.n_treatments < 2:
         raise ValueError("Dataset must have at least 2 treatments")
 

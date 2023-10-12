@@ -5,7 +5,7 @@ from typing import Optional
 
 import h5py
 import numpy as np
-from batchie.data import Dataset
+from batchie.data import Data
 from numpy.random import BitGenerator
 from scipy.special import logit
 
@@ -133,7 +133,7 @@ class SparseDrugCombo(BayesianModel):
     def n_obs(self):
         return self.y.size
 
-    def add_observations(self, data: Dataset):
+    def add_observations(self, data: Data):
         if data.n_treatments != 2:
             raise ValueError(
                 "SparseDrugCombo only works with two-treatments combination datasets, "
@@ -192,7 +192,7 @@ class SparseDrugCombo(BayesianModel):
             V1=self.V1.copy(),
         )
 
-    def predict(self, data: Dataset):
+    def predict(self, data: Data):
         state = self.get_model_state()
         if data.n_treatments == 1:
             return predict_single_drug(state, data)
@@ -701,7 +701,7 @@ class SparseDrugComboResults(ResultsHolder):
         return results
 
 
-def predict(mcmc_sample: SparseDrugComboMCMCSample, data: Dataset):
+def predict(mcmc_sample: SparseDrugComboMCMCSample, data: Data):
     interaction2 = np.sum(
         mcmc_sample.W[data.sample_ids]
         * copy_array_with_control_treatments_set_to_zero(
@@ -738,33 +738,33 @@ def predict(mcmc_sample: SparseDrugComboMCMCSample, data: Dataset):
     return Mu
 
 
-def predict_single_drug(mcmc_sample: SparseDrugComboMCMCSample, plate: Dataset):
+def predict_single_drug(mcmc_sample: SparseDrugComboMCMCSample, data: Data):
     interaction1 = np.sum(
-        mcmc_sample.W[plate.sample_ids]
+        mcmc_sample.W[data.sample_ids]
         * copy_array_with_control_treatments_set_to_zero(
-            mcmc_sample.V1, plate.treatment_ids[:, 0]
+            mcmc_sample.V1, data.treatment_ids[:, 0]
         ),
         -1,
     )
     intercept = (
         mcmc_sample.alpha
-        + mcmc_sample.W0[plate.sample_ids]
+        + mcmc_sample.W0[data.sample_ids]
         + copy_array_with_control_treatments_set_to_zero(
-            mcmc_sample.V0, plate.treatment_ids[:, 0]
+            mcmc_sample.V0, data.treatment_ids[:, 0]
         )
     )
     Mu = intercept + interaction1
     return Mu
 
 
-def bliss(mcmc_sample: SparseDrugComboMCMCSample, plate: Dataset):
+def bliss(mcmc_sample: SparseDrugComboMCMCSample, data: Data):
     interaction2 = np.sum(
-        mcmc_sample.W[plate.treatment_ids]
+        mcmc_sample.W[data.treatment_ids]
         * copy_array_with_control_treatments_set_to_zero(
-            mcmc_sample.V2, plate.treatment_ids[:, 0]
+            mcmc_sample.V2, data.treatment_ids[:, 0]
         )
         * copy_array_with_control_treatments_set_to_zero(
-            mcmc_sample.V2, plate.treatment_ids[:, 1]
+            mcmc_sample.V2, data.treatment_ids[:, 1]
         ),
         -1,
     )
