@@ -1,118 +1,71 @@
-import pickle
-from typing import Union
-
-import numpy as np
-
-from batchie.common import ArrayType
+from batchie.data import Data
 
 
-class Plate:
-    def __init__(self, **kwargs):
-        return
+class BayesianModelSample:
+    """
+    This class represents a snapshot of all random variables
+    in the model. Should be implemented by dataclass or similar.
+    """
 
-    def combine(self, plate_list: list["Plate"], **kwargs) -> "Plate":
-        raise NotImplementedError
-
-
-class Dataset:
-    def __init__(self, **kwargs):
-        return
-
-    def available_plates(self, **kwargs) -> dict[str, Plate]:
-        raise NotImplementedError
-
-    def reveal_plate(self, plate_name: str, remove: bool = True, **kwargs) -> ArrayType:
-        raise NotImplementedError
-
-
-class Predictor:
-    def __init__(self, **kwargs):
-        return
-
-    def predict(self, plate: Plate, **kwargs) -> ArrayType:
-        raise NotImplementedError
-
-    def variance(self) -> float:
-        raise NotImplementedError
-
-    def predict_plates(self, plates: dict[str, Plate], **kwargs) -> ArrayType:
-        nplates = len(plates)
-        preds = [self.predict(plate) for plate in plates.values()]
-        max_len = max([len(x) for x in preds])
-        predictions = np.zeros((nplates, max_len))
-        for idx, pred in enumerate(preds):
-            predictions[idx, : len(pred)] = pred
-        return predictions
-
-
-class PredictorHolder:
-    def __init__(self, dataset: Dataset, pred_list: list[Predictor] = None, **kwargs):
-        if pred_list is None:
-            self.pred_list = []
-        else:
-            self.pred_list = pred_list
-
-    def predict_plates(self, plates: dict) -> ArrayType:
-        npreds = len(self.pred_list)
-        assert npreds > 0, "Need at least one predictor to make predictions"
-        p_predictions = []
-        for pred in self.pred_list:
-            p_predictions.append(pred.predict_plates(plates))
-
-        nplates, dim = p_predictions[0].shape
-
-        predictions = np.zeros((npreds, nplates, dim))
-        for idx, p in enumerate(p_predictions):
-            predictions[idx, :, :] = p
-        return predictions
-
-    def clear_predictors(self):
-        self.pred_list = []
-
-    def add_predictor(self, predictor: Union[Predictor, list[Predictor]]):
-        if isinstance(predictor, list):
-            for pred in predictor:
-                self.pred_list.append(pred)
-        else:
-            self.pred_list.append(predictor)
-
-    def predictor_list(self) -> list[Predictor]:
-        return self.pred_list
-
-    def save(self, fname: str):
-        with open(fname, "wb") as io:
-            pickle.dump(self.pred_list, io, pickle.HIGHEST_PROTOCOL)
-
-    def load(self, fname: str):
-        with open(fname, "rb") as io:
-            self.pred_list = pickle.load(io)
-
-
-def load_predictor_holder(dataset: Dataset, **kwargs):
-    pred_holder = PredictorHolder(dataset)
-    return pred_holder
+    pass
 
 
 class BayesianModel:
+    """
+    This class represents a Bayesian model.
+
+
+    A Bayesian model has internal state. Each BayesianModel should have a companion BayesianModelSample
+    class which represents the models internal state in a serializable way,
+
+    The internal state of the model can be set explicitly via BayesianModel#set_model_state
+    or it can be advanced via BayesianModel#mcmc_step.
+
+    A BayesianModel can have data added to it via BayesianModel#add_observations.
+    If data is present, the model should use that data somehow when BayesianModel#mcmc_step is called.
+    BayesianModel#n_obs should report the number of datapoints that have been added to the model.
+
+    A BayesianModel can be used to predict an outcome given a set of inputs via BayesianModel#predict.
+    """
+
     def reset_model(self):
         raise NotImplementedError
 
-    def predictor(self) -> Predictor:
+    def set_model_state(self, parameters: BayesianModelSample):
+        raise NotImplementedError
+
+    def get_model_state(self) -> BayesianModelSample:
+        raise NotImplementedError
+
+    def predict(self, data: Data):
         raise NotImplementedError
 
     def mcmc_step(self):
         raise NotImplementedError
 
-    def update_list(self, plates: list[Plate], ys: list[ArrayType]):
-        for plate, y in zip(plates, ys):
-            self.update(plate, y)
+    def add_observations(self, data: Data):
+        raise NotImplementedError
+
+    def n_obs(self) -> int:
+        raise NotImplementedError
 
 
 class ResultsHolder:
-    def add_mcmc_sample(self, sample):
+    def __init__(self, n_mcmc_steps: int, *args, **kwargs):
+        self._cursor = 0
+        self.n_mcmc_steps = n_mcmc_steps
+
+    def add_mcmc_sample(self, sample: BayesianModelSample):
+        # test if we are at the end of the chain
+        if self._cursor >= self.n_mcmc_steps:
+            raise ValueError("Cannot add more samples to the results object")
+
+        self._save_mcmc_sample(sample)
+
+    def _save_mcmc_sample(self, sample: BayesianModelSample):
         raise NotImplementedError
 
-    def get_mcmc_sample(self, step_index: int):
+    def get_mcmc_sample(self, step_index: int) -> BayesianModelSample:
         raise NotImplementedError
 
     def save_h5(self, fn: str):
@@ -121,3 +74,7 @@ class ResultsHolder:
     @staticmethod
     def load_h5(path: str):
         raise NotImplementedError
+
+    @property
+    def is_complete(self):
+        return self._cursor == self.n_mcmc_steps
