@@ -189,6 +189,10 @@ class Dataset:
         return self.observations.shape[0]
 
     @property
+    def n_samples(self):
+        return np.unique(self.sample_ids).shape[0]
+
+    @property
     def unique_plate_ids(self):
         return np.unique(self.plate_ids)
 

@@ -40,127 +40,6 @@ class SparseDrugComboMCMCSample(BayesianModelSample):
     prec: float
 
 
-class SparseDrugComboResults(ResultsHolder):
-    def __init__(
-        self,
-        n_unique_samples: int,
-        n_unique_treatments: int,
-        n_embedding_dimensions: int,
-        n_mcmc_steps: int,
-    ):
-        self.n_unique_samples = n_unique_samples
-        self.n_unique_treatments = n_unique_treatments
-        self.n_embedding_dimensions = n_embedding_dimensions
-        self.n_mcmc_steps = n_mcmc_steps
-        self._cursor = 0
-
-        self.V2 = np.zeros(
-            (self.n_mcmc_steps, self.n_unique_treatments, self.n_embedding_dimensions),
-            dtype=np.float32,
-        )
-        self.V1 = np.zeros(
-            (self.n_mcmc_steps, self.n_unique_treatments, self.n_embedding_dimensions),
-            dtype=np.float32,
-        )
-        self.W = np.zeros(
-            (self.n_mcmc_steps, self.n_unique_samples, self.n_embedding_dimensions),
-            dtype=np.float32,
-        )
-        self.V0 = np.zeros(
-            (
-                self.n_mcmc_steps,
-                self.n_unique_treatments,
-            ),
-            np.float32,
-        )
-        self.W0 = np.zeros(
-            (
-                self.n_mcmc_steps,
-                self.n_unique_samples,
-            ),
-            np.float32,
-        )
-
-        self.alpha = np.zeros((self.n_mcmc_steps,), np.float32)
-        self.prec = np.zeros((self.n_mcmc_steps,), np.float32)
-
-    @property
-    def is_complete(self):
-        return self._cursor == self.n_mcmc_steps
-
-    def get_mcmc_sample(self, step_index: int) -> SparseDrugComboMCMCSample:
-        """Get one sample from the MCMC chain"""
-        # Test if this is beyond the step we are current at with the cursor
-        if step_index >= self._cursor:
-            raise ValueError("Cannot get a step beyond the current cursor position")
-
-        return SparseDrugComboMCMCSample(
-            W=self.W[step_index],
-            W0=self.W0[step_index],
-            V2=self.V2[step_index],
-            V1=self.V1[step_index],
-            V0=self.V0[step_index],
-            alpha=self.alpha[step_index],
-            prec=self.prec[step_index],
-        )
-
-    def add_mcmc_sample(self, sample: SparseDrugComboMCMCSample):
-        """Add one sample from the MCMC chain to the results"""
-        # test if we are at the end of the chain
-        if self._cursor >= self.n_mcmc_steps:
-            raise ValueError("Cannot add more samples to the results object")
-
-        self.V2[self._cursor] = sample.V2
-        self.V1[self._cursor] = sample.V1
-        self.W[self._cursor] = sample.W
-        self.V0[self._cursor] = sample.V0
-        self.W0[self._cursor] = sample.W0
-        self.alpha[self._cursor] = sample.alpha
-        self.prec[self._cursor] = sample.prec
-        self._cursor += 1
-
-    def save_h5(self, fn: str):
-        """Save all arrays to h5"""
-        with h5py.File(fn, "w") as f:
-            f.create_dataset("V2", data=self.V2)
-            f.create_dataset("V1", data=self.V1)
-            f.create_dataset("W", data=self.W)
-            f.create_dataset("V0", data=self.V0)
-            f.create_dataset("W0", data=self.W0)
-            f.create_dataset("alpha", data=self.alpha)
-            f.create_dataset("prec", data=self.prec)
-
-            # Save the cursor value metadata
-            f.attrs["cursor"] = self._cursor
-
-    @staticmethod
-    def load_h5(path: str):
-        """Load saved data from h5 archive"""
-        with h5py.File(path, "r") as f:
-            n_unique_samples = f["W"].shape[1]
-            n_unique_treatments = f["W"].shape[2]
-            n_embedding_dimensions = f["W"].shape[3]
-            n_mcmc_steps = f["W"].shape[0]
-
-            results = SparseDrugComboResults(
-                n_unique_samples=n_unique_samples,
-                n_unique_treatments=n_unique_treatments,
-                n_embedding_dimensions=n_embedding_dimensions,
-                n_mcmc_steps=n_mcmc_steps,
-            )
-
-            results.V2 = f["V2"][:]
-            results.V1 = f["V1"][:]
-            results.W = f["W"][:]
-            results.V0 = f["V0"][:]
-            results.W0 = f["W0"][:]
-            results.alpha = f["alpha"][:]
-            results.prec = f["prec"][:]
-            results._cursor = f.attrs["cursor"]
-
-        return results
-
-
 class SparseDrugCombo(BayesianModel):
     """Simple Gibbs sampler for Sparse Representation"""
 
@@ -710,37 +589,149 @@ class SparseDrugCombo(BayesianModel):
         return [1.0 / np.sqrt(self.prec)] + self.Mu.tolist()
 
 
-def predict(mcmc_sample: SparseDrugComboMCMCSample, plate: Dataset):
+class SparseDrugComboResults(ResultsHolder):
+    def __init__(
+        self,
+        n_unique_samples: int,
+        n_unique_treatments: int,
+        n_embedding_dimensions: int,
+        n_mcmc_steps: int,
+    ):
+        super().__init__(n_mcmc_steps)
+        self.n_unique_samples = n_unique_samples
+        self.n_unique_treatments = n_unique_treatments
+        self.n_embedding_dimensions = n_embedding_dimensions
+        self.n_mcmc_steps = n_mcmc_steps
+
+        self.V2 = np.zeros(
+            (self.n_mcmc_steps, self.n_unique_treatments, self.n_embedding_dimensions),
+            dtype=np.float32,
+        )
+        self.V1 = np.zeros(
+            (self.n_mcmc_steps, self.n_unique_treatments, self.n_embedding_dimensions),
+            dtype=np.float32,
+        )
+        self.W = np.zeros(
+            (self.n_mcmc_steps, self.n_unique_samples, self.n_embedding_dimensions),
+            dtype=np.float32,
+        )
+        self.V0 = np.zeros(
+            (
+                self.n_mcmc_steps,
+                self.n_unique_treatments,
+            ),
+            np.float32,
+        )
+        self.W0 = np.zeros(
+            (
+                self.n_mcmc_steps,
+                self.n_unique_samples,
+            ),
+            np.float32,
+        )
+
+        self.alpha = np.zeros((self.n_mcmc_steps,), np.float32)
+        self.prec = np.zeros((self.n_mcmc_steps,), np.float32)
+
+    def get_mcmc_sample(self, step_index: int) -> SparseDrugComboMCMCSample:
+        """Get one sample from the MCMC chain"""
+        # Test if this is beyond the step we are current at with the cursor
+        if step_index >= self._cursor:
+            raise ValueError("Cannot get a step beyond the current cursor position")
+
+        return SparseDrugComboMCMCSample(
+            W=self.W[step_index],
+            W0=self.W0[step_index],
+            V2=self.V2[step_index],
+            V1=self.V1[step_index],
+            V0=self.V0[step_index],
+            alpha=self.alpha[step_index],
+            prec=self.prec[step_index],
+        )
+
+    def _save_mcmc_sample(self, sample: SparseDrugComboMCMCSample):
+        self.V2[self._cursor] = sample.V2
+        self.V1[self._cursor] = sample.V1
+        self.W[self._cursor] = sample.W
+        self.V0[self._cursor] = sample.V0
+        self.W0[self._cursor] = sample.W0
+        self.alpha[self._cursor] = sample.alpha
+        self.prec[self._cursor] = sample.prec
+        self._cursor += 1
+
+    def save_h5(self, fn: str):
+        """Save all arrays to h5"""
+        with h5py.File(fn, "w") as f:
+            f.create_dataset("V2", data=self.V2)
+            f.create_dataset("V1", data=self.V1)
+            f.create_dataset("W", data=self.W)
+            f.create_dataset("V0", data=self.V0)
+            f.create_dataset("W0", data=self.W0)
+            f.create_dataset("alpha", data=self.alpha)
+            f.create_dataset("prec", data=self.prec)
+
+            # Save the cursor value metadata
+            f.attrs["cursor"] = self._cursor
+
+    @staticmethod
+    def load_h5(path: str):
+        """Load saved data from h5 archive"""
+        with h5py.File(path, "r") as f:
+            n_unique_samples = f["W"].shape[1]
+            n_unique_treatments = f["V0"].shape[1]
+            n_embedding_dimensions = f["W"].shape[2]
+            n_mcmc_steps = f["W"].shape[0]
+
+            results = SparseDrugComboResults(
+                n_unique_samples=n_unique_samples,
+                n_unique_treatments=n_unique_treatments,
+                n_embedding_dimensions=n_embedding_dimensions,
+                n_mcmc_steps=n_mcmc_steps,
+            )
+
+            results.V2 = f["V2"][:]
+            results.V1 = f["V1"][:]
+            results.W = f["W"][:]
+            results.V0 = f["V0"][:]
+            results.W0 = f["W0"][:]
+            results.alpha = f["alpha"][:]
+            results.prec = f["prec"][:]
+            results._cursor = f.attrs["cursor"]
+
+        return results
+
+
+def predict(mcmc_sample: SparseDrugComboMCMCSample, data: Dataset):
     interaction2 = np.sum(
-        mcmc_sample.W[plate.sample_ids]
+        mcmc_sample.W[data.sample_ids]
         * copy_array_with_control_treatments_set_to_zero(
-            mcmc_sample.V2, plate.treatments[:, 0]
+            mcmc_sample.V2, data.treatment_ids[:, 0]
         )
         * copy_array_with_control_treatments_set_to_zero(
-            mcmc_sample.V2, plate.treatments[:, 1]
+            mcmc_sample.V2, data.treatment_ids[:, 1]
         ),
         -1,
     )
     interaction1 = np.sum(
-        mcmc_sample.W[plate.sample_ids]
+        mcmc_sample.W[data.sample_ids]
         * (
             copy_array_with_control_treatments_set_to_zero(
-                mcmc_sample.V1, plate.treatments[:, 0]
+                mcmc_sample.V1, data.treatment_ids[:, 0]
             )
             + copy_array_with_control_treatments_set_to_zero(
-                mcmc_sample.V1, plate.treatments[:, 1]
+                mcmc_sample.V1, data.treatment_ids[:, 1]
             )
         ),
         -1,
     )
     intercept = (
         mcmc_sample.alpha
-        + mcmc_sample.W0[plate.sample_ids]
+        + mcmc_sample.W0[data.sample_ids]
         + copy_array_with_control_treatments_set_to_zero(
-            mcmc_sample.V0, plate.treatments[:, 0]
+            mcmc_sample.V0, data.treatment_ids[:, 0]
         )
         + copy_array_with_control_treatments_set_to_zero(
-            mcmc_sample.V0, plate.treatments[:, 1]
+            mcmc_sample.V0, data.treatment_ids[:, 1]
         )
     )
     Mu = intercept + interaction1 + interaction2
@@ -751,7 +742,7 @@ def predict_single_drug(mcmc_sample: SparseDrugComboMCMCSample, plate: Dataset):
     interaction1 = np.sum(
         mcmc_sample.W[plate.sample_ids]
         * copy_array_with_control_treatments_set_to_zero(
-            mcmc_sample.V1, plate.treatments[:, 0]
+            mcmc_sample.V1, plate.treatment_ids[:, 0]
         ),
         -1,
     )
@@ -759,7 +750,7 @@ def predict_single_drug(mcmc_sample: SparseDrugComboMCMCSample, plate: Dataset):
         mcmc_sample.alpha
         + mcmc_sample.W0[plate.sample_ids]
         + copy_array_with_control_treatments_set_to_zero(
-            mcmc_sample.V0, plate.treatments[:, 0]
+            mcmc_sample.V0, plate.treatment_ids[:, 0]
         )
     )
     Mu = intercept + interaction1
@@ -768,12 +759,12 @@ def predict_single_drug(mcmc_sample: SparseDrugComboMCMCSample, plate: Dataset):
 
 def bliss(mcmc_sample: SparseDrugComboMCMCSample, plate: Dataset):
     interaction2 = np.sum(
-        mcmc_sample.W[plate.treatments]
+        mcmc_sample.W[plate.treatment_ids]
         * copy_array_with_control_treatments_set_to_zero(
-            mcmc_sample.V2, plate.treatments[:, 0]
+            mcmc_sample.V2, plate.treatment_ids[:, 0]
         )
         * copy_array_with_control_treatments_set_to_zero(
-            mcmc_sample.V2, plate.treatments[:, 1]
+            mcmc_sample.V2, plate.treatment_ids[:, 1]
         ),
         -1,
     )

@@ -51,7 +51,18 @@ class BayesianModel:
 
 
 class ResultsHolder:
+    def __init__(self, n_mcmc_steps: int, *args, **kwargs):
+        self._cursor = 0
+        self.n_mcmc_steps = n_mcmc_steps
+
     def add_mcmc_sample(self, sample: BayesianModelSample):
+        # test if we are at the end of the chain
+        if self._cursor >= self.n_mcmc_steps:
+            raise ValueError("Cannot add more samples to the results object")
+
+        self._save_mcmc_sample(sample)
+
+    def _save_mcmc_sample(self, sample: BayesianModelSample):
         raise NotImplementedError
 
     def get_mcmc_sample(self, step_index: int) -> BayesianModelSample:
@@ -63,3 +74,7 @@ class ResultsHolder:
     @staticmethod
     def load_h5(path: str):
         raise NotImplementedError
+
+    @property
+    def is_complete(self):
+        return self._cursor == self.n_mcmc_steps
