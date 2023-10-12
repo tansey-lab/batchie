@@ -133,6 +133,9 @@ class DatasetSubset(Data):
     def n_treatments(self):
         return self.treatment_ids.shape[1]
 
+    def invert(self):
+        return DatasetSubset(self.dataset, ~self.selection_vector)
+
 
 class Dataset(Data):
     def __init__(
