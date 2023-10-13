@@ -1,7 +1,6 @@
 import numpy as np
-from numpy.typing import ArrayLike
 
-ArrayType = ArrayLike
+ArrayType = np.array
 
 CONTROL_SENTINEL_VALUE = -1
 

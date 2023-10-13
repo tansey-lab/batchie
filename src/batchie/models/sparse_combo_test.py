@@ -10,6 +10,18 @@ from batchie.models import sparse_combo
 def test_dataset():
     test_dataset = Dataset(
         observations=np.array([0.1, 0.2, 0.3, 0.4, 0.1, 0.2, 0.3, 0.4]),
+        single_effects=np.array(
+            [
+                [2.0, 2.0],
+                [2.0, 2.0],
+                [2.0, 2.0],
+                [2.0, 2.0],
+                [2.0, 2.0],
+                [2.0, 2.0],
+                [2.0, 2.0],
+                [2.0, 2.0],
+            ]
+        ),
         sample_names=np.array(["a", "b", "c", "d", "a", "b", "c", "d"], dtype=str),
         plate_names=np.array(["a", "a", "b", "b", "a", "a", "b", "b"], dtype=str),
         treatment_names=np.array(
@@ -59,11 +71,19 @@ def test_sparse_drug_combo_mcmc_step_without_observed_data(test_dataset):
     model.mcmc_step()
 
 
-def test_predict_and_set_model_state(test_dataset):
+@pytest.mark.parametrize(
+    "predict_interactions,interaction_log_transform",
+    [(True, True), (False, False), (True, False), (False, True)],
+)
+def test_predict_and_set_model_state(
+    test_dataset, predict_interactions, interaction_log_transform
+):
     model = sparse_combo.SparseDrugCombo(
         n_embedding_dimensions=5,
         n_unique_treatments=test_dataset.n_treatments,
         n_unique_samples=test_dataset.n_samples,
+        predict_interactions=predict_interactions,
+        interaction_log_transform=interaction_log_transform,
     )
 
     model.mcmc_step()

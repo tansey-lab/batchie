@@ -16,17 +16,6 @@ from batchie.interfaces import BayesianModel, BayesianModelSample, ResultsHolder
 logger = logging.getLogger(__name__)
 
 
-def interactions_to_logits(
-    interaction: ArrayType, single_effects: ArrayType, transform: str
-):
-    if transform == "log":
-        viability = np.exp(interaction + np.log(single_effects))
-    else:
-        viability = interaction + single_effects
-    y_logit = logit(np.clip(viability, a_min=0.01, a_max=0.99))
-    return y_logit
-
-
 @dataclass
 class SparseDrugComboMCMCSample(BayesianModelSample):
     """A single sample from the MCMC chain for the sparse drug combo model"""
@@ -209,13 +198,14 @@ class SparseDrugCombo(BayesianModel):
                     )
 
                 return interactions_to_logits(
-                    predictions, data, self.interaction_log_transform
+                    predictions, data.single_effects, self.interaction_log_transform
                 )
             else:
                 return predictions
         else:
             raise NotImplementedError("SparseDrugCombo only supports 1 or 2 treatments")
 
+    # region Model Implementation
     def _W_step(self):
         """the strategy is to iterate over each cell line
         and solve the linear problem"""
@@ -603,6 +593,8 @@ class SparseDrugCombo(BayesianModel):
     def _ess_pars(self):
         return [1.0 / np.sqrt(self.prec)] + self.Mu.tolist()
 
+    # endregion
+
 
 class SparseDrugComboResults(ResultsHolder):
     def __init__(
@@ -788,9 +780,12 @@ def bliss(mcmc_sample: SparseDrugComboMCMCSample, data: Data):
 def interactions_to_logits(
     interaction: ArrayType, single_effects: ArrayType, log_transform: bool
 ):
+    multiplicative_single_effects = np.clip(
+        np.product(single_effects, axis=1), a_min=0.01, a_max=0.99
+    )
     if log_transform:
-        viability = np.exp(interaction + np.log(single_effects))
+        viability = np.exp(interaction + np.log(multiplicative_single_effects))
     else:
-        viability = interaction + single_effects
+        viability = interaction + multiplicative_single_effects
     y_logit = logit(np.clip(viability, a_min=0.01, a_max=0.99))
     return y_logit

@@ -2,7 +2,7 @@ import h5py
 import numpy as np
 import logging
 from typing import Optional, Callable, Any
-from abc import ABC
+from abc import ABC, abstractmethod
 import pandas
 
 from batchie.common import ArrayType, CONTROL_SENTINEL_VALUE
@@ -71,23 +71,35 @@ def encode_1d_array_to_0_indexed_ids(arr: ArrayType):
 
 class Data(ABC):
     @property
-    def unique_plate_ids(self):
-        return np.unique(self.plate_ids)
+    @abstractmethod
+    def plate_ids(self):
+        return NotImplemented
 
     @property
-    def unique_sample_ids(self):
-        return np.unique(self.sample_ids)
+    @abstractmethod
+    def sample_ids(self):
+        return NotImplemented
 
     @property
-    def unique_treatments(self):
-        return np.setdiff1d(np.unique(self.treatment_ids), [CONTROL_SENTINEL_VALUE])
+    @abstractmethod
+    def treatment_ids(self):
+        return NotImplemented
 
     @property
-    def n_treatments(self):
-        return self.treatment_ids.shape[1]
+    @abstractmethod
+    def n_experiments(self):
+        return NotImplemented
 
+    @property
+    @abstractmethod
+    def single_effects(self):
+        return NotImplemented
 
-class DataBase(Data):
+    @property
+    @abstractmethod
+    def observations(self):
+        return NotImplemented
+
     @property
     def unique_plate_ids(self):
         return np.unique(self.plate_ids)
@@ -146,10 +158,6 @@ class DatasetSubset(Data):
     @property
     def unique_treatments(self):
         return np.setdiff1d(np.unique(self.treatment_ids), [CONTROL_SENTINEL_VALUE])
-
-    @property
-    def n_treatments(self):
-        return self.treatment_ids.shape[1]
 
     def invert(self):
         return DatasetSubset(self.dataset, ~self.selection_vector)
@@ -260,17 +268,37 @@ class Dataset(Data):
             sentinel_value=CONTROL_SENTINEL_VALUE,
         )
 
-        self.treatment_ids = np.vstack(
+        self._treatment_ids = np.vstack(
             np.split(all_dose_class_combos_encoded, treatment_names.shape[1])
         ).T
-        self.sample_ids = encode_1d_array_to_0_indexed_ids(sample_names)
-        self.plate_ids = encode_1d_array_to_0_indexed_ids(plate_names)
-        self.observations = observations
-        self.single_effects = single_effects
+        self._sample_ids = encode_1d_array_to_0_indexed_ids(sample_names)
+        self._plate_ids = encode_1d_array_to_0_indexed_ids(plate_names)
+        self._observations = observations
+        self._single_effects = single_effects
         self.sample_names = sample_names
         self.plate_names = plate_names
         self.treatment_names = treatment_names
         self.treatment_doses = treatment_doses
+
+    @property
+    def plate_ids(self):
+        return self._plate_ids
+
+    @property
+    def sample_ids(self):
+        return self._sample_ids
+
+    @property
+    def treatment_ids(self):
+        return self._treatment_ids
+
+    @property
+    def single_effects(self):
+        return self._single_effects
+
+    @property
+    def observations(self):
+        return self._observations
 
     def get_plate(self, plate_id: int) -> DatasetSubset:
         return DatasetSubset(self, self.plate_ids == plate_id)
