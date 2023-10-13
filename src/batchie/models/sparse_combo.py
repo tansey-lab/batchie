@@ -6,7 +6,7 @@ from typing import Optional
 import h5py
 import numpy as np
 from batchie.data import Data
-from numpy.random import BitGenerator
+from numpy.random import Generator
 from scipy.special import logit
 
 from batchie.common import ArrayType, copy_array_with_control_treatments_set_to_zero
@@ -45,7 +45,7 @@ class SparseDrugCombo(BayesianModel):
         b0: float = 1.1,
         min_Mu: float = -10.0,
         max_Mu: float = 10.0,
-        rng: Optional[BitGenerator] = None,
+        rng: Optional[Generator] = None,
         predict_interactions: bool = False,
         interaction_log_transform: bool = True,
     ):

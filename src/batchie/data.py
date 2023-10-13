@@ -329,7 +329,7 @@ class Dataset(Data):
 
     @property
     def plates(self):
-        return [self.get_plate(x) for x in self.unique_plate_ids]
+        return {x: self.get_plate(x) for x in self.unique_plate_ids}
 
     def subset(self, selection_vector: ArrayType):
         if not np.issubdtype(selection_vector.dtype, bool):

@@ -1,4 +1,5 @@
-from batchie.data import Data
+from batchie.data import Data, Dataset
+import numpy as np
 
 
 class BayesianModelSample:
@@ -78,3 +79,18 @@ class ResultsHolder:
     @property
     def is_complete(self):
         return self._cursor == self.n_mcmc_steps
+
+
+class Scorer:
+    """
+    This class represents a scoring function for plates, which are potential sets of experiments.
+    """
+
+    def _score(self, data: Data, rng: np.random.Generator):
+        raise NotImplementedError
+
+    def score(self, dataset: Dataset, rng: np.random.Generator) -> dict:
+        result = {}
+        for plate_id, plate in dataset.plates.items():
+            result[plate_id] = self._score(data=plate, rng=rng)
+        return result
