@@ -5,5 +5,5 @@ from batchie.interfaces import Scorer
 
 
 class SizeScorer(Scorer):
-    def _score(self, data: Data, rng: np.random.Generator):
+    def _score(self, data: Data, rng: np.random.Generator, **kwargs):
         return data.n_experiments

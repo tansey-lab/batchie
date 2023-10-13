@@ -1,5 +1,6 @@
 from batchie.data import Data, Dataset
 import numpy as np
+from batchie.common import ArrayType
 
 
 class BayesianModelSample:
@@ -72,6 +73,10 @@ class ResultsHolder:
     def save_h5(self, fn: str):
         raise NotImplementedError
 
+    def __iter__(self):
+        for i in range(self.n_mcmc_steps):
+            yield self.get_mcmc_sample(i)
+
     @staticmethod
     def load_h5(path: str):
         raise NotImplementedError
@@ -81,16 +86,53 @@ class ResultsHolder:
         return self._cursor == self.n_mcmc_steps
 
 
+class DistanceMetric:
+    def distance(self, a: BayesianModelSample, b: BayesianModelSample) -> float:
+        raise NotImplementedError
+
+    def square_form(self, samples: list[BayesianModelSample]) -> ArrayType:
+        dists = np.zeros((len(samples), len(samples)), dtype=np.float32)
+
+        for idx1, m1 in enumerate(samples):
+            for idx2, m2 in enumerate(samples[idx1 + 1 :]):
+                d = self.distance(m1, m2)
+                dists[idx1, idx2] = d
+                dists[idx2, idx1] = d
+        return dists
+
+    def one_v_rest(
+        self, sample: BayesianModelSample, others: list[BayesianModelSample]
+    ) -> ArrayType:
+        dists = np.zeros(len(others), dtype=np.float32)
+        for idx, other in enumerate(others):
+            dists[idx] = self.distance(sample, other)
+        return dists
+
+
 class Scorer:
     """
     This class represents a scoring function for plates, which are potential sets of experiments.
     """
 
-    def _score(self, data: Data, rng: np.random.Generator):
+    def _score(
+        self,
+        data: Data,
+        model: BayesianModel,
+        results: ResultsHolder,
+        rng: np.random.Generator,
+    ):
         raise NotImplementedError
 
-    def score(self, dataset: Dataset, rng: np.random.Generator) -> dict:
+    def score(
+        self,
+        dataset: Dataset,
+        model: BayesianModel,
+        results: ResultsHolder,
+        rng: np.random.Generator,
+    ) -> dict:
         result = {}
         for plate_id, plate in dataset.plates.items():
-            result[plate_id] = self._score(data=plate, rng=rng)
+            result[plate_id] = self._score(
+                data=plate, rng=rng, model=model, results=results
+            )
         return result
