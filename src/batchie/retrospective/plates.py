@@ -2,6 +2,8 @@ from batchie.data import Dataset, DatasetSubset
 import numpy as np
 from batchie.common import CONTROL_SENTINEL_VALUE
 
+from typing import Optional
+
 
 def create_sparse_cover_plate(
     dataset: Dataset, rng: np.random.BitGenerator
@@ -132,3 +134,26 @@ def create_sarcoma_plates(
         results.append(DatasetSubset(dataset, mask))
 
     return results
+
+
+def randomly_sample_plates(
+    dataset: Dataset,
+    proportion_of_plates_to_sample: float,
+    rng: np.random.BitGenerator,
+    force_include_plate_ids: Optional[list[int]] = None,
+):
+    n_plates = dataset.unique_plate_ids.size
+    n_plates_to_sample = int(n_plates * proportion_of_plates_to_sample)
+
+    sampled_plate_ids = []
+
+    if force_include_plate_ids:
+        n_plates_to_sample = n_plates_to_sample - len(force_include_plate_ids)
+        sampled_plate_ids.extend(force_include_plate_ids)
+
+    sampled_plate_ids.extend(
+        rng.choice(dataset.unique_plate_ids, size=n_plates_to_sample, replace=False)
+    )
+
+    mask = np.isin(dataset.plate_ids, sampled_plate_ids)
+    return DatasetSubset(dataset=dataset, selection_vector=mask)

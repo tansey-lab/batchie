@@ -7,8 +7,10 @@ import numpy.testing
 import pytest
 import h5py
 
+
 from batchie.data import (
     Dataset,
+    DatasetSubset,
     randomly_subsample_dataset,
     encode_treatment_arrays_to_0_indexed_ids,
     filter_dataset_to_treatments_that_appear_in_at_least_one_combo,
@@ -134,3 +136,32 @@ def test_filter_dataset_to_treatments_that_appear_in_at_least_one_combo():
 
     assert result.n_experiments == 1
     assert result.n_treatments == 2
+
+
+def test_data_subset():
+    test_dataset = Dataset(
+        observations=np.array([0.1, 0.2, 0.3, 0.4]),
+        sample_names=np.array(["a", "b", "c", "d"], dtype=str),
+        plate_names=np.array(["a", "a", "b", "b"], dtype=str),
+        treatment_names=np.array(
+            [["a", ""], ["d", "e"], ["", "b"], ["", "c"]], dtype=str
+        ),
+        treatment_doses=np.array([[2.0, 2.0], [1.0, 2.0], [2.0, 1.0], [2.0, 1.0]]),
+    )
+
+    subset = DatasetSubset(
+        dataset=test_dataset, selection_vector=np.array([True, False, False, True])
+    )
+
+    assert subset.n_experiments == 2
+    assert subset.n_treatments == 2
+    np.testing.assert_array_equal(subset.sample_ids, [0, 3])
+    np.testing.assert_array_equal(subset.plate_ids, [0, 1])
+    np.testing.assert_array_equal(
+        subset.treatment_ids, [[0, CONTROL_SENTINEL_VALUE], [CONTROL_SENTINEL_VALUE, 2]]
+    )
+
+    inverted_subset = subset.invert()
+
+    np.testing.assert_array_equal(inverted_subset.sample_ids, [1, 2])
+    np.testing.assert_array_equal(subset.plate_ids, [0, 1])

@@ -2,7 +2,7 @@ import h5py
 import numpy as np
 import logging
 from typing import Optional, Callable, Any
-
+from abc import ABC, abstractmethod
 import pandas
 
 from batchie.common import ArrayType, CONTROL_SENTINEL_VALUE
@@ -69,7 +69,37 @@ def encode_1d_array_to_0_indexed_ids(arr: ArrayType):
     return np.array([mapping[x] for x in arr])
 
 
-class Data:
+class Data(ABC):
+    @property
+    @abstractmethod
+    def plate_ids(self):
+        return NotImplemented
+
+    @property
+    @abstractmethod
+    def sample_ids(self):
+        return NotImplemented
+
+    @property
+    @abstractmethod
+    def treatment_ids(self):
+        return NotImplemented
+
+    @property
+    @abstractmethod
+    def n_experiments(self):
+        return NotImplemented
+
+    @property
+    @abstractmethod
+    def single_effects(self):
+        return NotImplemented
+
+    @property
+    @abstractmethod
+    def observations(self):
+        return NotImplemented
+
     @property
     def unique_plate_ids(self):
         return np.unique(self.plate_ids)
@@ -129,9 +159,28 @@ class DatasetSubset(Data):
     def unique_treatments(self):
         return np.setdiff1d(np.unique(self.treatment_ids), [CONTROL_SENTINEL_VALUE])
 
+    def invert(self):
+        return DatasetSubset(self.dataset, ~self.selection_vector)
+
     @property
-    def n_treatments(self):
-        return self.treatment_ids.shape[1]
+    def observations(self):
+        return self.dataset.observations[self.selection_vector]
+
+    @property
+    def single_effects(self):
+        if self.dataset.single_effects is None:
+            return None
+        return self.dataset.single_effects[self.selection_vector]
+
+    def to_dataset(self):
+        return Dataset(
+            treatment_names=self.dataset.treatment_names[self.selection_vector].copy(),
+            treatment_doses=self.dataset.treatment_doses[self.selection_vector].copy(),
+            observations=self.dataset.observations[self.selection_vector].copy(),
+            sample_names=self.dataset.sample_names[self.selection_vector].copy(),
+            plate_names=self.dataset.plate_names[self.selection_vector].copy(),
+            control_treatment_name=self.dataset.control_treatment_name,
+        )
 
 
 class Dataset(Data):
@@ -142,6 +191,7 @@ class Dataset(Data):
         observations: ArrayType,
         sample_names: ArrayType,
         plate_names: ArrayType,
+        single_effects: Optional[ArrayType] = None,
         control_treatment_name="",
     ):
         self.control_treatment_name = control_treatment_name
@@ -176,6 +226,20 @@ class Dataset(Data):
                     treatment_names.shape, treatment_doses.shape
                 )
             )
+
+        if single_effects is not None:
+            if single_effects.shape != treatment_doses.shape:
+                raise ValueError(
+                    "single_effects should have the same shape as "
+                    "treatment_names and treatment_doses"
+                    "but got shapes {}, {}".format(
+                        single_effects.shape, treatment_doses.shape
+                    )
+                )
+
+            if not np.issubdtype(single_effects.dtype, float):
+                raise ValueError("single_effects must be floats")
+
         if not np.issubdtype(treatment_doses.dtype, float):
             raise ValueError("treatment_doses must be floats")
 
@@ -204,16 +268,37 @@ class Dataset(Data):
             sentinel_value=CONTROL_SENTINEL_VALUE,
         )
 
-        self.treatment_ids = np.vstack(
+        self._treatment_ids = np.vstack(
             np.split(all_dose_class_combos_encoded, treatment_names.shape[1])
         ).T
-        self.sample_ids = encode_1d_array_to_0_indexed_ids(sample_names)
-        self.plate_ids = encode_1d_array_to_0_indexed_ids(plate_names)
-        self.observations = observations
+        self._sample_ids = encode_1d_array_to_0_indexed_ids(sample_names)
+        self._plate_ids = encode_1d_array_to_0_indexed_ids(plate_names)
+        self._observations = observations
+        self._single_effects = single_effects
         self.sample_names = sample_names
         self.plate_names = plate_names
         self.treatment_names = treatment_names
         self.treatment_doses = treatment_doses
+
+    @property
+    def plate_ids(self):
+        return self._plate_ids
+
+    @property
+    def sample_ids(self):
+        return self._sample_ids
+
+    @property
+    def treatment_ids(self):
+        return self._treatment_ids
+
+    @property
+    def single_effects(self):
+        return self._single_effects
+
+    @property
+    def observations(self):
+        return self._observations
 
     def get_plate(self, plate_id: int) -> DatasetSubset:
         return DatasetSubset(self, self.plate_ids == plate_id)
@@ -241,6 +326,10 @@ class Dataset(Data):
     @property
     def n_treatments(self):
         return self.treatment_ids.shape[1]
+
+    @property
+    def plates(self):
+        return [self.get_plate(x) for x in self.unique_plate_ids]
 
     def subset(self, selection_vector: ArrayType):
         if not np.issubdtype(selection_vector.dtype, bool):
