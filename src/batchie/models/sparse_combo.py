@@ -57,7 +57,11 @@ class SparseDrugCombo(BayesianModel):
         min_Mu: float = -10.0,
         max_Mu: float = 10.0,
         rng: Optional[BitGenerator] = None,
+        predict_interactions: bool = False,
+        interaction_log_transform: bool = True,
     ):
+        self.predict_interactions = predict_interactions
+        self.interaction_log_transform = interaction_log_transform
         self.rng = rng if rng else np.random.default_rng()
         self.n_embedding_dimensions = n_embedding_dimensions  # embedding size
         self.n_unique_treatments = n_unique_treatments
@@ -197,7 +201,18 @@ class SparseDrugCombo(BayesianModel):
         if data.n_treatments == 1:
             return predict_single_drug(state, data)
         elif data.n_treatments == 2:
-            return predict(state, data)
+            predictions = predict(state, data)
+            if self.predict_interactions:
+                if data.single_effects is None:
+                    raise ValueError(
+                        "Cannot predict interactions without single effects"
+                    )
+
+                return interactions_to_logits(
+                    predictions, data, self.interaction_log_transform
+                )
+            else:
+                return predictions
         else:
             raise NotImplementedError("SparseDrugCombo only supports 1 or 2 treatments")
 
@@ -768,4 +783,14 @@ def bliss(mcmc_sample: SparseDrugComboMCMCSample, data: Data):
         ),
         -1,
     )
-    return interaction2
+
+
+def interactions_to_logits(
+    interaction: ArrayType, single_effects: ArrayType, log_transform: bool
+):
+    if log_transform:
+        viability = np.exp(interaction + np.log(single_effects))
+    else:
+        viability = interaction + single_effects
+    y_logit = logit(np.clip(viability, a_min=0.01, a_max=0.99))
+    return y_logit
