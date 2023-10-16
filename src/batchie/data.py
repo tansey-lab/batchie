@@ -101,6 +101,11 @@ class Data(ABC):
         return NotImplemented
 
     @property
+    @abstractmethod
+    def is_observed(self) -> bool:
+        return NotImplemented
+
+    @property
     def unique_plate_ids(self):
         return np.unique(self.plate_ids)
 
@@ -167,6 +172,10 @@ class DatasetSubset(Data):
         return self.dataset.observations[self.selection_vector]
 
     @property
+    def is_observed(self) -> bool:
+        return self.dataset.is_observed
+
+    @property
     def single_effects(self):
         if self.dataset.single_effects is None:
             return None
@@ -188,9 +197,9 @@ class Dataset(Data):
         self,
         treatment_names: ArrayType,
         treatment_doses: ArrayType,
-        observations: ArrayType,
         sample_names: ArrayType,
         plate_names: ArrayType,
+        observations: Optional[ArrayType] = None,
         single_effects: Optional[ArrayType] = None,
         control_treatment_name="",
     ):
@@ -203,7 +212,6 @@ class Dataset(Data):
                         for x in [
                             treatment_names,
                             treatment_doses,
-                            observations,
                             sample_names,
                             plate_names,
                         ]
@@ -239,6 +247,17 @@ class Dataset(Data):
 
             if not np.issubdtype(single_effects.dtype, float):
                 raise ValueError("single_effects must be floats")
+
+        if observations is not None:
+            if observations.shape != sample_names.shape:
+                raise ValueError(
+                    "Expected observations to have shape {} but got {}".format(
+                        sample_names.shape, observations.shape
+                    )
+                )
+
+            if not np.issubdtype(observations.dtype, float):
+                raise ValueError("observations must be floats")
 
         if not np.issubdtype(treatment_doses.dtype, float):
             raise ValueError("treatment_doses must be floats")
@@ -299,6 +318,10 @@ class Dataset(Data):
     @property
     def observations(self):
         return self._observations
+
+    @property
+    def is_observed(self) -> bool:
+        return self._observations is not None
 
     def get_plate(self, plate_id: int) -> DatasetSubset:
         return DatasetSubset(self, self.plate_ids == plate_id)

@@ -56,7 +56,10 @@ def test_size_scorer(test_dataset):
     rng = np.random.default_rng(0)
 
     result = size.SizeScorer().score(
-        dataset=test_dataset, distance_matrix=mock.MagicMock(), rng=rng
+        dataset=test_dataset,
+        samples=mock.MagicMock(),
+        distance_matrix=mock.MagicMock(),
+        rng=rng,
     )
 
     assert result == {0: 4, 1: 4}

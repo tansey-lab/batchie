@@ -143,7 +143,7 @@ def test_results_holder_accumulate(test_dataset):
     while not results_holder.is_complete:
         model.step()
         sample = model.get_model_state()
-        results_holder.add_sample(sample)
+        results_holder.add_sample(sample, model.variance())
 
 
 def test_results_holder_serde(test_dataset):
@@ -159,7 +159,7 @@ def test_results_holder_serde(test_dataset):
         n_unique_treatments=test_dataset.n_treatments,
         n_unique_samples=test_dataset.n_samples,
     )
-    results_holder.add_sample(model.get_model_state())
+    results_holder.add_sample(model.get_model_state(), model.variance())
 
     # create temporary file
 
