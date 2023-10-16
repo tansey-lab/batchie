@@ -39,7 +39,7 @@ class BayesianModel:
     def get_model_state(self) -> BayesianModelSample:
         raise NotImplementedError
 
-    def predict(self, data: Data):
+    def predict(self, data: Data) -> ArrayType:
         raise NotImplementedError
 
     def mcmc_step(self):
@@ -86,7 +86,21 @@ class ResultsHolder:
         return self._cursor == self.n_mcmc_steps
 
 
+class Metric:
+    def __init__(self, model: BayesianModel):
+        self.model = model
+
+    def evaluate(self, sample: BayesianModelSample) -> float:
+        raise NotImplementedError
+
+    def evaluate_all(self, results_holder: ResultsHolder) -> ArrayType:
+        return np.array([self.evaluate(x) for x in results_holder])
+
+
 class DistanceMetric:
+    def __init__(self, model: BayesianModel):
+        self.model = model
+
     def distance(self, a: BayesianModelSample, b: BayesianModelSample) -> float:
         raise NotImplementedError
 
