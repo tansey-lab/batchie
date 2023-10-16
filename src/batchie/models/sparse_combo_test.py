@@ -60,7 +60,7 @@ def test_sparse_drug_combo_mcmc_step_with_observed_data(test_dataset):
 
     model.add_observations(test_dataset)
 
-    model.mcmc_step()
+    model.step()
 
 
 def test_sparse_drug_combo_mcmc_step_without_observed_data(test_dataset):
@@ -68,7 +68,7 @@ def test_sparse_drug_combo_mcmc_step_without_observed_data(test_dataset):
         n_embedding_dimensions=5, n_unique_treatments=5, n_unique_samples=5
     )
 
-    model.mcmc_step()
+    model.step()
 
 
 @pytest.mark.parametrize(
@@ -86,7 +86,7 @@ def test_predict_and_set_model_state(
         interaction_log_transform=interaction_log_transform,
     )
 
-    model.mcmc_step()
+    model.step()
     sample = model.get_model_state()
 
     prediction = model.predict(test_dataset)
@@ -98,6 +98,32 @@ def test_predict_and_set_model_state(
     prediction2 = model.predict(test_dataset)
 
     np.testing.assert_array_equal(prediction, prediction2)
+
+
+@pytest.mark.parametrize(
+    "predict_interactions,interaction_log_transform",
+    [(True, True), (False, False), (True, False), (False, True)],
+)
+def test_variance_and_set_model_state(
+    test_dataset, predict_interactions, interaction_log_transform
+):
+    model = sparse_combo.SparseDrugCombo(
+        n_embedding_dimensions=5,
+        n_unique_treatments=test_dataset.n_treatments,
+        n_unique_samples=test_dataset.n_samples,
+        predict_interactions=predict_interactions,
+        interaction_log_transform=interaction_log_transform,
+    )
+
+    model.step()
+    sample = model.get_model_state()
+    variance = model.variance()
+
+    model.reset_model()
+    model.set_model_state(sample)
+    variance2 = model.variance()
+
+    np.testing.assert_array_equal(variance, variance2)
 
 
 def test_results_holder_accumulate(test_dataset):
@@ -115,7 +141,7 @@ def test_results_holder_accumulate(test_dataset):
     )
 
     while not results_holder.is_complete:
-        model.mcmc_step()
+        model.step()
         sample = model.get_model_state()
         results_holder.add_sample(sample)
 

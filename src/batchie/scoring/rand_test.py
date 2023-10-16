@@ -2,6 +2,7 @@ import numpy as np
 import pytest
 from batchie.scoring import rand
 from batchie.data import Dataset
+from unittest import mock
 
 
 @pytest.fixture
@@ -55,7 +56,7 @@ def test_random_scorer(test_dataset):
     rng = np.random.default_rng(0)
 
     result = rand.RandomScorer().score(
-        dataset=test_dataset, model=None, results=None, rng=rng
+        dataset=test_dataset, rng=rng, distance_matrix=mock.MagicMock()
     )
 
     assert len(result) == len(test_dataset.unique_plate_ids)

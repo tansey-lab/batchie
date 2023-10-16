@@ -2,6 +2,7 @@ import numpy as np
 import pytest
 from batchie.scoring import size
 from batchie.data import Dataset
+from unittest import mock
 
 
 @pytest.fixture
@@ -55,7 +56,7 @@ def test_size_scorer(test_dataset):
     rng = np.random.default_rng(0)
 
     result = size.SizeScorer().score(
-        dataset=test_dataset, model=None, results=None, rng=rng
+        dataset=test_dataset, distance_matrix=mock.MagicMock(), rng=rng
     )
 
     assert result == {0: 4, 1: 4}

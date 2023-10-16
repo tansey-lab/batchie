@@ -24,5 +24,5 @@ def test_sample(mocker):
         disable_progress_bar=True,
     )
 
-    assert fake_model.mcmc_step.call_count == 30
+    assert fake_model.step.call_count == 30
     assert fake_results_holder.add_sample.call_count == 10
