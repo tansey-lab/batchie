@@ -1,10 +1,10 @@
 import batchie.sampling
-from batchie.interfaces import BayesianModel, ResultsHolder
+from batchie.core import BayesianModel, SamplesHolder
 
 
 def test_sample(mocker):
     fake_model = mocker.MagicMock(spec=BayesianModel)
-    fake_results_holder = mocker.MagicMock(spec=ResultsHolder)
+    fake_results_holder = mocker.MagicMock(spec=SamplesHolder)
 
     def fake_model_factory(rng):
         return fake_model
@@ -25,4 +25,4 @@ def test_sample(mocker):
     )
 
     assert fake_model.mcmc_step.call_count == 30
-    assert fake_results_holder.add_mcmc_sample.call_count == 10
+    assert fake_results_holder.add_sample.call_count == 10

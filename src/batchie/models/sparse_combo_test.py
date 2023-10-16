@@ -117,7 +117,7 @@ def test_results_holder_accumulate(test_dataset):
     while not results_holder.is_complete:
         model.mcmc_step()
         sample = model.get_model_state()
-        results_holder.add_mcmc_sample(sample)
+        results_holder.add_sample(sample)
 
 
 def test_results_holder_serde(test_dataset):
@@ -133,7 +133,7 @@ def test_results_holder_serde(test_dataset):
         n_unique_treatments=test_dataset.n_treatments,
         n_unique_samples=test_dataset.n_samples,
     )
-    results_holder.add_mcmc_sample(model.get_model_state())
+    results_holder.add_sample(model.get_model_state())
 
     # create temporary file
 
@@ -142,7 +142,7 @@ def test_results_holder_serde(test_dataset):
 
         results_holder2 = sparse_combo.SparseDrugComboResults.load_h5(f.name)
 
-    assert results_holder2.n_mcmc_steps == results_holder.n_mcmc_steps
+    assert results_holder2.n_samples == results_holder.n_mcmc_steps
     np.testing.assert_array_equal(results_holder2.V2, results_holder.V2)
     np.testing.assert_array_equal(results_holder2.V1, results_holder.V1)
     np.testing.assert_array_equal(results_holder2.V0, results_holder.V0)

@@ -6,12 +6,12 @@ from typing import Optional
 import h5py
 import numpy as np
 from batchie.data import Data
-from numpy.random import BitGenerator
+from numpy.random import Generator
 from scipy.special import logit
 
 from batchie.common import ArrayType, copy_array_with_control_treatments_set_to_zero
 from batchie.fast_mvn import sample_mvn_from_precision
-from batchie.interfaces import BayesianModel, BayesianModelSample, ResultsHolder
+from batchie.core import BayesianModel, BayesianModelSample, SamplesHolder
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +45,7 @@ class SparseDrugCombo(BayesianModel):
         b0: float = 1.1,
         min_Mu: float = -10.0,
         max_Mu: float = 10.0,
-        rng: Optional[BitGenerator] = None,
+        rng: Optional[Generator] = None,
         predict_interactions: bool = False,
         interaction_log_transform: bool = True,
     ):
@@ -596,7 +596,7 @@ class SparseDrugCombo(BayesianModel):
     # endregion
 
 
-class SparseDrugComboResults(ResultsHolder):
+class SparseDrugComboResults(SamplesHolder):
     def __init__(
         self,
         n_unique_samples: int,
@@ -640,7 +640,7 @@ class SparseDrugComboResults(ResultsHolder):
         self.alpha = np.zeros((self.n_mcmc_steps,), np.float32)
         self.prec = np.zeros((self.n_mcmc_steps,), np.float32)
 
-    def get_mcmc_sample(self, step_index: int) -> SparseDrugComboMCMCSample:
+    def get_sample(self, step_index: int) -> SparseDrugComboMCMCSample:
         """Get one sample from the MCMC chain"""
         # Test if this is beyond the step we are current at with the cursor
         if step_index >= self._cursor:
@@ -656,7 +656,7 @@ class SparseDrugComboResults(ResultsHolder):
             prec=self.prec[step_index],
         )
 
-    def _save_mcmc_sample(self, sample: SparseDrugComboMCMCSample):
+    def _save_sample(self, sample: SparseDrugComboMCMCSample):
         self.V2[self._cursor] = sample.V2
         self.V1[self._cursor] = sample.V1
         self.W[self._cursor] = sample.W
