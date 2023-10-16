@@ -1,7 +1,7 @@
 import numpy as np
 
 from batchie.data import Data
-from batchie.interfaces import Scorer
+from batchie.core import Scorer
 
 
 class RandomScorer(Scorer):

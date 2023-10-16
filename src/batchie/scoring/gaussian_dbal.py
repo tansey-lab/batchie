@@ -1,7 +1,7 @@
 import numpy as np
 from scipy.special import logsumexp, comb
 from batchie.common import ArrayType
-from batchie.interfaces import Scorer, BayesianModel, ResultsHolder
+from batchie.core import Scorer, BayesianModel, SamplesHolder
 from batchie.data import Data
 
 
@@ -87,39 +87,3 @@ def dbal_fast_gauss_scoring_vec(
     )
 
     return scores
-
-
-class GaussianDBALScorer(Scorer):
-    def _score(
-        self,
-        data: Data,
-        rng: np.random.Generator,
-        model: BayesianModel,
-        results: ResultsHolder,
-    ):
-        dists = self.distance.square_form(samples)
-
-        variances = np.array([m.variance() for m in samples.predictor_list()])
-        combo_plates = {
-            key: plate.combine(prev_plates) for key, plate in plates.items()
-        }
-        plate_keys = list(combo_plates.keys())
-        n_plates = len(plate_keys)
-
-        n_subs = np.ceil(n_plates / self.max_chunk)
-        index_arrs = np.array_split(np.arange(n_plates), n_subs)
-        scores = dict()
-        for idx_arr in tqdm(index_arrs, disable=disable):
-            curr_plate_keys = [plate_keys[i] for i in idx_arr]
-            current_plates = {key: combo_plates[key] for key in curr_plate_keys}
-
-            mean_preds = samples.predict_plates(current_plates)
-            vals = dbal_fast_gauss_scoring_vec(
-                mean_preds=mean_preds,
-                variances=variances,
-                dists=dists,
-                max_triples=self.max_triples,
-            )
-            scores.update(dict(zip(current_plates.keys(), vals)))
-        assert len(scores) == n_plates, "Need to assign a score to every plate!"
-        return scores

@@ -1,6 +1,6 @@
 import numpy as np
 import pytest
-from batchie.scoring import random
+from batchie.scoring import rand
 from batchie.data import Dataset
 
 
@@ -54,6 +54,8 @@ def test_dataset():
 def test_random_scorer(test_dataset):
     rng = np.random.default_rng(0)
 
-    result = random.RandomScorer().score(test_dataset, rng)
+    result = rand.RandomScorer().score(
+        dataset=test_dataset, model=None, results=None, rng=rng
+    )
 
     assert len(result) == len(test_dataset.unique_plate_ids)

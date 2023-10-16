@@ -3,12 +3,12 @@ from typing import Callable
 import numpy.random
 from tqdm import trange
 
-from batchie.interfaces import BayesianModel, ResultsHolder
+from batchie.core import BayesianModel, SamplesHolder
 
 
 def sample(
     model_factory: Callable[[numpy.random.BitGenerator], BayesianModel],
-    results_factory: Callable[[], ResultsHolder],
+    results_factory: Callable[[], SamplesHolder],
     seed: int,
     n_chains: int,
     chain_index: int,
@@ -16,7 +16,7 @@ def sample(
     n_samples: int,
     thin: int,
     disable_progress_bar=False,
-) -> ResultsHolder:
+) -> SamplesHolder:
     seeds = numpy.random.SeedSequence(seed).spawn(n_chains)
     rng = numpy.random.default_rng(seeds[chain_index])
 
@@ -31,6 +31,6 @@ def sample(
     for step_index in trange(total_steps, disable=disable_progress_bar):
         model.mcmc_step()
         if ((step_index + 1) % thin) == 0:
-            results.add_mcmc_sample(model.get_model_state())
+            results.add_sample(model.get_model_state())
 
     return results

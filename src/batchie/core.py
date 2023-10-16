@@ -16,7 +16,6 @@ class BayesianModel:
     """
     This class represents a Bayesian model.
 
-
     A Bayesian model has internal state. Each BayesianModel should have a companion BayesianModelSample
     class which represents the models internal state in a serializable way,
 
@@ -52,30 +51,30 @@ class BayesianModel:
         raise NotImplementedError
 
 
-class ResultsHolder:
-    def __init__(self, n_mcmc_steps: int, *args, **kwargs):
+class SamplesHolder:
+    def __init__(self, n_samples: int, *args, **kwargs):
         self._cursor = 0
-        self.n_mcmc_steps = n_mcmc_steps
+        self.n_samples = n_samples
 
-    def add_mcmc_sample(self, sample: BayesianModelSample):
+    def add_sample(self, sample: BayesianModelSample):
         # test if we are at the end of the chain
-        if self._cursor >= self.n_mcmc_steps:
+        if self._cursor >= self.n_samples:
             raise ValueError("Cannot add more samples to the results object")
 
-        self._save_mcmc_sample(sample)
+        self._save_sample(sample)
 
-    def _save_mcmc_sample(self, sample: BayesianModelSample):
+    def _save_sample(self, sample: BayesianModelSample):
         raise NotImplementedError
 
-    def get_mcmc_sample(self, step_index: int) -> BayesianModelSample:
+    def get_sample(self, step_index: int) -> BayesianModelSample:
         raise NotImplementedError
 
     def save_h5(self, fn: str):
         raise NotImplementedError
 
     def __iter__(self):
-        for i in range(self.n_mcmc_steps):
-            yield self.get_mcmc_sample(i)
+        for i in range(self.n_samples):
+            yield self.get_sample(i)
 
     @staticmethod
     def load_h5(path: str):
@@ -83,7 +82,18 @@ class ResultsHolder:
 
     @property
     def is_complete(self):
-        return self._cursor == self.n_mcmc_steps
+        return self._cursor == self.n_samples
+
+
+class PredictionsHolder:
+    def add_prediction(self, prediction: ArrayType):
+        raise NotImplementedError
+
+    def save_h5(self, fn: str):
+        raise NotImplementedError
+
+    def load_h5(self, fn: str):
+        raise NotImplementedError
 
 
 class Metric:
@@ -93,15 +103,12 @@ class Metric:
     def evaluate(self, sample: BayesianModelSample) -> float:
         raise NotImplementedError
 
-    def evaluate_all(self, results_holder: ResultsHolder) -> ArrayType:
+    def evaluate_all(self, results_holder: SamplesHolder) -> ArrayType:
         return np.array([self.evaluate(x) for x in results_holder])
 
 
 class DistanceMetric:
-    def __init__(self, model: BayesianModel):
-        self.model = model
-
-    def distance(self, a: BayesianModelSample, b: BayesianModelSample) -> float:
+    def distance(self, a: ArrayType, b: ArrayType) -> float:
         raise NotImplementedError
 
     def square_form(self, samples: list[BayesianModelSample]) -> ArrayType:
@@ -132,7 +139,7 @@ class Scorer:
         self,
         data: Data,
         model: BayesianModel,
-        results: ResultsHolder,
+        results: SamplesHolder,
         rng: np.random.Generator,
     ):
         raise NotImplementedError
@@ -141,7 +148,7 @@ class Scorer:
         self,
         dataset: Dataset,
         model: BayesianModel,
-        results: ResultsHolder,
+        results: SamplesHolder,
         rng: np.random.Generator,
     ) -> dict:
         result = {}

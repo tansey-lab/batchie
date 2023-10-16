@@ -54,6 +54,8 @@ def test_dataset():
 def test_size_scorer(test_dataset):
     rng = np.random.default_rng(0)
 
-    result = size.SizeScorer().score(test_dataset, rng)
+    result = size.SizeScorer().score(
+        dataset=test_dataset, model=None, results=None, rng=rng
+    )
 
     assert result == {0: 4, 1: 4}
