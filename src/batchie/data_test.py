@@ -9,8 +9,8 @@ import h5py
 
 
 from batchie.data import (
-    Dataset,
-    DatasetSubset,
+    Experiment,
+    ExperimentSubset,
     randomly_subsample_dataset,
     encode_treatment_arrays_to_0_indexed_ids,
     filter_dataset_to_treatments_that_appear_in_at_least_one_combo,
@@ -41,7 +41,7 @@ def test_encode_treatment_arrays_with_controls_to_0_indexed_ids():
 
 
 def test_dataset_initialization_succeeds_under_correct_condition():
-    result = Dataset(
+    result = Experiment(
         observations=np.array([0.1, 0.2, 0.3, 0.4]),
         sample_names=np.array(["a", "b", "c", "d"], dtype=str),
         plate_names=np.array(["a", "a", "b", "b"], dtype=str),
@@ -60,7 +60,7 @@ def test_dataset_initialization_succeeds_under_correct_condition():
 
 
 def test_dataset_serialization():
-    dset = Dataset(
+    dset = Experiment(
         observations=np.array([0.1, 0.2, 0.3, 0.4]),
         sample_names=np.array(["a", "b", "c", "d"], dtype=str),
         plate_names=np.array(["a", "a", "b", "b"], dtype=str),
@@ -77,7 +77,7 @@ def test_dataset_serialization():
     try:
         dset.save_h5(fn)
 
-        dset_loaded = Dataset.load_h5(fn)
+        dset_loaded = Experiment.load_h5(fn)
 
         numpy.testing.assert_array_equal(dset_loaded.plate_ids, np.array([0, 0, 1, 1]))
         numpy.testing.assert_array_equal(dset_loaded.sample_ids, np.array([0, 1, 2, 3]))
@@ -101,7 +101,7 @@ def test_dataset_serialization():
 
 
 def test_randomly_subsample_dataset():
-    test_dataset = Dataset(
+    test_dataset = Experiment(
         observations=np.array([0.1, 0.2, 0.3, 0.4]),
         sample_names=np.array(["a", "b", "c", "d"], dtype=str),
         plate_names=np.array(["a", "a", "b", "b"], dtype=str),
@@ -120,7 +120,7 @@ def test_randomly_subsample_dataset():
 
 
 def test_filter_dataset_to_treatments_that_appear_in_at_least_one_combo():
-    test_dataset = Dataset(
+    test_dataset = Experiment(
         observations=np.array([0.1, 0.2, 0.3, 0.4]),
         sample_names=np.array(["a", "b", "c", "d"], dtype=str),
         plate_names=np.array(["a", "a", "b", "b"], dtype=str),
@@ -139,7 +139,7 @@ def test_filter_dataset_to_treatments_that_appear_in_at_least_one_combo():
 
 
 def test_data_subset():
-    test_dataset = Dataset(
+    test_dataset = Experiment(
         observations=np.array([0.1, 0.2, 0.3, 0.4]),
         sample_names=np.array(["a", "b", "c", "d"], dtype=str),
         plate_names=np.array(["a", "a", "b", "b"], dtype=str),
@@ -149,7 +149,7 @@ def test_data_subset():
         treatment_doses=np.array([[2.0, 2.0], [1.0, 2.0], [2.0, 1.0], [2.0, 1.0]]),
     )
 
-    subset = DatasetSubset(
+    subset = ExperimentSubset(
         dataset=test_dataset, selection_vector=np.array([True, False, False, True])
     )
 

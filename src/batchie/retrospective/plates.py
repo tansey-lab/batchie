@@ -1,4 +1,4 @@
-from batchie.data import Dataset, DatasetSubset
+from batchie.data import Experiment, ExperimentSubset
 import numpy as np
 from batchie.common import CONTROL_SENTINEL_VALUE
 
@@ -6,8 +6,8 @@ from typing import Optional
 
 
 def create_sparse_cover_plate(
-    dataset: Dataset, rng: np.random.BitGenerator
-) -> DatasetSubset:
+    dataset: Experiment, rng: np.random.BitGenerator
+) -> ExperimentSubset:
     """
     We want to make sure we have at least one observation for
     each cell line/drug dose combination in the first plate
@@ -67,15 +67,15 @@ def create_sparse_cover_plate(
         np.arange(dataset.n_experiments), chosen_selection_indices
     )
 
-    return DatasetSubset(dataset, final_plate_selection_vector)
+    return ExperimentSubset(dataset, final_plate_selection_vector)
 
 
 def create_sarcoma_plates(
-    dataset: Dataset,
+    dataset: Experiment,
     subset_size: int,
     rng: np.random.BitGenerator,
     anchor_size: int = 0,
-) -> list[DatasetSubset]:
+) -> list[ExperimentSubset]:
     """
     Break up your drug doses into groups of size subset_size
 
@@ -131,13 +131,13 @@ def create_sarcoma_plates(
     results = []
     for unique_grouping_tuple in unique_grouping_tuples:
         mask = (grouping_tuples == unique_grouping_tuple).all(axis=1)
-        results.append(DatasetSubset(dataset, mask))
+        results.append(ExperimentSubset(dataset, mask))
 
     return results
 
 
 def randomly_sample_plates(
-    dataset: Dataset,
+    dataset: Experiment,
     proportion_of_plates_to_sample: float,
     rng: np.random.BitGenerator,
     force_include_plate_ids: Optional[list[int]] = None,
@@ -156,4 +156,4 @@ def randomly_sample_plates(
     )
 
     mask = np.isin(dataset.plate_ids, sampled_plate_ids)
-    return DatasetSubset(dataset=dataset, selection_vector=mask)
+    return ExperimentSubset(dataset=dataset, selection_vector=mask)

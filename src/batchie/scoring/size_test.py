@@ -1,13 +1,13 @@
 import numpy as np
 import pytest
 from batchie.scoring import size
-from batchie.data import Dataset
+from batchie.data import Experiment
 from unittest import mock
 
 
 @pytest.fixture
 def test_dataset():
-    test_dataset = Dataset(
+    test_dataset = Experiment(
         observations=np.array([0.1, 0.2, 0.3, 0.4, 0.1, 0.2, 0.3, 0.4]),
         single_effects=np.array(
             [

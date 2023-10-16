@@ -1,4 +1,4 @@
-from batchie.data import Data, Dataset
+from batchie.data import Data, Experiment
 import numpy as np
 from batchie.common import ArrayType
 import h5py
@@ -259,7 +259,7 @@ class Scorer:
 
     def score(
         self,
-        dataset: Dataset,
+        dataset: Experiment,
         distance_matrix: DistanceMatrix,
         samples: SamplesHolder,
         rng: np.random.Generator,

@@ -1,4 +1,4 @@
-from batchie.data import Dataset, DatasetSubset
+from batchie.data import Experiment, ExperimentSubset
 import numpy as np
 import pytest
 from batchie.retrospective import plates
@@ -6,7 +6,7 @@ from batchie.retrospective import plates
 
 @pytest.fixture
 def test_dataset():
-    test_dataset = Dataset(
+    test_dataset = Experiment(
         observations=np.array([0.1, 0.2, 0.3, 0.4, 0.1, 0.2, 0.3, 0.4]),
         sample_names=np.array(["a", "b", "c", "d", "a", "b", "c", "d"], dtype=str),
         plate_names=np.array(["a", "a", "b", "b", "a", "a", "b", "b"], dtype=str),
