@@ -25,12 +25,12 @@ def sample(
     results = results_factory()
 
     for _ in trange(n_burnin, disable=disable_progress_bar):
-        model.mcmc_step()
+        model.step()
 
     total_steps = n_samples * thin
     for step_index in trange(total_steps, disable=disable_progress_bar):
-        model.mcmc_step()
+        model.step()
         if ((step_index + 1) % thin) == 0:
-            results.add_sample(model.get_model_state())
+            results.add_sample(model.get_model_state(), model.variance())
 
     return results

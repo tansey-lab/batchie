@@ -1,12 +1,13 @@
 import numpy as np
 import pytest
 from batchie.scoring import size
-from batchie.data import Dataset
+from batchie.data import Experiment
+from unittest import mock
 
 
 @pytest.fixture
 def test_dataset():
-    test_dataset = Dataset(
+    test_dataset = Experiment(
         observations=np.array([0.1, 0.2, 0.3, 0.4, 0.1, 0.2, 0.3, 0.4]),
         single_effects=np.array(
             [
@@ -55,7 +56,11 @@ def test_size_scorer(test_dataset):
     rng = np.random.default_rng(0)
 
     result = size.SizeScorer().score(
-        dataset=test_dataset, model=None, results=None, rng=rng
+        dataset=test_dataset,
+        samples=mock.MagicMock(),
+        distance_matrix=mock.MagicMock(),
+        rng=rng,
+        model=mock.MagicMock(),
     )
 
     assert result == {0: 4, 1: 4}

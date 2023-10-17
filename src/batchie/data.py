@@ -101,6 +101,11 @@ class Data(ABC):
         return NotImplemented
 
     @property
+    @abstractmethod
+    def is_observed(self) -> bool:
+        return NotImplemented
+
+    @property
     def unique_plate_ids(self):
         return np.unique(self.plate_ids)
 
@@ -116,9 +121,13 @@ class Data(ABC):
     def n_treatments(self):
         return self.treatment_ids.shape[1]
 
+    @property
+    def n_plates(self):
+        return self.unique_plate_ids.shape[0]
 
-class DatasetSubset(Data):
-    def __init__(self, dataset: "Dataset", selection_vector: ArrayType):
+
+class ExperimentSubset(Data):
+    def __init__(self, dataset: "Experiment", selection_vector: ArrayType):
         self.dataset = dataset
 
         if not np.issubdtype(selection_vector.dtype, bool):
@@ -160,11 +169,15 @@ class DatasetSubset(Data):
         return np.setdiff1d(np.unique(self.treatment_ids), [CONTROL_SENTINEL_VALUE])
 
     def invert(self):
-        return DatasetSubset(self.dataset, ~self.selection_vector)
+        return ExperimentSubset(self.dataset, ~self.selection_vector)
 
     @property
     def observations(self):
         return self.dataset.observations[self.selection_vector]
+
+    @property
+    def is_observed(self) -> bool:
+        return self.dataset.is_observed
 
     @property
     def single_effects(self):
@@ -173,7 +186,7 @@ class DatasetSubset(Data):
         return self.dataset.single_effects[self.selection_vector]
 
     def to_dataset(self):
-        return Dataset(
+        return Experiment(
             treatment_names=self.dataset.treatment_names[self.selection_vector].copy(),
             treatment_doses=self.dataset.treatment_doses[self.selection_vector].copy(),
             observations=self.dataset.observations[self.selection_vector].copy(),
@@ -183,14 +196,14 @@ class DatasetSubset(Data):
         )
 
 
-class Dataset(Data):
+class Experiment(Data):
     def __init__(
         self,
         treatment_names: ArrayType,
         treatment_doses: ArrayType,
-        observations: ArrayType,
         sample_names: ArrayType,
         plate_names: ArrayType,
+        observations: Optional[ArrayType] = None,
         single_effects: Optional[ArrayType] = None,
         control_treatment_name="",
     ):
@@ -203,7 +216,6 @@ class Dataset(Data):
                         for x in [
                             treatment_names,
                             treatment_doses,
-                            observations,
                             sample_names,
                             plate_names,
                         ]
@@ -239,6 +251,17 @@ class Dataset(Data):
 
             if not np.issubdtype(single_effects.dtype, float):
                 raise ValueError("single_effects must be floats")
+
+        if observations is not None:
+            if observations.shape != sample_names.shape:
+                raise ValueError(
+                    "Expected observations to have shape {} but got {}".format(
+                        sample_names.shape, observations.shape
+                    )
+                )
+
+            if not np.issubdtype(observations.dtype, float):
+                raise ValueError("observations must be floats")
 
         if not np.issubdtype(treatment_doses.dtype, float):
             raise ValueError("treatment_doses must be floats")
@@ -300,8 +323,12 @@ class Dataset(Data):
     def observations(self):
         return self._observations
 
-    def get_plate(self, plate_id: int) -> DatasetSubset:
-        return DatasetSubset(self, self.plate_ids == plate_id)
+    @property
+    def is_observed(self) -> bool:
+        return self._observations is not None
+
+    def get_plate(self, plate_id: int) -> ExperimentSubset:
+        return ExperimentSubset(self, self.plate_ids == plate_id)
 
     @property
     def n_experiments(self):
@@ -338,7 +365,7 @@ class Dataset(Data):
         if not selection_vector.size == self.n_experiments:
             raise ValueError("selection_vector must have same length as dataset")
 
-        return Dataset(
+        return Experiment(
             treatment_names=self.treatment_names[selection_vector],
             treatment_doses=self.treatment_doses[selection_vector],
             observations=self.observations[selection_vector],
@@ -366,7 +393,7 @@ class Dataset(Data):
     def load_h5(path):
         """Load saved data from h5 archive"""
         with h5py.File(path, "r") as f:
-            return Dataset(
+            return Experiment(
                 treatment_names=np.char.decode(f["treatment_names"][:], "utf-8"),
                 treatment_doses=f["treatment_doses"][:],
                 observations=f["observations"][:],
@@ -377,12 +404,12 @@ class Dataset(Data):
 
 
 def randomly_subsample_dataset(
-    dataset: Dataset,
+    dataset: Experiment,
     treatment_class_fraction: Optional[float] = None,
     treatment_fraction: Optional[float] = None,
     sample_fraction: Optional[float] = None,
     rng: Optional[np.random.BitGenerator] = None,
-) -> (DatasetSubset, DatasetSubset):
+) -> (ExperimentSubset, ExperimentSubset):
     if rng is None:
         logger.warning(
             "No random number generator provided to randomly_subsample_dataset, using default. "
@@ -440,11 +467,11 @@ def randomly_subsample_dataset(
     )
 
     # Create two new dataset objects, one with the experiments to keep, and one with the experiments to drop
-    dataset_of_kept_experiments = DatasetSubset(
+    dataset_of_kept_experiments = ExperimentSubset(
         dataset=dataset, selection_vector=to_keep_vector
     )
 
-    dataset_of_dropped_experiments = DatasetSubset(
+    dataset_of_dropped_experiments = ExperimentSubset(
         dataset=dataset, selection_vector=~to_keep_vector
     )
 
@@ -452,8 +479,8 @@ def randomly_subsample_dataset(
 
 
 def filter_dataset_to_treatments_that_appear_in_at_least_one_combo(
-    dataset: Dataset,
-) -> Dataset:
+    dataset: Experiment,
+) -> Experiment:
     if dataset.n_treatments < 2:
         raise ValueError("Dataset must have at least 2 treatments")
 

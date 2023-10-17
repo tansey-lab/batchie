@@ -26,7 +26,7 @@ class SparseDrugComboMCMCSample(BayesianModelSample):
     V1: ArrayType
     V0: ArrayType
     alpha: float
-    prec: float
+    precision: float
 
 
 class SparseDrugCombo(BayesianModel):
@@ -117,7 +117,7 @@ class SparseDrugCombo(BayesianModel):
 
         # intercept and overall precision
         self.alpha = 0.0
-        self.prec = 100.0
+        self.precision = 100.0
 
         # holder for model prediction during fit and for eval
         self.Mu = np.zeros(0, np.float32)
@@ -145,7 +145,7 @@ class SparseDrugCombo(BayesianModel):
         self.V1 = self.V1 * 0.0
         self.V0 = self.V0 * 0.0
         self.alpha = 0.0
-        self.prec = 100.0
+        self.precision = 100.0
         self.Mu = np.zeros(0, np.float32)
 
     def set_model_state(self, model_state: SparseDrugComboMCMCSample):
@@ -155,10 +155,10 @@ class SparseDrugCombo(BayesianModel):
         self.V1 = model_state.V1
         self.V0 = model_state.V0
         self.alpha = model_state.alpha
-        self.prec = model_state.prec
+        self.precision = model_state.precision
         self._reconstruct_Mu()
 
-    def mcmc_step(self):
+    def step(self):
         self.num_mcmc_steps += 1
         self._reconstruct_Mu(clip=False)
         self._alpha_step()
@@ -176,7 +176,7 @@ class SparseDrugCombo(BayesianModel):
 
     def get_model_state(self) -> SparseDrugComboMCMCSample:
         return SparseDrugComboMCMCSample(
-            prec=self.prec,
+            precision=self.precision,
             alpha=self.alpha,
             W0=self.W0.copy(),
             V0=self.V0.copy(),
@@ -204,6 +204,9 @@ class SparseDrugCombo(BayesianModel):
                 return predictions
         else:
             raise NotImplementedError("SparseDrugCombo only supports 1 or 2 treatments")
+
+    def variance(self):
+        return 1.0 / self.precision
 
     # region Model Implementation
     def _W_step(self):
@@ -239,7 +242,7 @@ class SparseDrugCombo(BayesianModel):
             resid = self.y[cidx] - self.Mu[cidx] + old_contrib
 
             Xt = X.transpose()
-            prec = self.prec
+            prec = self.precision
             mu_part = (Xt @ resid) * prec
             Q = (Xt @ X) * prec
             Q[np.diag_indices(self.n_embedding_dimensions)] += self.tau
@@ -262,8 +265,8 @@ class SparseDrugCombo(BayesianModel):
                 resid = self.y[cidx] - self.Mu[cidx] + self.W0[sample_id]
                 old_contrib = self.W0[sample_id]
                 N = cidx.sum()
-                mean = self.prec * resid.sum() / (self.prec * N + self.tau0)
-                stddev = 1.0 / np.sqrt(self.prec * N + self.tau0)
+                mean = self.precision * resid.sum() / (self.precision * N + self.tau0)
+                stddev = 1.0 / np.sqrt(self.precision * N + self.tau0)
                 self.W0[sample_id] = self.rng.normal(mean, stddev)
                 self.Mu[cidx] += self.W0[sample_id] - old_contrib
 
@@ -325,8 +328,8 @@ class SparseDrugCombo(BayesianModel):
             # sample form posterior
             # X = np.clip(X, -10.0, 10.0)
             Xt = X.transpose()
-            mu_part = (Xt @ resid) * self.prec
-            Q = (Xt @ X) * self.prec
+            mu_part = (Xt @ resid) * self.precision
+            Q = (Xt @ X) * self.precision
             dix = np.diag_indices(self.n_embedding_dimensions)
             Q[dix] += self.phi2[treatment_id] * self.eta2
             try:
@@ -382,8 +385,8 @@ class SparseDrugCombo(BayesianModel):
 
             # sample form posterior
             Xt = X.transpose()
-            mu_part = (Xt @ resid) * self.prec
-            Q = (Xt @ X) * self.prec
+            mu_part = (Xt @ resid) * self.precision
+            Q = (Xt @ X) * self.precision
             dix = np.diag_indices(self.n_embedding_dimensions)
             Q[dix] += self.phi1[treatment_id] * self.eta1
             try:
@@ -424,25 +427,27 @@ class SparseDrugCombo(BayesianModel):
             idx = idx1 | idx2
             N = idx.sum()
             mean = (
-                self.prec
+                self.precision
                 * resid.sum()
-                / (self.prec * N + self.phi0[treatment_id] * self.eta0)
+                / (self.precision * N + self.phi0[treatment_id] * self.eta0)
             )
-            stddev = 1.0 / np.sqrt(self.prec * N + self.phi0[treatment_id] * self.eta0)
+            stddev = 1.0 / np.sqrt(
+                self.precision * N + self.phi0[treatment_id] * self.eta0
+            )
             self.V0[treatment_id] = self.rng.normal(mean, stddev)
             self.Mu[idx] += self.V0[treatment_id] - old_value
 
     def _prec_obs_step(self) -> None:
         if self.n_obs == 0:
-            self.prec = self.rng.gamma(self.a0, 1.0 / self.b0)
+            self.precision = self.rng.gamma(self.a0, 1.0 / self.b0)
             return
         sse = np.square(self.y - self.Mu).sum()
         an = self.a0 + 0.5 * self.n_obs
         bn = self.b0 + 0.5 * sse
-        self.prec = self.rng.gamma(an, 1.0 / (bn + 1e-3))
+        self.precision = self.rng.gamma(an, 1.0 / (bn + 1e-3))
         C = 1.0 / np.sqrt(1 + self.n_obs)
         self.last_rmse = np.sqrt(np.square(self.y - self.Mu).mean())
-        self.prec = np.clip(self.prec, C, 1e6)
+        self.precision = np.clip(self.precision, C, 1e6)
 
     def _prec_V2_step(self):
         if self.local_shrinkage:
@@ -591,7 +596,7 @@ class SparseDrugCombo(BayesianModel):
             self.Mu = np.clip(self.Mu, self.min_Mu, self.max_Mu)
 
     def _ess_pars(self):
-        return [1.0 / np.sqrt(self.prec)] + self.Mu.tolist()
+        return [1.0 / np.sqrt(self.precision)] + self.Mu.tolist()
 
     # endregion
 
@@ -638,7 +643,7 @@ class SparseDrugComboResults(SamplesHolder):
         )
 
         self.alpha = np.zeros((self.n_mcmc_steps,), np.float32)
-        self.prec = np.zeros((self.n_mcmc_steps,), np.float32)
+        self.precision = np.zeros((self.n_mcmc_steps,), np.float32)
 
     def get_sample(self, step_index: int) -> SparseDrugComboMCMCSample:
         """Get one sample from the MCMC chain"""
@@ -653,17 +658,20 @@ class SparseDrugComboResults(SamplesHolder):
             V1=self.V1[step_index],
             V0=self.V0[step_index],
             alpha=self.alpha[step_index],
-            prec=self.prec[step_index],
+            precision=self.precision[step_index],
         )
 
-    def _save_sample(self, sample: SparseDrugComboMCMCSample):
+    def get_variance(self, step_index: int) -> float:
+        return 1.0 / self.precision[step_index]
+
+    def _save_sample(self, sample: SparseDrugComboMCMCSample, variance: float):
         self.V2[self._cursor] = sample.V2
         self.V1[self._cursor] = sample.V1
         self.W[self._cursor] = sample.W
         self.V0[self._cursor] = sample.V0
         self.W0[self._cursor] = sample.W0
         self.alpha[self._cursor] = sample.alpha
-        self.prec[self._cursor] = sample.prec
+        self.precision[self._cursor] = sample.precision
         self._cursor += 1
 
     def save_h5(self, fn: str):
@@ -675,7 +683,7 @@ class SparseDrugComboResults(SamplesHolder):
             f.create_dataset("V0", data=self.V0)
             f.create_dataset("W0", data=self.W0)
             f.create_dataset("alpha", data=self.alpha)
-            f.create_dataset("prec", data=self.prec)
+            f.create_dataset("precision", data=self.precision)
 
             # Save the cursor value metadata
             f.attrs["cursor"] = self._cursor
@@ -702,7 +710,7 @@ class SparseDrugComboResults(SamplesHolder):
             results.V0 = f["V0"][:]
             results.W0 = f["W0"][:]
             results.alpha = f["alpha"][:]
-            results.prec = f["prec"][:]
+            results.precision = f["precision"][:]
             results._cursor = f.attrs["cursor"]
 
         return results

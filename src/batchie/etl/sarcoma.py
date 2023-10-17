@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 from scipy.special import logit
 
-from batchie.data import Dataset
+from batchie.data import Experiment
 
 
 def load_sarcoma(
@@ -12,7 +12,7 @@ def load_sarcoma(
     round_10_validation: bool = False,
     round_15_random_validation: bool = False,
     round_15_targeted_validation: bool = False,
-) -> Dataset:
+) -> Experiment:
     df = pd.read_csv(os.path.join(path, "sarcoma.csv"))
     df = df[~df["Failed QC"]]
     df.drop(columns=["Failed QC", "Raw count"], inplace=True)
@@ -154,7 +154,7 @@ def load_sarcoma(
     ## Pull out viabilities
     df["y_logit"] = logit(np.clip(df["Viability"], a_min=0.01, a_max=0.99))
 
-    return Dataset(
+    return Experiment(
         observations=df.y_logit.to_numpy().astype(float),
         treatment_names=df[["drug1", "drug2"]].fillna("").to_numpy().astype(str),
         treatment_doses=df[["dose1", "dose2"]].to_numpy().astype(float),

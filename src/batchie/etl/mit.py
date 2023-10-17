@@ -4,10 +4,10 @@ import numpy as np
 import pandas as pd
 from scipy.special import logit, expit
 
-from batchie.data import Dataset
+from batchie.data import Experiment
 
 
-def load_data(path: str) -> Dataset:
+def load_data(path: str) -> Experiment:
     fname = os.path.join(path, "pone.0140310.s012.xlsx")
     data = load_and_process_mit(fname)
 
@@ -36,7 +36,7 @@ def load_data(path: str) -> Dataset:
         ["drug1", "drug2", "dose1", "dose2"]
     ].astype(int)
 
-    return Dataset(
+    return Experiment(
         observations=X_mean.y_viability.to_numpy().astype(float),
         treatment_names=X_mean[["drug1", "drug2"]].fillna("").to_numpy().astype(str),
         treatment_doses=X_mean[["dose1", "dose2"]].to_numpy().astype(float),

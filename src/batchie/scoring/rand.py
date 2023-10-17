@@ -5,5 +5,5 @@ from batchie.core import Scorer
 
 
 class RandomScorer(Scorer):
-    def _score(self, data: Data, rng: np.random.Generator, **kwargs):
+    def _score(self, rng: np.random.Generator, **kwargs):
         return rng.random()
