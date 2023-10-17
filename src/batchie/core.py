@@ -250,6 +250,7 @@ class Scorer:
 
     def _score(
         self,
+        model: BayesianModel,
         data: Data,
         distance_matrix: DistanceMatrix,
         samples: SamplesHolder,
@@ -259,6 +260,7 @@ class Scorer:
 
     def score(
         self,
+        model: BayesianModel,
         dataset: Experiment,
         distance_matrix: DistanceMatrix,
         samples: SamplesHolder,
@@ -267,6 +269,26 @@ class Scorer:
         result = {}
         for plate_id, plate in dataset.plates.items():
             result[plate_id] = self._score(
-                data=plate, distance_matrix=distance_matrix, rng=rng, samples=samples
+                model=model,
+                data=plate,
+                distance_matrix=distance_matrix,
+                rng=rng,
+                samples=samples,
             )
         return result
+
+
+def predict_all(model: BayesianModel, data: Data, samples: SamplesHolder):
+    """
+    :param model: The model to use for prediction
+    :param data: The data to predict
+    :param samples: The samples to use for prediction
+    :return: A matrix of shape (n_samples, n_experiments) containing the
+             predictions for each model / experiment combination
+    """
+    result = np.zeros((samples.n_samples, data.n_experiments), dtype=np.float32)
+
+    for theta_index in range(samples.n_samples):
+        model.set_model_state(samples.get_sample(theta_index))
+        result[theta_index, :] = model.predict(data)
+    return result

@@ -57,6 +57,7 @@ def test_random_scorer(test_dataset):
 
     result = rand.RandomScorer().score(
         dataset=test_dataset,
+        model=mock.MagicMock(),
         samples=mock.MagicMock(),
         rng=rng,
         distance_matrix=mock.MagicMock(),

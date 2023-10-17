@@ -121,6 +121,10 @@ class Data(ABC):
     def n_treatments(self):
         return self.treatment_ids.shape[1]
 
+    @property
+    def n_plates(self):
+        return self.unique_plate_ids.shape[0]
+
 
 class ExperimentSubset(Data):
     def __init__(self, dataset: "Experiment", selection_vector: ArrayType):

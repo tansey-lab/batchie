@@ -1,8 +1,14 @@
 import numpy as np
 from scipy.special import logsumexp, comb
 from batchie.common import ArrayType
-from batchie.core import Scorer, BayesianModel, DistanceMatrix, SamplesHolder
-from batchie.data import Data
+from batchie.core import (
+    Scorer,
+    BayesianModel,
+    DistanceMatrix,
+    SamplesHolder,
+    predict_all,
+)
+from batchie.data import Experiment, ExperimentSubset
 
 
 def generate_combination_at_sorted_index(index, n, k):
@@ -37,23 +43,66 @@ def get_combination_at_sorted_index(index, n, k):
     return tuple(generate_combination_at_sorted_index(index, n, k))
 
 
-## mean_preds: n posterior samples x m data points x d vec/plate size
-## dists: n x n
-## max_triples: parameter determining how many triples we look at
+def zero_pad_ragged_arrays_to_dense_array(arrays: list[ArrayType]):
+    """
+    Given a list of arrays, each with N dimensions,
+    each of which have different sizes, return a dense array of N + 1 dimensions,
+    of size (len(array), maximum_of_dimension_0, ... maximum_of_dimension_N)
+    where all the arrays are zero-padded to the maximum size.
+    """
+    max_sizes = np.max([np.array(array.shape) for array in arrays], axis=0)
+    result = np.zeros((len(arrays), *max_sizes), dtype=arrays[0].dtype)
+    for i, array in enumerate(arrays):
+        result[i, : array.shape[0], : array.shape[1]] = array
+    return result
+
+
 def dbal_fast_gauss_scoring_vec(
-    mean_preds: ArrayType,
+    per_plate_predictions: list[ArrayType],
     variances: ArrayType,
-    dists: ArrayType,
+    distance_matrix: ArrayType,
     rng: np.random.Generator,
     max_combos: int = 5000,
     dfactor: float = 1.0,
 ):
-    n, m, d = mean_preds.shape
-    ncombs = comb(n, 3, exact=True)
-    n_combos = min(ncombs, max_combos)
-    unpacked_indices = rng.choice(ncombs, size=n_combos, replace=False)
+    if not len(per_plate_predictions):
+        raise ValueError("per_plate_predictions must be non-empty")
+
+    if not len(set([x.shape[0] for x in per_plate_predictions])):
+        raise ValueError(
+            "All plate_predictions in per_plate_predictions must have the same number of predictors"
+        )
+
+    if variances.shape[0] != per_plate_predictions[0].shape[0]:
+        raise ValueError(
+            "variances has unexpected shape, expected {} got {}".format(
+                per_plate_predictions[0].shape[0], variances.shape[0]
+            )
+        )
+
+    if distance_matrix.shape[0] != per_plate_predictions[0].shape[0]:
+        raise ValueError(
+            "dists has unexpected shape, expected {} got {}".format(
+                per_plate_predictions[0].shape[0], distance_matrix.shape[0]
+            )
+        )
+
+    if distance_matrix.shape[1] != distance_matrix.shape[0]:
+        raise ValueError("dists must be square, got {}".format(distance_matrix.shape))
+
+    # for performance reasons, we will represent the per plate predictions in a single dense array
+    padded_predictions = zero_pad_ragged_arrays_to_dense_array(per_plate_predictions)
+
+    n_plates, n_thetas, max_experiments_per_plate = padded_predictions.shape
+    n_theta_combinations = comb(n_thetas, 3, exact=True)
+
+    if not n_theta_combinations:
+        raise ValueError("Need at least 3 thetas to compute PDBAL")
+
+    n_combos = min(n_theta_combinations, max_combos)
+    unpacked_indices = rng.choice(n_theta_combinations, size=n_combos, replace=False)
     idx1, idx2, idx3 = zip(
-        *[get_combination_at_sorted_index(ind, n, 3) for ind in unpacked_indices]
+        *[get_combination_at_sorted_index(ind, n_plates, 3) for ind in unpacked_indices]
     )
     idx1 = np.array(idx1)
     idx2 = np.array(idx2)
@@ -61,7 +110,9 @@ def dbal_fast_gauss_scoring_vec(
 
     with np.errstate(divide="ignore"):
         log_triple_dists = dfactor * np.log(
-            dists[idx1, idx2] + dists[idx2, idx3] + dists[idx1, idx3]
+            distance_matrix[idx1, idx2]
+            + distance_matrix[idx2, idx3]
+            + distance_matrix[idx1, idx3]
         )
 
     alpha = (
@@ -72,10 +123,19 @@ def dbal_fast_gauss_scoring_vec(
     exp_factor = (
         0.5 * (variances[idx1] * variances[idx2] * variances[idx3]) / np.square(alpha)
     )
-    log_norm_factor = 0.5 * d * np.log(1.0 / alpha)
-    d12 = np.sum(np.square(mean_preds[idx1, :, :] - mean_preds[idx2, :, :]), axis=-1)
-    d13 = np.sum(np.square(mean_preds[idx1, :, :] - mean_preds[idx3, :, :]), axis=-1)
-    d23 = np.sum(np.square(mean_preds[idx2, :, :] - mean_preds[idx3, :, :]), axis=-1)
+    log_norm_factor = 0.5 * max_experiments_per_plate * np.log(1.0 / alpha)
+    d12 = np.sum(
+        np.square(padded_predictions[idx1, :, :] - padded_predictions[idx2, :, :]),
+        axis=-1,
+    )
+    d13 = np.sum(
+        np.square(padded_predictions[idx1, :, :] - padded_predictions[idx3, :, :]),
+        axis=-1,
+    )
+    d23 = np.sum(
+        np.square(padded_predictions[idx2, :, :] - padded_predictions[idx3, :, :]),
+        axis=-1,
+    )
     ll = -exp_factor[:, np.newaxis] * (
         variances[idx3, np.newaxis] * d12
         + variances[idx2, np.newaxis] * d13
@@ -89,34 +149,64 @@ def dbal_fast_gauss_scoring_vec(
 
 
 class GaussianDBALScorer(Scorer):
+    def __init__(self, max_chunk=50, max_triples=5000, **kwargs):
+        super().__init__(**kwargs)
+        self.max_triples = max_triples
+        self.max_chunk = max_chunk
+
     def _score(
         self,
-        data: Data,
+        model: BayesianModel,
+        data: Experiment,
         distance_matrix: DistanceMatrix,
         samples: SamplesHolder,
         rng: np.random.Generator,
     ):
-        variances = np.array([m.variance() for m in samples.predictor_list()])
-        combo_plates = {
-            key: plate.combine(prev_plates) for key, plate in plates.items()
-        }
-        plate_keys = list(combo_plates.keys())
-        n_plates = len(plate_keys)
+        variances = np.array(
+            [samples.get_variance(i) for i in range(samples.n_samples)]
+        )
 
-        n_subs = np.ceil(n_plates / self.max_chunk)
-        index_arrs = np.array_split(np.arange(n_plates), n_subs)
-        scores = dict()
-        for idx_arr in tqdm(index_arrs, disable=disable):
-            curr_plate_keys = [plate_keys[i] for i in idx_arr]
-            current_plates = {key: combo_plates[key] for key in curr_plate_keys}
+        n_subs = np.ceil(data.n_plates / self.max_chunk)
+        plate_subgroups = np.array_split(np.arange(data.n_plates), n_subs)
 
-            mean_preds = samples.predict_plates(current_plates)
+        result = {}
+        for plate_subgroup in plate_subgroups:
+            plate_subgroup_ids = [data.unique_plate_ids[i] for i in plate_subgroup]
+
+            current_plates: dict[int, ExperimentSubset] = {
+                key: data.get_plate(key) for key in plate_subgroup_ids
+            }
+
+            plate_subgroup_mask = np.array([False] * data.n_experiments, dtype=bool)
+
+            for plate in current_plates.values():
+                plate_subgroup_mask = plate_subgroup_mask | plate.selection_vector
+
+            dense_distance_matrix = distance_matrix.to_dense()
+
+            subgroup_distance_matrix = dense_distance_matrix[plate_subgroup_mask, :][
+                :, plate_subgroup_mask
+            ]
+
+            per_plate_predictions = [
+                predict_all(data=plate, model=model, samples=samples)
+                for plate in current_plates.values()
+            ]
+
             vals = dbal_fast_gauss_scoring_vec(
-                mean_preds=mean_preds,
+                per_plate_predictions=per_plate_predictions,
                 variances=variances,
-                dists=dists,
-                max_triples=self.max_triples,
+                distance_matrix=subgroup_distance_matrix,
+                max_combos=self.max_triples,
+                rng=rng,
             )
-            scores.update(dict(zip(current_plates.keys(), vals)))
-        assert len(scores) == n_plates, "Need to assign a score to every plate!"
-        return scores
+            result.update(dict(zip(current_plates.keys(), vals)))
+
+        if len(result) != data.n_plates:
+            raise ValueError(
+                "Expected {} plates to be scored, got {}".format(
+                    data.n_plates, len(result)
+                )
+            )
+
+        return result

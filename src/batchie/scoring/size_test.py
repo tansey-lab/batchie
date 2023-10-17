@@ -60,6 +60,7 @@ def test_size_scorer(test_dataset):
         samples=mock.MagicMock(),
         distance_matrix=mock.MagicMock(),
         rng=rng,
+        model=mock.MagicMock(),
     )
 
     assert result == {0: 4, 1: 4}
