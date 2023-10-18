@@ -40,7 +40,7 @@ def load_data(path: str) -> Experiment:
         observations=X_mean.y_viability.to_numpy().astype(float),
         treatment_names=X_mean[["drug1", "drug2"]].fillna("").to_numpy().astype(str),
         treatment_doses=X_mean[["dose1", "dose2"]].to_numpy().astype(float),
-        sample_names=X_mean.cline.to_numpy().astype(str),
+        sample_names=X_mean.sample_ids.to_numpy().astype(str),
         plate_names=X_mean.plate.to_numpy().astype(str),
     )
 
