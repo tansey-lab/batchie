@@ -1,7 +1,8 @@
-from batchie.data import Data, Experiment
+from batchie.data import Data, Experiment, ExperimentSubset
 import numpy as np
 from batchie.common import ArrayType
 import h5py
+from typing import Set
 
 
 class BayesianModelSample:
@@ -276,6 +277,22 @@ class Scorer:
                 samples=samples,
             )
         return result
+
+
+class Batcher:
+    """
+    Given an Experiment, which is a set of potential "plates" or ExperimentSubsets,
+    implementations of this class will determine which set of plates is eligible
+    for the next round.
+    """
+
+    def next_batch(
+        self,
+        selected_plates: Set[int],
+        experiment: Experiment,
+        rng: np.random.Generator,
+    ) -> list[ExperimentSubset]:
+        raise NotImplementedError
 
 
 def predict_all(model: BayesianModel, data: Data, samples: SamplesHolder):
