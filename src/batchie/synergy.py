@@ -68,15 +68,14 @@ def calculate_synergy(
     if sample_ids.shape[0] != observation.shape[0]:
         raise ValueError("Sample and observation ids must be the same length")
 
+    single_treatment_effect_map = create_single_treatment_effect_map(
+        sample_ids=sample_ids, treatment_ids=treatment_ids, observation=observation
+    )
+
     # find observations where all but one treatment ids are control
     single_treatment_mask = np.sum(treatment_ids == CONTROL_SENTINEL_VALUE, axis=1) == (
         treatment_ids.shape[1] - 1
     )
-    single_treatment_observations = observation[single_treatment_mask]
-    single_treatment_treatments = np.sort(
-        treatment_ids[single_treatment_mask, :], axis=1
-    )[:, -1]
-    single_treatment_sample_ids = sample_ids[single_treatment_mask]
 
     multi_treatment_observation = observation[~single_treatment_mask]
     multi_treatment_treatments = treatment_ids[~single_treatment_mask, :]
@@ -96,16 +95,13 @@ def calculate_synergy(
         current_treatment_ids = current_treatment_ids[
             current_treatment_ids != CONTROL_SENTINEL_VALUE
         ]
-
-        masks = []
-        masks_is_valid = []
+        single_effects = []
 
         for current_treatment_id in current_treatment_ids:
-            mask = (single_treatment_treatments == current_treatment_id) & (
-                single_treatment_sample_ids == current_sample_id
-            )
-
-            if not np.any(mask):
+            if (
+                current_sample_id,
+                current_treatment_id,
+            ) not in single_treatment_effect_map:
                 if strict:
                     raise ValueError(
                         f"Sample {current_sample_id} has no control for treatment {current_treatment_id}"
@@ -114,17 +110,14 @@ def calculate_synergy(
                     logger.warning(
                         f"Sample {current_sample_id} has no control for treatment {current_treatment_id}"
                     )
+                    continue
 
-            masks_is_valid.append(np.any(mask))
-            masks.append(mask)
+            single_effects.append(
+                single_treatment_effect_map[(current_sample_id, current_treatment_id)]
+            )
 
-        if not all(masks_is_valid):
+        if len(current_treatment_ids) != len(single_effects):
             continue
-
-        single_effects = []
-        for mask in masks:
-            single_effect = np.mean(single_treatment_observations[mask])
-            single_effects.append(single_effect)
 
         synergy = np.prod(single_effects) - observation
 

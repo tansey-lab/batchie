@@ -74,6 +74,7 @@ def test_synergy_skips_in_lenient_mode():
         sample_ids=test_sample_ids,
         treatment_ids=test_treatment_ids,
         observation=test_observations,
+        strict=False,
     )
 
     np.testing.assert_array_equal(multi_treatment_sample_ids, np.array([1]))

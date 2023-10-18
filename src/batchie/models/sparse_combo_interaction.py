@@ -6,9 +6,11 @@ from typing import Optional
 import h5py
 import numpy as np
 from batchie.data import Data
+from batchie import synergy
 from numpy.random import Generator
 from scipy.special import logit
 from collections import defaultdict
+from batchie.common import CONTROL_SENTINEL_VALUE
 
 from batchie.common import ArrayType, copy_array_with_control_treatments_set_to_zero
 from batchie.fast_mvn import sample_mvn_from_precision
@@ -34,13 +36,13 @@ class SparseDrugComboInteraction(SparseDrugCombo):
 
     def __init__(
         self,
-        single_effect_lookup: dict[tuple[int, int], float],
+        single_effect_lookup: dict[tuple[int, int], float] = None,
         adjust_single: bool = True,
         *args,
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
-        self.single_effect_lookup = single_effect_lookup
+        self.single_effect_lookup = single_effect_lookup if single_effect_lookup else {}
         self.adjust_single = adjust_single
 
     def step(self) -> None:
@@ -73,10 +75,26 @@ class SparseDrugComboInteraction(SparseDrugCombo):
                 "received a {} treatment dataset".format(data.n_treatments)
             )
 
-        self.y = np.concatenate([self.y, data.observations])
-        self.sample_ids = np.concatenate([self.sample_ids, data.sample_ids])
-        self.treatment_1 = np.concatenate([self.treatment_1, data.treatment_ids[:, 0]])
-        self.treatment_2 = np.concatenate([self.treatment_2, data.treatment_ids[:, 1]])
+        self.single_effect_lookup.update(
+            synergy.create_single_treatment_effect_map(
+                sample_ids=data.sample_ids,
+                treatment_ids=data.treatment_ids,
+                observation=data.observations,
+            )
+        )
+
+        combo_mask = np.sum(data.treatment_ids == CONTROL_SENTINEL_VALUE, axis=1) == (
+            data.treatment_ids.shape[1]
+        )
+
+        self.y = np.concatenate([self.y, data.observations[combo_mask]])
+        self.sample_ids = np.concatenate([self.sample_ids, data.sample_ids[combo_mask]])
+        self.treatment_1 = np.concatenate(
+            [self.treatment_1, data.treatment_ids[combo_mask, 0]]
+        )
+        self.treatment_2 = np.concatenate(
+            [self.treatment_2, data.treatment_ids[combo_mask, 1]]
+        )
 
     def predict(self, data: Data):
         if not data.n_treatments == 2:
@@ -94,7 +112,7 @@ class SparseDrugComboInteraction(SparseDrugCombo):
             -1,
         )
 
-        if adjust_single:
+        if self.adjust_single:
             single_effect = np.clip(
                 [
                     self.single_effect_lookup[c, dd1]
@@ -108,7 +126,7 @@ class SparseDrugComboInteraction(SparseDrugCombo):
                 a_min=0.01,
                 a_max=0.99,
             )
-            if self.transform == "log":
+            if self.interaction_log_transform:
                 viability = np.exp(interaction + np.log(single_effect))
             else:
                 viability = interaction + single_effect
@@ -131,8 +149,8 @@ class SparseDrugComboInteraction(SparseDrugCombo):
                 continue
 
             X = self.V2[cidx] * self.V2[cidx]
-            old_contrib = X @ self.W[c]
-            resid = y[cidx] - self.Mu[cidx] + old_contrib
+            old_contrib = X @ self.W[sample_id]
+            resid = self.y[cidx] - self.Mu[cidx] + old_contrib
 
             Xt = X.transpose()
             prec = self.precision
@@ -148,7 +166,7 @@ class SparseDrugComboInteraction(SparseDrugCombo):
                 warnings.warn("Numeric instability in Gibbs W-step...")
 
     def _reconstruct_Mu(self, clip=True):
-        if self.n_obs() == 0:
+        if self.n_obs == 0:
             return
 
         interaction = np.sum(
