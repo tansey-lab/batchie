@@ -9,31 +9,17 @@ from batchie.models import sparse_combo
 @pytest.fixture
 def test_dataset():
     test_dataset = Experiment(
-        observations=np.array([0.1, 0.2, 0.3, 0.4, 0.1, 0.2, 0.3, 0.4]),
-        single_effects=np.array(
-            [
-                [2.0, 2.0],
-                [2.0, 2.0],
-                [2.0, 2.0],
-                [2.0, 2.0],
-                [2.0, 2.0],
-                [2.0, 2.0],
-                [2.0, 2.0],
-                [2.0, 2.0],
-            ]
-        ),
-        sample_names=np.array(["a", "b", "c", "d", "a", "b", "c", "d"], dtype=str),
-        plate_names=np.array(["a", "a", "b", "b", "a", "a", "b", "b"], dtype=str),
+        observations=np.array([0.1, 0.2, 0.3, 0.4, 0.1, 0.2]),
+        sample_names=np.array(["a", "a", "a", "b", "b", "b"], dtype=str),
+        plate_names=np.array(["1"] * 6, dtype=str),
         treatment_names=np.array(
             [
                 ["a", "b"],
+                ["a", "control"],
+                ["control", "b"],
                 ["a", "b"],
-                ["a", "b"],
-                ["a", "b"],
-                ["a", "b"],
-                ["a", "b"],
-                ["a", "b"],
-                ["a", "b"],
+                ["a", "control"],
+                ["control", "b"],
             ],
             dtype=str,
         ),
@@ -45,17 +31,16 @@ def test_dataset():
                 [2.0, 2.0],
                 [2.0, 2.0],
                 [2.0, 2.0],
-                [2.0, 2.0],
-                [2.0, 2.0],
             ]
         ),
+        control_treatment_name="control",
     )
     return test_dataset
 
 
 def test_sparse_drug_combo_mcmc_step_with_observed_data(test_dataset):
     model = sparse_combo.SparseDrugCombo(
-        n_embedding_dimensions=5, n_unique_treatments=2, n_unique_samples=4
+        n_embedding_dimensions=5, n_unique_treatments=2, n_unique_samples=2
     )
 
     model.add_observations(test_dataset)

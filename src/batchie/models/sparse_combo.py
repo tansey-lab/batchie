@@ -8,7 +8,7 @@ import numpy as np
 from batchie.data import Data
 from numpy.random import Generator
 from scipy.special import logit
-
+from batchie import synergy
 from batchie.common import ArrayType, copy_array_with_control_treatments_set_to_zero
 from batchie.fast_mvn import sample_mvn_from_precision
 from batchie.core import BayesianModel, BayesianModelSample, SamplesHolder
@@ -66,7 +66,6 @@ class SparseDrugCombo(BayesianModel):
 
         # data holders
         self.y = np.array([], dtype=np.float64)
-        self.num_mcmc_steps = 0
 
         # indicators for each entry AND sparse query of specific combos
         self.sample_ids = np.array([], dtype=np.int32)
@@ -159,7 +158,6 @@ class SparseDrugCombo(BayesianModel):
         self._reconstruct_Mu()
 
     def step(self):
-        self.num_mcmc_steps += 1
         self._reconstruct_Mu(clip=False)
         self._alpha_step()
         self._W0_step()
@@ -192,13 +190,14 @@ class SparseDrugCombo(BayesianModel):
         elif data.n_treatments == 2:
             predictions = predict(state, data)
             if self.predict_interactions:
-                if data.single_effects is None:
-                    raise ValueError(
-                        "Cannot predict interactions without single effects"
-                    )
+                single_effects = synergy.create_single_treatment_effect_array(
+                    sample_ids=data.sample_ids,
+                    treatment_ids=data.treatment_ids,
+                    observation=data.observations,
+                )
 
                 return interactions_to_logits(
-                    predictions, data.single_effects, self.interaction_log_transform
+                    predictions, single_effects, self.interaction_log_transform
                 )
             else:
                 return predictions
