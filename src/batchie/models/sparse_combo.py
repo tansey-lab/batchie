@@ -66,7 +66,6 @@ class SparseDrugCombo(BayesianModel):
 
         # data holders
         self.y = np.array([], dtype=np.float64)
-        self.num_mcmc_steps = 0
 
         # indicators for each entry AND sparse query of specific combos
         self.sample_ids = np.array([], dtype=np.int32)
@@ -159,7 +158,6 @@ class SparseDrugCombo(BayesianModel):
         self._reconstruct_Mu()
 
     def step(self):
-        self.num_mcmc_steps += 1
         self._reconstruct_Mu(clip=False)
         self._alpha_step()
         self._W0_step()

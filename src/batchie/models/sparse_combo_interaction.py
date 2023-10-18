@@ -32,12 +32,18 @@ class SparseDrugComboInteraction(SparseDrugCombo):
     Subset of SparseDrugCombo that only models the interaction terms.
     """
 
-    def __init__(self, single_effect_lookup: dict, *args, **kwargs):
+    def __init__(
+        self,
+        single_effect_lookup: dict[tuple[int, int], float],
+        adjust_single: bool = True,
+        *args,
+        **kwargs,
+    ):
         super().__init__(*args, **kwargs)
         self.single_effect_lookup = single_effect_lookup
+        self.adjust_single = adjust_single
 
     def step(self) -> None:
-        self.num_mcmc_steps += 1
         # Note! all thse reconstruct Mu's can be changed inplace
         # when updating the parameter, currently not efficiient
         self._reconstruct_Mu(clip=False)
@@ -59,6 +65,57 @@ class SparseDrugComboInteraction(SparseDrugCombo):
         self.V2 = model_state.V2
         self.precision = model_state.precision
         self._reconstruct_Mu()
+
+    def add_observations(self, data: Data):
+        if data.n_treatments != 2:
+            raise ValueError(
+                "SparseDrugComboInteraction only works with two-treatments combination datasets, "
+                "received a {} treatment dataset".format(data.n_treatments)
+            )
+
+        self.y = np.concatenate([self.y, data.observations])
+        self.sample_ids = np.concatenate([self.sample_ids, data.sample_ids])
+        self.treatment_1 = np.concatenate([self.treatment_1, data.treatment_ids[:, 0]])
+        self.treatment_2 = np.concatenate([self.treatment_2, data.treatment_ids[:, 1]])
+
+    def predict(self, data: Data):
+        if not data.n_treatments == 2:
+            raise ValueError(
+                "SparseDrugComboInteraction only supports data sets with combinations of 2 treatments"
+            )
+        interaction = np.sum(
+            self.W[data.sample_ids]
+            * copy_array_with_control_treatments_set_to_zero(
+                self.V2, data.treatment_ids[:, 0]
+            )
+            * copy_array_with_control_treatments_set_to_zero(
+                self.V2, data.treatment_ids[:, 1]
+            ),
+            -1,
+        )
+
+        if adjust_single:
+            single_effect = np.clip(
+                [
+                    self.single_effect_lookup[c, dd1]
+                    * self.single_effect_lookup[c, dd2]
+                    for c, dd1, dd2 in zip(
+                        data.sample_ids,
+                        data.treatment_ids[:, 0],
+                        data.treatment_ids[:, 1],
+                    )
+                ],
+                a_min=0.01,
+                a_max=0.99,
+            )
+            if self.transform == "log":
+                viability = np.exp(interaction + np.log(single_effect))
+            else:
+                viability = interaction + single_effect
+            y_logit = logit(np.clip(viability, a_min=0.01, a_max=0.99))
+            return y_logit
+        else:
+            return interaction
 
     # region Model Implementation
 

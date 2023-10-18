@@ -5,6 +5,46 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+def create_single_treatment_effect_map(
+    sample_ids: ArrayType,
+    treatment_ids: ArrayType,
+    observation: ArrayType,
+):
+    if treatment_ids.shape[1] < 2:
+        raise ValueError(
+            "Experiment must have more than one treatment to get single treatment effects"
+        )
+
+    # find observations where all but one treatment ids are control
+    single_treatment_mask = np.sum(treatment_ids == CONTROL_SENTINEL_VALUE, axis=1) == (
+        treatment_ids.shape[1] - 1
+    )
+    single_treatment_observations = observation[single_treatment_mask]
+    single_treatment_treatments = np.sort(
+        treatment_ids[single_treatment_mask, :], axis=1
+    )[:, -1]
+    single_treatment_sample_ids = sample_ids[single_treatment_mask]
+
+    result: dict[tuple[int, int], float] = {}
+
+    for current_sample_id in np.unique(sample_ids):
+        for current_treatment_id in np.unique(treatment_ids.flatten()):
+            if current_treatment_id == CONTROL_SENTINEL_VALUE:
+                continue
+
+            mask = (single_treatment_treatments == current_treatment_id) & (
+                single_treatment_sample_ids == current_sample_id
+            )
+
+            if not np.any(mask):
+                continue
+
+            single_effect = np.mean(single_treatment_observations[mask])
+            result[(current_sample_id, current_treatment_id)] = single_effect
+
+    return result
+
+
 def calculate_synergy(
     sample_ids: ArrayType,
     treatment_ids: ArrayType,
