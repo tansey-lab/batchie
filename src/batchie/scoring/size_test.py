@@ -9,18 +9,6 @@ from unittest import mock
 def test_dataset():
     test_dataset = Experiment(
         observations=np.array([0.1, 0.2, 0.3, 0.4, 0.1, 0.2, 0.3, 0.4]),
-        single_effects=np.array(
-            [
-                [2.0, 2.0],
-                [2.0, 2.0],
-                [2.0, 2.0],
-                [2.0, 2.0],
-                [2.0, 2.0],
-                [2.0, 2.0],
-                [2.0, 2.0],
-                [2.0, 2.0],
-            ]
-        ),
         sample_names=np.array(["a", "b", "c", "d", "a", "b", "c", "d"], dtype=str),
         plate_names=np.array(["a", "a", "b", "b", "a", "a", "b", "b"], dtype=str),
         treatment_names=np.array(

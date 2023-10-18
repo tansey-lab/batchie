@@ -1,6 +1,5 @@
 import numpy as np
 import pytest
-import tempfile
 
 from batchie.data import Experiment
 from batchie.models import sparse_combo_interaction
@@ -9,13 +8,7 @@ from batchie.models import sparse_combo_interaction
 @pytest.fixture
 def test_dataset():
     test_dataset = Experiment(
-        observations=np.array([0.1, 0.2, 0.3, 0.4, 0.1, 0.2, 0.3, 0.4]),
-        single_effects=np.array(
-            [
-                [2.0, 2.0],
-            ]
-            * 6
-        ),
+        observations=np.array([0.1, 0.2, 0.3, 0.4, 0.1, 0.2]),
         sample_names=np.array(["a", "a", "a", "b", "b", "b"], dtype=str),
         plate_names=np.array(["1"] * 6, dtype=str),
         treatment_names=np.array(
@@ -31,8 +24,6 @@ def test_dataset():
         ),
         treatment_doses=np.array(
             [
-                [2.0, 2.0],
-                [2.0, 2.0],
                 [2.0, 2.0],
                 [2.0, 2.0],
                 [2.0, 2.0],
@@ -70,7 +61,7 @@ def test_predict_and_set_model_state(
         adjust_single=adjust_single,
         interaction_log_transform=interaction_log_transform,
     )
-
+    model.add_observations(test_dataset)
     model.step()
     sample = model.get_model_state()
 

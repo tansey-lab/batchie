@@ -92,11 +92,6 @@ class Data(ABC):
 
     @property
     @abstractmethod
-    def single_effects(self):
-        return NotImplemented
-
-    @property
-    @abstractmethod
     def observations(self):
         return NotImplemented
 
@@ -204,7 +199,6 @@ class Experiment(Data):
         sample_names: ArrayType,
         plate_names: ArrayType,
         observations: Optional[ArrayType] = None,
-        single_effects: Optional[ArrayType] = None,
         control_treatment_name="",
     ):
         self.control_treatment_name = control_treatment_name
@@ -238,19 +232,6 @@ class Experiment(Data):
                     treatment_names.shape, treatment_doses.shape
                 )
             )
-
-        if single_effects is not None:
-            if single_effects.shape != treatment_doses.shape:
-                raise ValueError(
-                    "single_effects should have the same shape as "
-                    "treatment_names and treatment_doses"
-                    "but got shapes {}, {}".format(
-                        single_effects.shape, treatment_doses.shape
-                    )
-                )
-
-            if not np.issubdtype(single_effects.dtype, float):
-                raise ValueError("single_effects must be floats")
 
         if observations is not None:
             if observations.shape != sample_names.shape:
@@ -297,7 +278,6 @@ class Experiment(Data):
         self._sample_ids = encode_1d_array_to_0_indexed_ids(sample_names)
         self._plate_ids = encode_1d_array_to_0_indexed_ids(plate_names)
         self._observations = observations
-        self._single_effects = single_effects
         self.sample_names = sample_names
         self.plate_names = plate_names
         self.treatment_names = treatment_names
@@ -314,10 +294,6 @@ class Experiment(Data):
     @property
     def treatment_ids(self):
         return self._treatment_ids
-
-    @property
-    def single_effects(self):
-        return self._single_effects
 
     @property
     def observations(self):
