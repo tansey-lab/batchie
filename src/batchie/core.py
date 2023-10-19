@@ -3,6 +3,7 @@ import numpy as np
 from batchie.common import ArrayType
 import h5py
 from typing import Set
+from abc import ABC, abstractmethod
 
 
 class BayesianModelSample:
@@ -14,7 +15,67 @@ class BayesianModelSample:
     pass
 
 
-class BayesianModel:
+class SamplesHolder:
+    def __init__(self, n_samples: int, *args, **kwargs):
+        self._cursor = 0
+        self.n_samples = n_samples
+
+    def _save_sample(
+        self, sample: BayesianModelSample, variance: float, sample_index: int
+    ):
+        raise NotImplementedError
+
+    def get_sample(self, step_index: int) -> BayesianModelSample:
+        raise NotImplementedError
+
+    def get_variance(self, step_index: int) -> float:
+        raise NotImplementedError
+
+    def save_h5(self, fn: str):
+        raise NotImplementedError
+
+    @staticmethod
+    def load_h5(path: str):
+        raise NotImplementedError
+
+    def add_sample(self, sample: BayesianModelSample, variance: float):
+        # test if we are at the end of the chain
+        if self._cursor >= self.n_samples:
+            raise ValueError("Cannot add more samples to the results object")
+
+        self._save_sample(sample, variance, self._cursor)
+        self._cursor += 1
+
+    def __iter__(self):
+        for i in range(self.n_samples):
+            yield self.get_sample(i)
+
+    @property
+    def is_complete(self):
+        return self._cursor == self.n_samples
+
+    @classmethod
+    def concat(cls, instances: list):
+        """
+        Combine multiple instances of SamplesHolder into one.
+        """
+        if len(instances) == 0:
+            raise ValueError("Cannot concatenate an empty list of SamplesHolders")
+        if len(instances) == 1:
+            return instances[0]
+
+        n_samples = sum([x.n_samples for x in instances])
+        combined = cls(n_samples)
+        for instance in instances:
+            for sample_index, sample in enumerate(instance):
+                combined.add_sample(
+                    sample,
+                    instance.get_variance(sample_index),
+                )
+        return combined
+
+
+class BayesianModel(ABC):
     """
     This class represents a Bayesian model.
 
@@ -31,66 +92,61 @@ class BayesianModel:
     A BayesianModel can be used to predict an outcome given a set of inputs via BayesianModel#predict.
     """
 
+    def __init__(
+        self,
+        n_unique_treatments: int,
+        n_unique_samples: int,
+    ):
+        self.n_unique_treatments = n_unique_treatments
+        self.n_unique_samples = n_unique_samples
+
+    @abstractmethod
     def reset_model(self):
         raise NotImplementedError
 
+    @abstractmethod
     def set_model_state(self, parameters: BayesianModelSample):
         raise NotImplementedError
 
+    @abstractmethod
     def get_model_state(self) -> BayesianModelSample:
         raise NotImplementedError
 
+    @abstractmethod
     def predict(self, data: Data) -> ArrayType:
         raise NotImplementedError
 
+    @abstractmethod
     def variance(self):
         raise NotImplementedError
 
+    @abstractmethod
     def step(self):
         raise NotImplementedError
 
-    def add_observations(self, data: Data):
-        raise NotImplementedError
-
-    def n_obs(self) -> int:
-        raise NotImplementedError
-
-
-class SamplesHolder:
-    def __init__(self, n_samples: int, *args, **kwargs):
-        self._cursor = 0
-        self.n_samples = n_samples
-
-    def add_sample(self, sample: BayesianModelSample, variance: float):
-        # test if we are at the end of the chain
-        if self._cursor >= self.n_samples:
-            raise ValueError("Cannot add more samples to the results object")
-
-        self._save_sample(sample, variance)
-
-    def _save_sample(self, sample: BayesianModelSample, variance: float):
-        raise NotImplementedError
-
-    def get_sample(self, step_index: int) -> BayesianModelSample:
-        raise NotImplementedError
-
-    def get_variance(self, step_index: int) -> float:
-        raise NotImplementedError
-
-    def save_h5(self, fn: str):
-        raise NotImplementedError
-
-    def __iter__(self):
-        for i in range(self.n_samples):
-            yield self.get_sample(i)
-
-    @staticmethod
-    def load_h5(path: str):
+    @abstractmethod
+    def set_rng(self, rng: np.random.Generator):
         raise NotImplementedError
 
     @property
-    def is_complete(self):
-        return self._cursor == self.n_samples
+    @abstractmethod
+    def rng(self) -> np.random.Generator:
+        raise NotImplementedError
+
+    @abstractmethod
+    def add_observations(self, data: Data):
+        raise NotImplementedError
+
+    @abstractmethod
+    def n_obs(self) -> int:
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_results_holder(self, n_samples: int) -> SamplesHolder:
+        """
+        Return a SamplesHolder class that goes with this model
+        """
+        raise NotImplementedError
 
 
 class PredictionsHolder:
