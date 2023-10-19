@@ -28,3 +28,10 @@ def add_logging_args(parser):
         action="store_true",
         help="Enable verbose logging",
     )
+    parser.add_argument(
+        "-P",
+        "--progress",
+        default=False,
+        action="store_true",
+        help="Enable progress bar",
+    )

@@ -4,6 +4,7 @@ from batchie import introspection
 from batchie.core import BayesianModel
 from batchie.cli.argument_parsing import KVAppendAction, cast_dict_to_type
 from batchie import log_config
+from batchie import sampling
 
 
 def get_parser():
@@ -75,7 +76,8 @@ def get_args():
 def main():
     args = get_args()
     log_config.configure_logging(args)
-    pass
+
+    model = args.model_cls(**args.model_params)
 
 
 if __name__ == "__main__":
