@@ -1,10 +1,12 @@
 import argparse
 
 from batchie import introspection
-from batchie.core import BayesianModel
+from batchie.core import BayesianModel, SamplesHolder
+from batchie.data import Experiment
 from batchie.cli.argument_parsing import KVAppendAction, cast_dict_to_type
 from batchie import log_config
 from batchie import sampling
+from batchie.common import N_UNIQUE_SAMPLES, N_UNIQUE_TREATMENTS
 
 
 def get_parser():
@@ -52,6 +54,12 @@ def get_parser():
         type=int,
         default=0,
     )
+    parser.add_argument(
+        "--seed",
+        help="Seed to use for PRNG.",
+        type=int,
+        default=0,
+    )
     return parser
 
 
@@ -77,7 +85,27 @@ def main():
     args = get_args()
     log_config.configure_logging(args)
 
-    model = args.model_cls(**args.model_params)
+    data = Experiment.load_h5(args.data)
+
+    args.model_params[N_UNIQUE_SAMPLES] = data.n_samples
+    args.model_params[N_UNIQUE_TREATMENTS] = data.n_unique_treatments
+
+    model: BayesianModel = args.model_cls(**args.model_params)
+
+    samples_holder: SamplesHolder = model.get_results_holder(n_samples=args.n_samples)
+
+    results: SamplesHolder = sampling.sample(
+        model=model,
+        results=samples_holder,
+        seed=args.seed,
+        n_chains=args.n_chains,
+        chain_index=args.chain_index,
+        n_burnin=args.n_burnin,
+        thin=args.thin,
+        progress_bar=args.progress,
+    )
+
+    results.save_h5(args.output)
 
 
 if __name__ == "__main__":

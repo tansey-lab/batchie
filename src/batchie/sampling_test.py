@@ -16,7 +16,7 @@ def test_sample(mocker):
         chain_index=0,
         n_burnin=10,
         thin=2,
-        disable_progress_bar=True,
+        progress_bar=False,
     )
 
     assert fake_model.step.call_count == 30

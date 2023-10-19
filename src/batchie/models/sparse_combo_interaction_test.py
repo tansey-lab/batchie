@@ -1,5 +1,6 @@
 import numpy as np
 import pytest
+import tempfile
 
 from batchie.data import Experiment
 from batchie.models import sparse_combo_interaction
@@ -74,3 +75,32 @@ def test_predict_and_set_model_state(
     prediction2 = model.predict(test_dataset)
 
     np.testing.assert_array_equal(prediction, prediction2)
+
+
+def test_results_holder_serde(test_dataset):
+    model = sparse_combo_interaction.SparseDrugComboInteraction(
+        n_embedding_dimensions=5,
+        n_unique_treatments=test_dataset.n_treatments,
+        n_unique_samples=test_dataset.n_samples,
+    )
+
+    results_holder = sparse_combo_interaction.SparseDrugComboInteractionResults(
+        n_samples=2,
+        n_embedding_dimensions=5,
+        n_unique_treatments=test_dataset.n_treatments,
+        n_unique_samples=test_dataset.n_samples,
+    )
+    results_holder.add_sample(model.get_model_state(), model.variance())
+
+    # create temporary file
+
+    with tempfile.NamedTemporaryFile() as f:
+        results_holder.save_h5(f.name)
+
+        results_holder2 = (
+            sparse_combo_interaction.SparseDrugComboInteractionResults.load_h5(f.name)
+        )
+
+    assert results_holder2.n_samples == results_holder.n_samples
+    np.testing.assert_array_equal(results_holder2.V2, results_holder.V2)
+    np.testing.assert_array_equal(results_holder2.W, results_holder.W)

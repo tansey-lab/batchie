@@ -331,6 +331,10 @@ class Experiment(Data):
         return self.treatment_ids.shape[1]
 
     @property
+    def n_unique_treatments(self):
+        return len(np.unique(self.treatment_ids))
+
+    @property
     def plates(self):
         return {x: self.get_plate(x) for x in self.unique_plate_ids}
 

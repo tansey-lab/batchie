@@ -15,66 +15,6 @@ class BayesianModelSample:
     pass
 
 
-class BayesianModel(ABC):
-    """
-    This class represents a Bayesian model.
-
-    A Bayesian model has internal state. Each BayesianModel should have a companion BayesianModelSample
-    class which represents the models internal state in a serializable way,
-
-    The internal state of the model can be set explicitly via BayesianModel#set_model_state
-    or it can be advanced via BayesianModel#mcmc_step.
-
-    A BayesianModel can have data added to it via BayesianModel#add_observations.
-    If data is present, the model should use that data somehow when BayesianModel#mcmc_step is called.
-    BayesianModel#n_obs should report the number of datapoints that have been added to the model.
-
-    A BayesianModel can be used to predict an outcome given a set of inputs via BayesianModel#predict.
-    """
-
-    @abstractmethod
-    def reset_model(self):
-        raise NotImplementedError
-
-    @abstractmethod
-    def set_model_state(self, parameters: BayesianModelSample):
-        raise NotImplementedError
-
-    @abstractmethod
-    def get_model_state(self) -> BayesianModelSample:
-        raise NotImplementedError
-
-    @property
-    @abstractmethod
-    def predict(self, data: Data) -> ArrayType:
-        raise NotImplementedError
-
-    @abstractmethod
-    def variance(self):
-        raise NotImplementedError
-
-    @abstractmethod
-    def step(self):
-        raise NotImplementedError
-
-    @abstractmethod
-    def set_rng(self, rng: np.random.Generator):
-        raise NotImplementedError
-
-    @property
-    @abstractmethod
-    def rng(self) -> np.random.Generator:
-        raise NotImplementedError
-
-    @abstractmethod
-    def add_observations(self, data: Data):
-        raise NotImplementedError
-
-    @abstractmethod
-    def n_obs(self) -> int:
-        raise NotImplementedError
-
-
 class SamplesHolder:
     def __init__(self, n_samples: int, *args, **kwargs):
         self._cursor = 0
@@ -133,6 +73,80 @@ class SamplesHolder:
                     instance.get_variance(sample_index),
                 )
         return combined
+
+
+class BayesianModel(ABC):
+    """
+    This class represents a Bayesian model.
+
+    A Bayesian model has internal state. Each BayesianModel should have a companion BayesianModelSample
+    class which represents the models internal state in a serializable way,
+
+    The internal state of the model can be set explicitly via BayesianModel#set_model_state
+    or it can be advanced via BayesianModel#mcmc_step.
+
+    A BayesianModel can have data added to it via BayesianModel#add_observations.
+    If data is present, the model should use that data somehow when BayesianModel#mcmc_step is called.
+    BayesianModel#n_obs should report the number of datapoints that have been added to the model.
+
+    A BayesianModel can be used to predict an outcome given a set of inputs via BayesianModel#predict.
+    """
+
+    def __init__(
+        self,
+        n_unique_treatments: int,
+        n_unique_samples: int,
+    ):
+        self.n_unique_treatments = n_unique_treatments
+        self.n_unique_samples = n_unique_samples
+
+    @abstractmethod
+    def reset_model(self):
+        raise NotImplementedError
+
+    @abstractmethod
+    def set_model_state(self, parameters: BayesianModelSample):
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_model_state(self) -> BayesianModelSample:
+        raise NotImplementedError
+
+    @abstractmethod
+    def predict(self, data: Data) -> ArrayType:
+        raise NotImplementedError
+
+    @abstractmethod
+    def variance(self):
+        raise NotImplementedError
+
+    @abstractmethod
+    def step(self):
+        raise NotImplementedError
+
+    @abstractmethod
+    def set_rng(self, rng: np.random.Generator):
+        raise NotImplementedError
+
+    @property
+    @abstractmethod
+    def rng(self) -> np.random.Generator:
+        raise NotImplementedError
+
+    @abstractmethod
+    def add_observations(self, data: Data):
+        raise NotImplementedError
+
+    @abstractmethod
+    def n_obs(self) -> int:
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_results_holder(self, n_samples: int) -> SamplesHolder:
+        """
+        Return a SamplesHolder class that goes with this model
+        """
+        raise NotImplementedError
 
 
 class PredictionsHolder:

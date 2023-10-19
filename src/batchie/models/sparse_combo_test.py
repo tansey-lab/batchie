@@ -119,7 +119,7 @@ def test_results_holder_accumulate(test_dataset):
     )
 
     results_holder = sparse_combo.SparseDrugComboResults(
-        n_mcmc_steps=2,
+        n_samples=2,
         n_embedding_dimensions=5,
         n_unique_treatments=test_dataset.n_treatments,
         n_unique_samples=test_dataset.n_samples,
@@ -139,7 +139,7 @@ def test_results_holder_serde(test_dataset):
     )
 
     results_holder = sparse_combo.SparseDrugComboResults(
-        n_mcmc_steps=2,
+        n_samples=2,
         n_embedding_dimensions=5,
         n_unique_treatments=test_dataset.n_treatments,
         n_unique_samples=test_dataset.n_samples,
@@ -153,7 +153,7 @@ def test_results_holder_serde(test_dataset):
 
         results_holder2 = sparse_combo.SparseDrugComboResults.load_h5(f.name)
 
-    assert results_holder2.n_samples == results_holder.n_mcmc_steps
+    assert results_holder2.n_samples == results_holder.n_samples
     np.testing.assert_array_equal(results_holder2.V2, results_holder.V2)
     np.testing.assert_array_equal(results_holder2.V1, results_holder.V1)
     np.testing.assert_array_equal(results_holder2.V0, results_holder.V0)

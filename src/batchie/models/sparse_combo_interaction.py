@@ -29,6 +29,91 @@ class SparseDrugComboInteractionMCMCSample(BayesianModelSample):
     precision: float
 
 
+class SparseDrugComboInteractionResults(SamplesHolder):
+    def __init__(
+        self,
+        n_unique_samples: int,
+        n_unique_treatments: int,
+        n_embedding_dimensions: int,
+        n_samples: int,
+    ):
+        super().__init__(n_samples)
+        self.n_unique_samples = n_unique_samples
+        self.n_unique_treatments = n_unique_treatments
+        self.n_embedding_dimensions = n_embedding_dimensions
+
+        self.V2 = np.zeros(
+            (n_samples, self.n_unique_treatments, self.n_embedding_dimensions),
+            dtype=np.float32,
+        )
+        self.W = np.zeros(
+            (n_samples, self.n_unique_samples, self.n_embedding_dimensions),
+            dtype=np.float32,
+        )
+
+        self.alpha = np.zeros((n_samples,), np.float32)
+        self.precision = np.zeros((n_samples,), np.float32)
+
+    def get_sample(self, step_index: int) -> SparseDrugComboInteractionMCMCSample:
+        """Get one sample from the MCMC chain"""
+        # Test if this is beyond the step we are current at with the cursor
+        if step_index >= self._cursor:
+            raise ValueError("Cannot get a step beyond the current cursor position")
+
+        return SparseDrugComboInteractionMCMCSample(
+            W=self.W[step_index],
+            V2=self.V2[step_index],
+            precision=self.precision[step_index],
+        )
+
+    def get_variance(self, step_index: int) -> float:
+        return 1.0 / self.precision[step_index]
+
+    def _save_sample(
+        self,
+        sample: SparseDrugComboInteractionMCMCSample,
+        variance: float,
+        sample_index: int,
+    ):
+        self.V2[sample_index] = sample.V2
+        self.W[sample_index] = sample.W
+        self.precision[sample_index] = sample.precision
+
+    def save_h5(self, fn: str):
+        """Save all arrays to h5"""
+        with h5py.File(fn, "w") as f:
+            f.create_dataset("V2", data=self.V2)
+            f.create_dataset("W", data=self.W)
+            f.create_dataset("alpha", data=self.alpha)
+            f.create_dataset("precision", data=self.precision)
+
+            # Save the cursor value metadata
+            f.attrs["cursor"] = self._cursor
+
+    @staticmethod
+    def load_h5(path: str):
+        """Load saved data from h5 archive"""
+        with h5py.File(path, "r") as f:
+            n_unique_samples = f["W"].shape[1]
+            n_unique_treatments = f["V2"].shape[1]
+            n_embedding_dimensions = f["W"].shape[2]
+            n_samples = f["W"].shape[0]
+
+            results = SparseDrugComboInteractionResults(
+                n_unique_samples=n_unique_samples,
+                n_unique_treatments=n_unique_treatments,
+                n_embedding_dimensions=n_embedding_dimensions,
+                n_samples=n_samples,
+            )
+
+            results.V2 = f["V2"][:]
+            results.W = f["W"][:]
+            results.precision = f["precision"][:]
+            results._cursor = f.attrs["cursor"]
+
+        return results
+
+
 class SparseDrugComboInteraction(SparseDrugCombo):
     """
     Subset of SparseDrugCombo that only models the interaction terms.
@@ -44,6 +129,14 @@ class SparseDrugComboInteraction(SparseDrugCombo):
         super().__init__(*args, **kwargs)
         self.single_effect_lookup = single_effect_lookup if single_effect_lookup else {}
         self.adjust_single = adjust_single
+
+    def get_results_holder(self, n_samples: int):
+        return SparseDrugComboInteractionResults(
+            n_unique_samples=self.n_unique_samples,
+            n_unique_treatments=self.n_unique_treatments,
+            n_embedding_dimensions=self.n_embedding_dimensions,
+            n_samples=n_samples,
+        )
 
     def step(self) -> None:
         # Note! all thse reconstruct Mu's can be changed inplace
