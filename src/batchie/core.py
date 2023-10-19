@@ -84,7 +84,7 @@ class SamplesHolder:
         if self._cursor >= self.n_samples:
             raise ValueError("Cannot add more samples to the results object")
 
-        self._save_sample(sample, variance)
+        self._save_sample(sample, variance, self._cursor)
         self._cursor += 1
 
     def __iter__(self):

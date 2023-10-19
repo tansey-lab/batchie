@@ -663,14 +663,16 @@ class SparseDrugComboResults(SamplesHolder):
     def get_variance(self, step_index: int) -> float:
         return 1.0 / self.precision[step_index]
 
-    def _save_sample(self, sample: SparseDrugComboMCMCSample, variance: float):
-        self.V2[self._cursor] = sample.V2
-        self.V1[self._cursor] = sample.V1
-        self.W[self._cursor] = sample.W
-        self.V0[self._cursor] = sample.V0
-        self.W0[self._cursor] = sample.W0
-        self.alpha[self._cursor] = sample.alpha
-        self.precision[self._cursor] = sample.precision
+    def _save_sample(
+        self, sample: SparseDrugComboMCMCSample, variance: float, sample_index: int
+    ):
+        self.V2[sample_index] = sample.V2
+        self.V1[sample_index] = sample.V1
+        self.W[sample_index] = sample.W
+        self.V0[sample_index] = sample.V0
+        self.W0[sample_index] = sample.W0
+        self.alpha[sample_index] = sample.alpha
+        self.precision[sample_index] = sample.precision
 
     def save_h5(self, fn: str):
         """Save all arrays to h5"""

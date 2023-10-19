@@ -24,17 +24,46 @@ class TestSamplesHolderImpl(SamplesHolder):
             dtype=np.float32,
         )
 
-    def _save_sample(self, sample: BayesianModelSample, variance: float):
-        raise NotImplementedError
+    def _save_sample(
+        self, sample: TestBayesianModelSampleImpl, variance: float, sample_index: int
+    ):
+        self.W[sample_index] = sample.W
 
-    def get_sample(self, step_index: int) -> BayesianModelSample:
-        raise NotImplementedError
+    def get_sample(self, step_index: int) -> TestBayesianModelSampleImpl:
+        return TestBayesianModelSampleImpl(W=self.W[step_index])
 
     def get_variance(self, step_index: int) -> float:
-        raise NotImplementedError
+        return 1.0
 
     def save_h5(self, fn: str):
-        raise NotImplementedError
+        pass
+
+    @staticmethod
+    def load_h5(path: str):
+        return TestSamplesHolderImpl(1)
+
+
+def test_samples_holder():
+    holder = TestSamplesHolderImpl(3)
+
+    for i in range(3):
+        sample = TestBayesianModelSampleImpl(W=np.ones((2, 2)) * i)
+        holder.add_sample(sample, 1.0)
+
+    assert holder.is_complete
+
+    samples = list(holder)
+    np.testing.assert_array_equal(samples[0].W, np.ones((2, 2)) * 0)
+
+    np.testing.assert_array_equal(samples[1].W, np.ones((2, 2)))
+
+
+def test_samples_holder_concat():
+    holder = TestSamplesHolderImpl.concat(
+        [TestSamplesHolderImpl(3), TestSamplesHolderImpl(3)]
+    )
+
+    assert len(list(holder)) == 6
 
 
 @pytest.fixture
