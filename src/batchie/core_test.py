@@ -1,7 +1,40 @@
-from batchie.core import DistanceMatrix
+from batchie.core import DistanceMatrix, SamplesHolder, BayesianModelSample
+from batchie.common import ArrayType
 import numpy as np
 import pytest
 import os
+from dataclasses import dataclass
+
+
+@dataclass
+class TestBayesianModelSampleImpl(BayesianModelSample):
+    W: ArrayType
+
+
+class TestSamplesHolderImpl(SamplesHolder):
+    def __init__(
+        self,
+        n_mcmc_steps: int,
+    ):
+        super().__init__(n_mcmc_steps)
+        self.n_mcmc_steps = n_mcmc_steps
+
+        self.W = np.zeros(
+            (self.n_mcmc_steps, 2, 2),
+            dtype=np.float32,
+        )
+
+    def _save_sample(self, sample: BayesianModelSample, variance: float):
+        raise NotImplementedError
+
+    def get_sample(self, step_index: int) -> BayesianModelSample:
+        raise NotImplementedError
+
+    def get_variance(self, step_index: int) -> float:
+        raise NotImplementedError
+
+    def save_h5(self, fn: str):
+        raise NotImplementedError
 
 
 @pytest.fixture

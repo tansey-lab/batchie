@@ -10,6 +10,7 @@ Contents
     :maxdepth: 2
 
     install
+    command_line_interface
     api
 
     🚀 Github <https://github.com/tansey-lab/batchie>

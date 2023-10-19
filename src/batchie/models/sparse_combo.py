@@ -671,7 +671,6 @@ class SparseDrugComboResults(SamplesHolder):
         self.W0[self._cursor] = sample.W0
         self.alpha[self._cursor] = sample.alpha
         self.precision[self._cursor] = sample.precision
-        self._cursor += 1
 
     def save_h5(self, fn: str):
         """Save all arrays to h5"""

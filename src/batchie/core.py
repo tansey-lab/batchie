@@ -61,14 +61,9 @@ class SamplesHolder:
         self._cursor = 0
         self.n_samples = n_samples
 
-    def add_sample(self, sample: BayesianModelSample, variance: float):
-        # test if we are at the end of the chain
-        if self._cursor >= self.n_samples:
-            raise ValueError("Cannot add more samples to the results object")
-
-        self._save_sample(sample, variance)
-
-    def _save_sample(self, sample: BayesianModelSample, variance: float):
+    def _save_sample(
+        self, sample: BayesianModelSample, variance: float, sample_index: int
+    ):
         raise NotImplementedError
 
     def get_sample(self, step_index: int) -> BayesianModelSample:
@@ -80,17 +75,45 @@ class SamplesHolder:
     def save_h5(self, fn: str):
         raise NotImplementedError
 
-    def __iter__(self):
-        for i in range(self.n_samples):
-            yield self.get_sample(i)
-
     @staticmethod
     def load_h5(path: str):
         raise NotImplementedError
 
+    def add_sample(self, sample: BayesianModelSample, variance: float):
+        # test if we are at the end of the chain
+        if self._cursor >= self.n_samples:
+            raise ValueError("Cannot add more samples to the results object")
+
+        self._save_sample(sample, variance)
+        self._cursor += 1
+
+    def __iter__(self):
+        for i in range(self.n_samples):
+            yield self.get_sample(i)
+
     @property
     def is_complete(self):
         return self._cursor == self.n_samples
+
+    @classmethod
+    def concat(cls, instances: list):
+        """
+        Combine multiple instances of SamplesHolder into one.
+        """
+        if len(instances) == 0:
+            raise ValueError("Cannot concatenate an empty list of SamplesHolders")
+        if len(instances) == 1:
+            return instances[0]
+
+        n_samples = sum([x.n_samples for x in instances])
+        combined = cls(n_samples)
+        for instance in instances:
+            for sample_index, sample in enumerate(instance):
+                combined.add_sample(
+                    sample,
+                    instance.get_variance(sample_index),
+                )
+        return combined
 
 
 class PredictionsHolder:
