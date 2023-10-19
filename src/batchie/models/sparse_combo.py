@@ -51,7 +51,7 @@ class SparseDrugCombo(BayesianModel):
     ):
         self.predict_interactions = predict_interactions
         self.interaction_log_transform = interaction_log_transform
-        self.rng = rng if rng else np.random.default_rng()
+        self._rng = rng if rng else np.random.default_rng()
         self.n_embedding_dimensions = n_embedding_dimensions  # embedding size
         self.n_unique_treatments = n_unique_treatments
         self.n_unique_samples = n_unique_samples
@@ -120,6 +120,13 @@ class SparseDrugCombo(BayesianModel):
 
         # holder for model prediction during fit and for eval
         self.Mu = np.zeros(0, np.float32)
+
+    @property
+    def rng(self) -> np.random.Generator:
+        return self._rng
+
+    def set_rng(self, rng: np.random.Generator):
+        self._rng = rng
 
     @property
     def n_obs(self):

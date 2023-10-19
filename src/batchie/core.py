@@ -3,6 +3,7 @@ import numpy as np
 from batchie.common import ArrayType
 import h5py
 from typing import Set
+from abc import ABC, abstractmethod
 
 
 class BayesianModelSample:
@@ -14,7 +15,7 @@ class BayesianModelSample:
     pass
 
 
-class BayesianModel:
+class BayesianModel(ABC):
     """
     This class represents a Bayesian model.
 
@@ -31,27 +32,45 @@ class BayesianModel:
     A BayesianModel can be used to predict an outcome given a set of inputs via BayesianModel#predict.
     """
 
+    @abstractmethod
     def reset_model(self):
         raise NotImplementedError
 
+    @abstractmethod
     def set_model_state(self, parameters: BayesianModelSample):
         raise NotImplementedError
 
+    @abstractmethod
     def get_model_state(self) -> BayesianModelSample:
         raise NotImplementedError
 
+    @property
+    @abstractmethod
     def predict(self, data: Data) -> ArrayType:
         raise NotImplementedError
 
+    @abstractmethod
     def variance(self):
         raise NotImplementedError
 
+    @abstractmethod
     def step(self):
         raise NotImplementedError
 
+    @abstractmethod
+    def set_rng(self, rng: np.random.Generator):
+        raise NotImplementedError
+
+    @property
+    @abstractmethod
+    def rng(self) -> np.random.Generator:
+        raise NotImplementedError
+
+    @abstractmethod
     def add_observations(self, data: Data):
         raise NotImplementedError
 
+    @abstractmethod
     def n_obs(self) -> int:
         raise NotImplementedError
 
