@@ -326,19 +326,3 @@ class PlatePolicy:
         rng: np.random.Generator,
     ) -> list[ExperimentSubset]:
         raise NotImplementedError
-
-
-def predict_all(model: BayesianModel, data: ExperimentBase, samples: SamplesHolder):
-    """
-    :param model: The model to use for prediction
-    :param data: The data to predict
-    :param samples: The samples to use for prediction
-    :return: A matrix of shape (n_samples, n_experiments) containing the
-             predictions for each model / experiment combination
-    """
-    result = np.zeros((samples.n_samples, data.size), dtype=np.float32)
-
-    for theta_index in range(samples.n_samples):
-        model.set_model_state(samples.get_sample(theta_index))
-        result[theta_index, :] = model.predict(data)
-    return result

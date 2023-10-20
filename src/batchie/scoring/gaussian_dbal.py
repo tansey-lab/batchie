@@ -5,8 +5,8 @@ from batchie.core import (
     BayesianModel,
     DistanceMatrix,
     SamplesHolder,
-    predict_all,
 )
+from batchie.models.main import predict_all
 from batchie.data import ExperimentSubset
 from scipy.special import logsumexp, comb
 
@@ -186,7 +186,7 @@ class GaussianDBALScorer(Scorer):
             ]
 
             per_plate_predictions = [
-                predict_all(data=plate, model=model, samples=samples)
+                predict_all(experiment=plate, model=model, samples=samples)
                 for plate in current_plates
             ]
 
