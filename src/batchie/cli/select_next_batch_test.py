@@ -28,8 +28,18 @@ def test_dataset():
     )
 
 
+@pytest.fixture
+def test_dist_matrix():
+    distance_matrix = DistanceMatrix(size=10)
+
+    for i in range(10):
+        for j in range(10):
+            distance_matrix.add_value(i, j, i + j)
+    return distance_matrix
+
+
 @pytest.mark.parametrize("use_policy", [True, False])
-def test_main(mocker, test_dataset, use_policy):
+def test_main(mocker, test_dataset, test_dist_matrix, use_policy):
     tmpdir = tempfile.mkdtemp()
     command_line_args = [
         "select_next_batch",
@@ -75,13 +85,7 @@ def test_main(mocker, test_dataset, use_policy):
 
     mocker.patch("sys.argv", command_line_args)
 
-    distance_matrix = DistanceMatrix(size=10)
-
-    for i in range(10):
-        for j in range(10):
-            distance_matrix.add_value(i, j, i + j)
-
-    distance_matrix.save(os.path.join(tmpdir, "distance_matrix.h5"))
+    test_dist_matrix.save(os.path.join(tmpdir, "distance_matrix.h5"))
 
     try:
         select_next_batch.main()
