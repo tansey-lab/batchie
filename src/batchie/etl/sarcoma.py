@@ -2,9 +2,8 @@ import os
 
 import numpy as np
 import pandas as pd
-from scipy.special import logit
-
 from batchie.data import Experiment
+from scipy.special import logit
 
 
 def load_sarcoma(

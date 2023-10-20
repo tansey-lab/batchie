@@ -1,6 +1,6 @@
-from batchie import synergy
 import numpy as np
 import pytest
+from batchie import synergy
 from batchie.common import CONTROL_SENTINEL_VALUE
 
 

@@ -1,7 +1,7 @@
-import numpy as np
-import pytest
 import tempfile
 
+import numpy as np
+import pytest
 from batchie.data import Experiment
 from batchie.models import sparse_combo_interaction
 

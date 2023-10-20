@@ -1,7 +1,7 @@
-import pkgutil
 import importlib
 import inspect
-from typing import Dict, Any, List
+import pkgutil
+from typing import Dict, Any
 
 
 def get_class(package_name: str, class_name: str, base_class: type) -> type:

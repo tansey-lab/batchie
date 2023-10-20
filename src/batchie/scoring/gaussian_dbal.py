@@ -1,5 +1,4 @@
 import numpy as np
-from scipy.special import logsumexp, comb
 from batchie.common import ArrayType
 from batchie.core import (
     Scorer,
@@ -8,7 +7,8 @@ from batchie.core import (
     SamplesHolder,
     predict_all,
 )
-from batchie.data import Experiment, ExperimentSubset
+from batchie.data import ExperimentSubset
+from scipy.special import logsumexp, comb
 
 
 def generate_combination_at_sorted_index(index, n, k):

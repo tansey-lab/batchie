@@ -1,8 +1,8 @@
-from batchie.data import Experiment, ExperimentSubset
+from typing import Optional
+
 import numpy as np
 from batchie.common import CONTROL_SENTINEL_VALUE
-
-from typing import Optional
+from batchie.data import Experiment, ExperimentSubset
 
 
 def create_sparse_cover_plate(

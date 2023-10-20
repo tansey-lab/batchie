@@ -1,16 +1,16 @@
-from batchie.scoring import main
 from unittest import mock
+
+import numpy as np
+import pytest
 from batchie.core import (
     BayesianModel,
     DistanceMatrix,
     SamplesHolder,
-    ExperimentSubset,
     Scorer,
     PlatePolicy,
-    Experiment,
 )
-import numpy as np
-import pytest
+from batchie.scoring import main
+from batchie.data import Experiment
 
 
 @pytest.fixture()

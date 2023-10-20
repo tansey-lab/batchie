@@ -1,9 +1,10 @@
-from batchie.cli import calculate_distance_matrix
-import tempfile
 import os.path
 import shutil
-from batchie.models.sparse_combo import SparseDrugComboResults
+import tempfile
+
+from batchie.cli import calculate_distance_matrix
 from batchie.core import DistanceMatrix
+from batchie.models.sparse_combo import SparseDrugComboResults
 
 
 def test_main_complete(mocker, test_combo_dataset):

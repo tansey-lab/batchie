@@ -1,8 +1,8 @@
-from batchie.core import PlatePolicy
-import numpy as np
-from typing import Set
-from batchie.data import Experiment, ExperimentSubset
 from collections import defaultdict
+
+import numpy as np
+from batchie.core import PlatePolicy
+from batchie.data import ExperimentSubset
 
 
 class KPerSamplePlatePolicy(PlatePolicy):

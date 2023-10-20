@@ -1,21 +1,17 @@
 import logging
 import warnings
 from dataclasses import dataclass
-from typing import Optional
 
 import h5py
 import numpy as np
-from batchie.data import ExperimentBase
 from batchie import synergy
-from numpy.random import Generator
-from scipy.special import logit
-from collections import defaultdict
-from batchie.common import CONTROL_SENTINEL_VALUE
-
 from batchie.common import ArrayType, copy_array_with_control_treatments_set_to_zero
+from batchie.common import CONTROL_SENTINEL_VALUE
+from batchie.core import BayesianModelSample, SamplesHolder
+from batchie.data import ExperimentBase
 from batchie.fast_mvn import sample_mvn_from_precision
-from batchie.core import BayesianModel, BayesianModelSample, SamplesHolder
 from batchie.models.sparse_combo import SparseDrugCombo
+from scipy.special import logit
 
 logger = logging.getLogger(__name__)
 

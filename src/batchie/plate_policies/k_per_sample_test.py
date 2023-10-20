@@ -1,8 +1,9 @@
-from batchie.plate_policies.k_per_sample import KPerSamplePlatePolicy
+from unittest import mock
+
+import numpy as np
 import pytest
 from batchie.data import Experiment
-import numpy as np
-from unittest import mock
+from batchie.plate_policies.k_per_sample import KPerSamplePlatePolicy
 
 
 @pytest.fixture

@@ -2,9 +2,8 @@ import os
 
 import numpy as np
 import pandas as pd
-from scipy.special import logit, expit
-
 from batchie.data import Experiment
+from scipy.special import logit, expit
 
 
 def load_data(path: str) -> Experiment:

@@ -1,8 +1,9 @@
+from unittest import mock
+
 import numpy as np
 import pytest
-from batchie.scoring import rand
 from batchie.data import Experiment
-from unittest import mock
+from batchie.scoring import rand
 
 
 @pytest.fixture

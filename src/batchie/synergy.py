@@ -1,6 +1,7 @@
-from batchie.common import ArrayType, CONTROL_SENTINEL_VALUE
-import numpy as np
 import logging
+
+import numpy as np
+from batchie.common import ArrayType, CONTROL_SENTINEL_VALUE
 
 logger = logging.getLogger(__name__)
 

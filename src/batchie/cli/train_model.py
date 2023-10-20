@@ -1,12 +1,12 @@
 import argparse
 
 from batchie import introspection
-from batchie.core import BayesianModel, SamplesHolder
-from batchie.data import Experiment
-from batchie.cli.argument_parsing import KVAppendAction, cast_dict_to_type
 from batchie import log_config
 from batchie import sampling
+from batchie.cli.argument_parsing import KVAppendAction, cast_dict_to_type
 from batchie.common import N_UNIQUE_SAMPLES, N_UNIQUE_TREATMENTS
+from batchie.core import BayesianModel, SamplesHolder
+from batchie.data import Experiment
 
 
 def get_parser():

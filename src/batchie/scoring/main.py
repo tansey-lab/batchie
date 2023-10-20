@@ -1,3 +1,6 @@
+from typing import Optional
+
+import numpy as np
 from batchie.core import (
     Scorer,
     PlatePolicy,
@@ -6,8 +9,6 @@ from batchie.core import (
     DistanceMatrix,
 )
 from batchie.data import Experiment, ExperimentSubset
-from typing import Optional
-import numpy as np
 
 
 def select_next_batch(

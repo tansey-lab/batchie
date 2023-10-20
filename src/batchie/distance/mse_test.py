@@ -1,6 +1,6 @@
-from batchie.distance import mse
 import numpy as np
 import pytest
+from batchie.distance import mse
 
 
 @pytest.mark.parametrize("sigmoid", [True, False])

@@ -5,13 +5,13 @@ from typing import Optional
 
 import h5py
 import numpy as np
-from batchie.data import ExperimentBase
-from numpy.random import Generator
-from scipy.special import logit
 from batchie import synergy
 from batchie.common import ArrayType, copy_array_with_control_treatments_set_to_zero
-from batchie.fast_mvn import sample_mvn_from_precision
 from batchie.core import BayesianModel, BayesianModelSample, SamplesHolder
+from batchie.data import ExperimentBase
+from batchie.fast_mvn import sample_mvn_from_precision
+from numpy.random import Generator
+from scipy.special import logit
 
 logger = logging.getLogger(__name__)
 

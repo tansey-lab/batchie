@@ -5,7 +5,7 @@ import tempfile
 import numpy as np
 import numpy.testing
 import pytest
-
+from batchie.common import CONTROL_SENTINEL_VALUE
 from batchie.data import (
     Experiment,
     ExperimentSubset,
@@ -13,7 +13,6 @@ from batchie.data import (
     encode_treatment_arrays_to_0_indexed_ids,
     filter_dataset_to_treatments_that_appear_in_at_least_one_combo,
 )
-from batchie.common import CONTROL_SENTINEL_VALUE
 
 
 def test_encode_treatment_arrays_to_0_indexed_ids():

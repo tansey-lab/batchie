@@ -1,6 +1,6 @@
-from batchie.data import Experiment, ExperimentSubset
 import numpy as np
 import pytest
+from batchie.data import Experiment
 from batchie.retrospective import plates
 
 

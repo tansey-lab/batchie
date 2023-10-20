@@ -1,9 +1,9 @@
-from batchie.data import ExperimentBase, Experiment, ExperimentSubset
+from abc import ABC, abstractmethod
+
+import h5py
 import numpy as np
 from batchie.common import ArrayType
-import h5py
-from typing import Set
-from abc import ABC, abstractmethod
+from batchie.data import ExperimentBase, ExperimentSubset
 
 
 class BayesianModelSample:

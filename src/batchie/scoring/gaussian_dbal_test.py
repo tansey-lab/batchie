@@ -1,6 +1,6 @@
-from batchie.scoring import gaussian_dbal
 import numpy as np
 import pytest
+from batchie.scoring import gaussian_dbal
 
 
 def test_iter_combination():
