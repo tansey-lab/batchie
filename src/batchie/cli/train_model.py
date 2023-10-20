@@ -5,7 +5,7 @@ from batchie import log_config
 from batchie import sampling
 from batchie.cli.argument_parsing import KVAppendAction, cast_dict_to_type
 from batchie.common import N_UNIQUE_SAMPLES, N_UNIQUE_TREATMENTS
-from batchie.core import BayesianModel, SamplesHolder
+from batchie.core import BayesianModel, ModelParamsHolder
 from batchie.data import Experiment
 
 
@@ -95,9 +95,11 @@ def main():
 
     model: BayesianModel = args.model_cls(**args.model_params)
 
-    samples_holder: SamplesHolder = model.get_results_holder(n_samples=args.n_samples)
+    samples_holder: ModelParamsHolder = model.get_results_holder(
+        n_samples=args.n_samples
+    )
 
-    results: SamplesHolder = sampling.sample(
+    results: ModelParamsHolder = sampling.sample(
         model=model,
         results=samples_holder,
         seed=args.seed,

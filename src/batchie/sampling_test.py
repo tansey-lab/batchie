@@ -1,10 +1,10 @@
 import batchie.sampling
-from batchie.core import BayesianModel, SamplesHolder
+from batchie.core import BayesianModel, ModelParamsHolder
 
 
 def test_sample(mocker):
     fake_model = mocker.MagicMock(spec=BayesianModel)
-    fake_results_holder = mocker.MagicMock(spec=SamplesHolder)
+    fake_results_holder = mocker.MagicMock(spec=ModelParamsHolder)
 
     fake_results_holder.n_samples = 10
 

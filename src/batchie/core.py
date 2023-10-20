@@ -6,7 +6,7 @@ from batchie.common import ArrayType
 from batchie.data import ExperimentBase, Plate
 
 
-class BayesianModelSample:
+class BayesianModelParams:
     """
     This class represents a snapshot of all random variables
     in the model. Should be implemented by dataclass or similar.
@@ -15,17 +15,17 @@ class BayesianModelSample:
     pass
 
 
-class SamplesHolder:
+class ModelParamsHolder:
     def __init__(self, n_samples: int, *args, **kwargs):
         self._cursor = 0
         self.n_samples = n_samples
 
     def _save_sample(
-        self, sample: BayesianModelSample, variance: float, sample_index: int
+        self, sample: BayesianModelParams, variance: float, sample_index: int
     ):
         raise NotImplementedError
 
-    def get_sample(self, step_index: int) -> BayesianModelSample:
+    def get_sample(self, step_index: int) -> BayesianModelParams:
         raise NotImplementedError
 
     def get_variance(self, step_index: int) -> float:
@@ -38,7 +38,7 @@ class SamplesHolder:
     def load_h5(path: str):
         raise NotImplementedError
 
-    def add_sample(self, sample: BayesianModelSample, variance: float):
+    def add_sample(self, sample: BayesianModelParams, variance: float):
         # test if we are at the end of the chain
         if self._cursor >= self.n_samples:
             raise ValueError("Cannot add more samples to the results object")
@@ -105,11 +105,11 @@ class BayesianModel(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def set_model_state(self, parameters: BayesianModelSample):
+    def set_model_state(self, parameters: BayesianModelParams):
         raise NotImplementedError
 
     @abstractmethod
-    def get_model_state(self) -> BayesianModelSample:
+    def get_model_state(self) -> BayesianModelParams:
         raise NotImplementedError
 
     @abstractmethod
@@ -142,21 +142,10 @@ class BayesianModel(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def get_results_holder(self, n_samples: int) -> SamplesHolder:
+    def get_results_holder(self, n_samples: int) -> ModelParamsHolder:
         """
         Return a SamplesHolder class that goes with this model
         """
-        raise NotImplementedError
-
-
-class PredictionsHolder:
-    def add_prediction(self, prediction: ArrayType):
-        raise NotImplementedError
-
-    def save_h5(self, fn: str):
-        raise NotImplementedError
-
-    def load_h5(self, fn: str):
         raise NotImplementedError
 
 
@@ -164,10 +153,10 @@ class Metric:
     def __init__(self, model: BayesianModel):
         self.model = model
 
-    def evaluate(self, sample: BayesianModelSample) -> float:
+    def evaluate(self, sample: BayesianModelParams) -> float:
         raise NotImplementedError
 
-    def evaluate_all(self, results_holder: SamplesHolder) -> ArrayType:
+    def evaluate_all(self, results_holder: ModelParamsHolder) -> ArrayType:
         return np.array([self.evaluate(x) for x in results_holder])
 
 
@@ -306,7 +295,7 @@ class Scorer:
         model: BayesianModel,
         plates: list[Plate],
         distance_matrix: DistanceMatrix,
-        samples: SamplesHolder,
+        samples: ModelParamsHolder,
         rng: np.random.Generator,
     ) -> dict[int, float]:
         raise NotImplementedError

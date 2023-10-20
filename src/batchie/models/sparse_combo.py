@@ -7,7 +7,7 @@ import h5py
 import numpy as np
 from batchie import synergy
 from batchie.common import ArrayType, copy_array_with_control_treatments_set_to_zero
-from batchie.core import BayesianModel, BayesianModelSample, SamplesHolder
+from batchie.core import BayesianModel, BayesianModelParams, ModelParamsHolder
 from batchie.data import ExperimentBase
 from batchie.fast_mvn import sample_mvn_from_precision
 from numpy.random import Generator
@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 
 @dataclass
-class SparseDrugComboMCMCSample(BayesianModelSample):
+class SparseDrugComboMCMCSample(BayesianModelParams):
     """A single sample from the MCMC chain for the sparse drug combo model"""
 
     W: ArrayType
@@ -29,7 +29,7 @@ class SparseDrugComboMCMCSample(BayesianModelSample):
     precision: float
 
 
-class SparseDrugComboResults(SamplesHolder):
+class SparseDrugComboResults(ModelParamsHolder):
     def __init__(
         self,
         n_unique_samples: int,
@@ -376,7 +376,9 @@ class SparseDrugCombo(BayesianModel):
             Q = (Xt @ X) * prec
             Q[np.diag_indices(self.n_embedding_dimensions)] += self.tau
             try:
-                self.W[sample_id] = sample_mvn_from_precision(Q, mu_part=mu_part)
+                self.W[sample_id] = sample_mvn_from_precision(
+                    Q, mu_part=mu_part, rng=self.rng
+                )
 
                 # update Mu
                 self.Mu[cidx] += X @ self.W[sample_id] - old_contrib
@@ -462,7 +464,9 @@ class SparseDrugCombo(BayesianModel):
             dix = np.diag_indices(self.n_embedding_dimensions)
             Q[dix] += self.phi2[treatment_id] * self.eta2
             try:
-                self.V2[treatment_id] = sample_mvn_from_precision(Q, mu_part=mu_part)
+                self.V2[treatment_id] = sample_mvn_from_precision(
+                    Q, mu_part=mu_part, rng=self.rng
+                )
                 # self.V2[treatment_id] = np.clip(self.V2[treatment_id], -10.0, 10.0)
                 self.Mu[idx] += X @ self.V2[treatment_id] - old_contrib
             except:
@@ -519,7 +523,9 @@ class SparseDrugCombo(BayesianModel):
             dix = np.diag_indices(self.n_embedding_dimensions)
             Q[dix] += self.phi1[treatment_id] * self.eta1
             try:
-                self.V1[treatment_id] = sample_mvn_from_precision(Q, mu_part=mu_part)
+                self.V1[treatment_id] = sample_mvn_from_precision(
+                    Q, mu_part=mu_part, rng=self.rng
+                )
                 # self.V1[treatment_id] = np.clip(self.V1[treatment_id], -10.0, 10.0)
                 self.Mu[idx] += X @ self.V1[treatment_id] - old_contrib
             except:

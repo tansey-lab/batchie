@@ -1,11 +1,11 @@
 import numpy as np
-from batchie.core import BayesianModel, SamplesHolder
+from batchie.core import BayesianModel, ModelParamsHolder
 from batchie.data import ExperimentBase
 from batchie.common import FloatingPointType
 
 
 def predict_all(
-    model: BayesianModel, experiment: ExperimentBase, samples: SamplesHolder
+    model: BayesianModel, experiment: ExperimentBase, samples: ModelParamsHolder
 ):
     """
     :param model: The model to use for prediction
@@ -23,7 +23,7 @@ def predict_all(
 
 
 def predict_avg(
-    model: BayesianModel, experiment: ExperimentBase, samples: SamplesHolder
+    model: BayesianModel, experiment: ExperimentBase, samples: ModelParamsHolder
 ):
     """
     :param model: The model to use for prediction

@@ -3,7 +3,7 @@ from typing import Optional
 import numpy as np
 from batchie.common import CONTROL_SENTINEL_VALUE
 from batchie.data import Experiment, Plate
-from batchie.core import BayesianModel, SamplesHolder
+from batchie.core import BayesianModel, ModelParamsHolder
 from batchie.models.main import predict_avg
 
 
@@ -183,7 +183,7 @@ def calculate_mse(
     full_experiment: Experiment,
     masked_experiment: Experiment,
     model: BayesianModel,
-    samples_holder: SamplesHolder,
+    samples_holder: ModelParamsHolder,
 ):
     preds = predict_avg(
         model=model,

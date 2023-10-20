@@ -3,7 +3,7 @@ from unittest import mock
 import numpy as np
 import pytest
 from batchie.data import Experiment
-from batchie.plate_policies.k_per_sample import KPerSamplePlatePolicy
+from batchie.policies.k_per_sample import KPerSamplePlatePolicy
 
 
 @pytest.fixture

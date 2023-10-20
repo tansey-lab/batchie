@@ -6,7 +6,7 @@ from batchie import introspection
 from batchie import log_config
 from batchie.cli.argument_parsing import KVAppendAction, cast_dict_to_type
 from batchie.common import N_UNIQUE_SAMPLES, N_UNIQUE_TREATMENTS
-from batchie.core import DistanceMetric, BayesianModel, SamplesHolder
+from batchie.core import DistanceMetric, BayesianModel, ModelParamsHolder
 from batchie.data import Experiment
 from batchie.distance_calculation import (
     calculate_pairwise_distance_matrix_on_predictions,
@@ -89,7 +89,7 @@ def main():
 
     model: BayesianModel = args.model_cls(**args.model_params)
 
-    samples_holder: SamplesHolder = model.get_results_holder(n_samples=1)
+    samples_holder: ModelParamsHolder = model.get_results_holder(n_samples=1)
 
     samples = samples_holder.concat([samples_holder.load_h5(x) for x in args.samples])
 

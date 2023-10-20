@@ -4,7 +4,7 @@ from batchie.core import (
     Scorer,
     BayesianModel,
     DistanceMatrix,
-    SamplesHolder,
+    ModelParamsHolder,
 )
 from batchie.models.main import predict_all
 from batchie.data import Plate
@@ -159,7 +159,7 @@ class GaussianDBALScorer(Scorer):
         model: BayesianModel,
         plates: list[Plate],
         distance_matrix: DistanceMatrix,
-        samples: SamplesHolder,
+        samples: ModelParamsHolder,
         rng: np.random.Generator,
     ) -> dict[int, float]:
         variances = np.array(

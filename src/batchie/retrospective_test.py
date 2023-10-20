@@ -3,7 +3,7 @@ import pytest
 from batchie.data import Experiment
 from batchie import retrospective
 from unittest import mock
-from batchie.core import BayesianModel, SamplesHolder
+from batchie.core import BayesianModel, ModelParamsHolder
 
 
 @pytest.fixture
@@ -139,7 +139,7 @@ def test_calculate_mse(test_dataset, masked_dataset):
     model = mock.MagicMock(BayesianModel)
     model.predict.return_value = 1.0
 
-    samples_holder = mock.MagicMock(SamplesHolder)
+    samples_holder = mock.MagicMock(ModelParamsHolder)
     samples_holder.n_samples = 10
 
     result = retrospective.calculate_mse(

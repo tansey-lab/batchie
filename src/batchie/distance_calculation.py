@@ -1,11 +1,16 @@
 from batchie.common import ArrayType
-from batchie.core import DistanceMetric, SamplesHolder, BayesianModel, DistanceMatrix
+from batchie.core import (
+    DistanceMetric,
+    ModelParamsHolder,
+    BayesianModel,
+    DistanceMatrix,
+)
 from batchie.data import Experiment
 
 
 def calculate_pairwise_distance_matrix_on_predictions(
     model: BayesianModel,
-    samples: SamplesHolder,
+    samples: ModelParamsHolder,
     distance_metric: DistanceMetric,
     data: Experiment,
     chunk_indices: tuple[ArrayType, ArrayType],

@@ -1,18 +1,18 @@
 import numpy.random
-from batchie.core import BayesianModel, SamplesHolder
+from batchie.core import BayesianModel, ModelParamsHolder
 from tqdm import trange
 
 
 def sample(
     model: BayesianModel,
-    results: SamplesHolder,
+    results: ModelParamsHolder,
     seed: int,
     n_chains: int,
     chain_index: int,
     n_burnin: int,
     thin: int,
     progress_bar=False,
-) -> SamplesHolder:
+) -> ModelParamsHolder:
     seeds = numpy.random.SeedSequence(seed).spawn(n_chains)
     rng = numpy.random.default_rng(seeds[chain_index])
 

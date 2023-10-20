@@ -7,7 +7,7 @@ import numpy as np
 from batchie import synergy
 from batchie.common import ArrayType, copy_array_with_control_treatments_set_to_zero
 from batchie.common import CONTROL_SENTINEL_VALUE
-from batchie.core import BayesianModelSample, SamplesHolder
+from batchie.core import BayesianModelParams, ModelParamsHolder
 from batchie.data import ExperimentBase
 from batchie.fast_mvn import sample_mvn_from_precision
 from batchie.models.sparse_combo import SparseDrugCombo
@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 
 @dataclass
-class SparseDrugComboInteractionMCMCSample(BayesianModelSample):
+class SparseDrugComboInteractionMCMCSample(BayesianModelParams):
     """A single sample from the MCMC chain for the sparse drug combo model"""
 
     W: ArrayType
@@ -25,7 +25,7 @@ class SparseDrugComboInteractionMCMCSample(BayesianModelSample):
     precision: float
 
 
-class SparseDrugComboInteractionResults(SamplesHolder):
+class SparseDrugComboInteractionResults(ModelParamsHolder):
     def __init__(
         self,
         n_unique_samples: int,
@@ -247,7 +247,9 @@ class SparseDrugComboInteraction(SparseDrugCombo):
             Q = (Xt @ X) * prec
             Q[np.diag_indices(self.n_embedding_dimensions)] += self.tau
             try:
-                self.W[sample_id] = sample_mvn_from_precision(Q, mu_part=mu_part)
+                self.W[sample_id] = sample_mvn_from_precision(
+                    Q, mu_part=mu_part, rng=self.rng
+                )
 
                 # update Mu
                 self.Mu[cidx] += X @ self.W[sample_id] - old_contrib

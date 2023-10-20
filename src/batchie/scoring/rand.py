@@ -4,7 +4,7 @@ from batchie.core import (
     Scorer,
     BayesianModel,
     DistanceMatrix,
-    SamplesHolder,
+    ModelParamsHolder,
     Plate,
 )
 
@@ -15,7 +15,7 @@ class RandomScorer(Scorer):
         model: BayesianModel,
         plates: list[Plate],
         distance_matrix: DistanceMatrix,
-        samples: SamplesHolder,
+        samples: ModelParamsHolder,
         rng: np.random.Generator,
     ) -> dict[int, float]:
         scores = {plate.plate_id: rng.random() for plate in plates}
