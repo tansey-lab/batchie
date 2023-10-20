@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 import h5py
 import numpy as np
 from batchie.common import ArrayType
-from batchie.data import ExperimentBase, ExperimentSubset
+from batchie.data import ExperimentBase, Plate
 
 
 class BayesianModelSample:
@@ -304,7 +304,7 @@ class Scorer:
     def score(
         self,
         model: BayesianModel,
-        plates: list[ExperimentSubset],
+        plates: list[Plate],
         distance_matrix: DistanceMatrix,
         samples: SamplesHolder,
         rng: np.random.Generator,
@@ -321,8 +321,8 @@ class PlatePolicy:
 
     def filter_eligible_plates(
         self,
-        observed_plates: list[ExperimentSubset],
-        unobserved_plates: list[ExperimentSubset],
+        observed_plates: list[Plate],
+        unobserved_plates: list[Plate],
         rng: np.random.Generator,
-    ) -> list[ExperimentSubset]:
+    ) -> list[Plate]:
         raise NotImplementedError

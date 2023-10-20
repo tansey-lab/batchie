@@ -7,7 +7,7 @@ from batchie.core import (
     SamplesHolder,
 )
 from batchie.models.main import predict_all
-from batchie.data import ExperimentSubset
+from batchie.data import Plate
 from scipy.special import logsumexp, comb
 
 
@@ -157,7 +157,7 @@ class GaussianDBALScorer(Scorer):
     def score(
         self,
         model: BayesianModel,
-        plates: list[ExperimentSubset],
+        plates: list[Plate],
         distance_matrix: DistanceMatrix,
         samples: SamplesHolder,
         rng: np.random.Generator,

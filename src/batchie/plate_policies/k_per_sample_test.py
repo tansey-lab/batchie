@@ -44,7 +44,7 @@ def test_dataset():
 def test_k_per_sample_batcher(test_dataset):
     batcher = KPerSamplePlatePolicy(k=2)
 
-    all_plates = list(test_dataset.plates.values())
+    all_plates = test_dataset.plates
 
     result = batcher.filter_eligible_plates(
         observed_plates=[],
@@ -110,6 +110,6 @@ def test_k_per_sample_batcher_preconditions():
     with pytest.raises(ValueError):
         batcher.filter_eligible_plates(
             observed_plates=[],
-            unobserved_plates=list(bad_plates.plates.values()),
+            unobserved_plates=bad_plates.plates,
             rng=mock.MagicMock(),
         )

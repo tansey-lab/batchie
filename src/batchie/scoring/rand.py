@@ -5,7 +5,7 @@ from batchie.core import (
     BayesianModel,
     DistanceMatrix,
     SamplesHolder,
-    ExperimentSubset,
+    Plate,
 )
 
 
@@ -13,7 +13,7 @@ class RandomScorer(Scorer):
     def score(
         self,
         model: BayesianModel,
-        plates: list[ExperimentSubset],
+        plates: list[Plate],
         distance_matrix: DistanceMatrix,
         samples: SamplesHolder,
         rng: np.random.Generator,
