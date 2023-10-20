@@ -355,6 +355,15 @@ class Experiment(ExperimentBase):
     def get_plate(self, plate_id: int) -> ExperimentSubset:
         return ExperimentSubset(self, self.plate_ids == plate_id)
 
+    def set_observed(self, selection_mask: ArrayType, observations: ArrayType):
+        if not np.issubdtype(selection_mask.dtype, bool):
+            raise ValueError("selection_mask must be bool")
+        if not np.issubdtype(observations.dtype, FloatingPointType):
+            raise ValueError("observations must be float")
+
+        self._observations[selection_mask] = observations
+        self._observation_mask[selection_mask] = True
+
     @property
     def plates(self):
         return {x: self.get_plate(x) for x in self.unique_plate_ids}
