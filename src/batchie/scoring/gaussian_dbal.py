@@ -154,35 +154,32 @@ class GaussianDBALScorer(Scorer):
         self.max_triples = max_triples
         self.max_chunk = max_chunk
 
-    def _score(
+    def score(
         self,
         model: BayesianModel,
-        data: Experiment,
+        plates: list[ExperimentSubset],
         distance_matrix: DistanceMatrix,
         samples: SamplesHolder,
         rng: np.random.Generator,
-    ):
+    ) -> dict[int, float]:
         variances = np.array(
             [samples.get_variance(i) for i in range(samples.n_samples)]
         )
 
-        n_subs = np.ceil(data.n_plates / self.max_chunk)
-        plate_subgroups = np.array_split(np.arange(data.n_plates), n_subs)
+        n_subs = np.ceil(len(plates) / self.max_chunk)
+        plate_subgroups = np.array_split(np.arange(len(plates)), n_subs)
+        dense_distance_matrix = distance_matrix.to_dense()
 
         result = {}
         for plate_subgroup in plate_subgroups:
-            plate_subgroup_ids = [data.unique_plate_ids[i] for i in plate_subgroup]
+            current_plates = [plates[i] for i in plate_subgroup]
+            plate_subgroup_mask = None
 
-            current_plates: dict[int, ExperimentSubset] = {
-                key: data.get_plate(key) for key in plate_subgroup_ids
-            }
-
-            plate_subgroup_mask = np.array([False] * data.size, dtype=bool)
-
-            for plate in current_plates.values():
-                plate_subgroup_mask = plate_subgroup_mask | plate.selection_vector
-
-            dense_distance_matrix = distance_matrix.to_dense()
+            for plate in current_plates:
+                if plate_subgroup_mask is None:
+                    plate_subgroup_mask = plate.selection_vector
+                else:
+                    plate_subgroup_mask = plate_subgroup_mask | plate.selection_vector
 
             subgroup_distance_matrix = dense_distance_matrix[plate_subgroup_mask, :][
                 :, plate_subgroup_mask
@@ -190,7 +187,7 @@ class GaussianDBALScorer(Scorer):
 
             per_plate_predictions = [
                 predict_all(data=plate, model=model, samples=samples)
-                for plate in current_plates.values()
+                for plate in current_plates
             ]
 
             vals = dbal_fast_gauss_scoring_vec(
@@ -200,12 +197,12 @@ class GaussianDBALScorer(Scorer):
                 max_combos=self.max_triples,
                 rng=rng,
             )
-            result.update(dict(zip(current_plates.keys(), vals)))
+            result.update(dict(zip([x.plate_id for x in current_plates], vals)))
 
-        if len(result) != data.n_plates:
+        if len(result) != len(plates):
             raise ValueError(
                 "Expected {} plates to be scored, got {}".format(
-                    data.n_plates, len(result)
+                    len(plates), len(result)
                 )
             )
 

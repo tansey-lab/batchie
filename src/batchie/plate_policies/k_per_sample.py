@@ -1,34 +1,29 @@
-from batchie.core import Batcher
+from batchie.core import PlatePolicy
 import numpy as np
 from typing import Set
 from batchie.data import Experiment, ExperimentSubset
 from collections import defaultdict
 
 
-class KPerSampleBatcher(Batcher):
+class KPerSamplePlatePolicy(PlatePolicy):
     def __init__(self, k):
         self.k = k
 
-    def next_batch(
+    def filter_eligible_plates(
         self,
-        selected_plates: Set[int],
-        experiment: Experiment,
+        observed_plates: list[ExperimentSubset],
+        unobserved_plates: list[ExperimentSubset],
         rng: np.random.Generator,
     ) -> list[ExperimentSubset]:
-        for plate_id in experiment.unique_plate_ids:
-            if len(experiment.get_plate(plate_id).unique_sample_ids) != 1:
+        for plate in observed_plates + unobserved_plates:
+            if plate.n_unique_samples != 1:
                 raise ValueError(
                     "KPerSampleBatcher only works if all plates in the experiment contain exactly one sample"
                 )
 
-        remaining_plates = sorted(
-            list(set(experiment.unique_plate_ids).difference(selected_plates))
-        )
-
         # For each cell line, count how many plates remain
         n_plates_per_sample = defaultdict(int)
-        for plate_id in remaining_plates:
-            plate = experiment.get_plate(plate_id)
+        for plate in unobserved_plates:
             sample_id = plate.sample_ids[0]
             n_plates_per_sample[sample_id] += 1
 
@@ -40,8 +35,7 @@ class KPerSampleBatcher(Batcher):
 
         # Calculate how many times each cell line has appeared in an already selected plate
         n_plates_already_selected_per_sample = defaultdict(int)
-        for plate_id in selected_plates:
-            plate = experiment.get_plate(plate_id)
+        for plate in observed_plates:
             sample_id = plate.sample_ids[0]
             n_plates_already_selected_per_sample[sample_id] += 1
 
@@ -53,24 +47,14 @@ class KPerSampleBatcher(Batcher):
 
         result = []
         if sample_chosen is not None:
-            for plate_id in remaining_plates:
-                if plate_id in selected_plates:
-                    raise RuntimeError(
-                        "Plate from remaining plates set should not appear in the selected plates set"
-                    )
-                plate = experiment.get_plate(plate_id)
+            for plate in unobserved_plates:
                 sample_id = plate.sample_ids[0]
                 if sample_id == sample_chosen:
                     result.append(plate)
         else:
             ## If all pending cell lines have been selected K times, then we exclude all such plates
             ## We also exclude plates with insufficient remaining plates
-            for plate_id in remaining_plates:
-                if plate_id in selected_plates:
-                    raise RuntimeError(
-                        "Plate from remaining plates set should not appear in the selected plates set"
-                    )
-                plate = experiment.get_plate(plate_id)
+            for plate in unobserved_plates:
                 sample_id = plate.sample_ids[0]
 
                 sample_id_has_not_yet_been_selected = (

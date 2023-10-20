@@ -108,6 +108,30 @@ def test_experiment_subset_props():
     assert experiment_subset.treatment_arity == 2
 
 
+def test_experiment_subset_combine_and_concat():
+    experiment = Experiment(
+        observations=np.array([0.1, 0.2, 0, 0]),
+        observation_mask=np.array([True, True, False, False]),
+        sample_names=np.array(["a", "b", "c", "d"], dtype=str),
+        plate_names=np.array(["a", "a", "b", "b"], dtype=str),
+        treatment_names=np.array(
+            [["a", "b"], ["a", "b"], ["a", "b"], ["a", "b"]], dtype=str
+        ),
+        treatment_doses=np.array([[2.0, 2.0], [1.0, 2.0], [2.0, 1.0], [2.0, 0]]),
+    )
+
+    experiment_subset1 = ExperimentSubset(
+        experiment=experiment, selection_vector=np.array([True, True, False, False])
+    )
+
+    experiment_subset2 = ExperimentSubset(
+        experiment=experiment, selection_vector=np.array([False, False, True, True])
+    )
+
+    assert experiment_subset1.combine(experiment_subset2).size == 4
+    assert ExperimentSubset.concat([experiment_subset1, experiment_subset2]).size == 4
+
+
 def test_experiment_validates_observation_mask():
     with pytest.raises(ValueError):
         Experiment(
