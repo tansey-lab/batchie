@@ -74,7 +74,10 @@ def get_args():
 
     required_args = introspection.get_required_init_args_with_annotations(cls)
 
-    args.model_params = cast_dict_to_type(args.model_param, required_args)
+    if not args.model_param:
+        args.model_params = {}
+    else:
+        args.model_params = cast_dict_to_type(args.model_param, required_args)
 
     args.model_cls = cls
 

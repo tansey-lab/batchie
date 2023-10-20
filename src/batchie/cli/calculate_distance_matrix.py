@@ -54,7 +54,13 @@ def get_args():
     required_args = introspection.get_required_init_args_with_annotations(
         args.metric_cls
     )
-    args.metric_params = cast_dict_to_type(args.distance_metric_param, required_args)
+
+    if not args.distance_metric_param:
+        args.metric_params = {}
+    else:
+        args.metric_params = cast_dict_to_type(
+            args.distance_metric_param, required_args
+        )
 
     args.model_cls = introspection.get_class(
         package_name="batchie", class_name=args.model, base_class=BayesianModel
@@ -64,7 +70,10 @@ def get_args():
         args.model_cls
     )
 
-    args.model_params = cast_dict_to_type(args.model_param, required_args)
+    if not args.model_param:
+        args.model_params = {}
+    else:
+        args.model_params = cast_dict_to_type(args.model_param, required_args)
 
     return args
 
@@ -80,22 +89,29 @@ def main():
 
     model: BayesianModel = args.model_cls(**args.model_params)
 
-    samples_holder: SamplesHolder = model.get_results_holder(n_samples=args.n_samples)
+    samples_holder: SamplesHolder = model.get_results_holder(n_samples=1)
 
     samples = samples_holder.concat([samples_holder.load_h5(x) for x in args.samples])
 
     distance_metric: DistanceMetric = args.metric_cls(**args.metric_params)
 
-    idx_chunks = np.array_split(np.arange(samples.n_samples), args.n_chunks)
+    if args.n_chunks > 1:
+        idx_chunks = np.array_split(np.arange(samples.n_samples), args.n_chunks)
 
-    chunk_to_run = sorted(list(combinations(idx_chunks, 2)))[args.chunk_index]
+        chunk_to_run = sorted(list(combinations(idx_chunks, 2)))[args.chunk_index]
+
+        chunk_indices = tuple([np.array(chunk_to_run[0]), np.array(chunk_to_run[1])])
+    else:
+        chunk_indices = tuple(
+            [np.arange(samples.n_samples), np.arange(samples.n_samples)]
+        )
 
     result = calculate_pairwise_distance_matrix_on_predictions(
         model=model,
         samples=samples,
         distance_metric=distance_metric,
         data=data,
-        chunk_indices=tuple(np.array(chunk_to_run[0]), np.array(chunk_to_run[1])),
+        chunk_indices=chunk_indices,
     )
 
     result.save(args.output)

@@ -5,8 +5,7 @@ import numpy as np
 
 
 class MSEDistance(DistanceMetric):
-    def __init__(self, sigmoid: bool = True, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, sigmoid: bool = True):
         self.sigmoid = sigmoid
 
     def distance(self, a: ArrayType, b: ArrayType):

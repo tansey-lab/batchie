@@ -25,8 +25,8 @@ def calculate_pairwise_distance_matrix_on_predictions(
             model.set_model_state(sample_j)
             j_pred = model.predict(data)
 
-            distance_metric = distance_metric.distance(i_pred, j_pred)
+            value = distance_metric.distance(i_pred, j_pred)
 
-            result.add_value(i, j, distance_metric)
+            result.add_value(i, j, value)
 
     return result
