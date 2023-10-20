@@ -162,10 +162,10 @@ class SparseDrugComboInteraction(SparseDrugCombo):
         self._reconstruct_Mu()
 
     def add_observations(self, data: ExperimentBase):
-        if data.n_treatments != 2:
+        if data.treatment_arity != 2:
             raise ValueError(
                 "SparseDrugComboInteraction only works with two-treatments combination datasets, "
-                "received a {} treatment dataset".format(data.n_treatments)
+                "received a {} treatment dataset".format(data.treatment_arity)
             )
 
         self.single_effect_lookup.update(
@@ -190,7 +190,7 @@ class SparseDrugComboInteraction(SparseDrugCombo):
         )
 
     def predict(self, data: ExperimentBase):
-        if not data.n_treatments == 2:
+        if not data.treatment_arity == 2:
             raise ValueError(
                 "SparseDrugComboInteraction only supports data sets with combinations of 2 treatments"
             )

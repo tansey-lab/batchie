@@ -5,8 +5,6 @@ import tempfile
 import numpy as np
 import numpy.testing
 import pytest
-import h5py
-
 
 from batchie.data import (
     Experiment,
@@ -40,7 +38,91 @@ def test_encode_treatment_arrays_with_controls_to_0_indexed_ids():
     assert np.sort(result).tolist() == [-1, -1, 0, 1]
 
 
-def test_dataset_initialization_succeeds_under_correct_condition():
+def test_experiment_props():
+    experiment = Experiment(
+        observations=np.array([0.1, 0.2, 0, 0]),
+        observation_mask=np.array([True, True, False, False]),
+        sample_names=np.array(["a", "b", "c", "d"], dtype=str),
+        plate_names=np.array(["a", "a", "b", "b"], dtype=str),
+        treatment_names=np.array(
+            [["a", "b"], ["a", "b"], ["a", "b"], ["a", "b"]], dtype=str
+        ),
+        treatment_doses=np.array([[2.0, 2.0], [1.0, 2.0], [2.0, 1.0], [2.0, 0]]),
+    )
+
+    np.testing.assert_array_equal(
+        experiment.observation_mask, np.array([True, True, False, False])
+    )
+    np.testing.assert_array_equal(experiment.observations, np.array([0.1, 0.2, 0, 0]))
+    np.testing.assert_array_equal(
+        experiment.sample_names, np.array(["a", "b", "c", "d"])
+    )
+    np.testing.assert_array_equal(
+        experiment.plate_names, np.array(["a", "a", "b", "b"])
+    )
+    np.testing.assert_array_equal(
+        experiment.treatment_names,
+        np.array([["a", "b"], ["a", "b"], ["a", "b"], ["a", "b"]]),
+    )
+    np.testing.assert_array_equal(experiment.unique_treatments, np.array([0, 1, 2, 3]))
+    np.testing.assert_array_equal(experiment.unique_sample_ids, np.array([0, 1, 2, 3]))
+    np.testing.assert_array_equal(experiment.unique_plate_ids, np.array([0, 1]))
+    assert experiment.n_unique_treatments == 4
+    assert experiment.n_unique_samples == 4
+    assert len(experiment.plates) == 2
+    assert experiment.is_observed == False
+    assert experiment.size == 4
+    assert experiment.treatment_arity == 2
+    assert experiment.n_plates == 2
+
+
+def test_experiment_subset_props():
+    experiment = Experiment(
+        observations=np.array([0.1, 0.2, 0, 0]),
+        observation_mask=np.array([True, True, False, False]),
+        sample_names=np.array(["a", "b", "c", "d"], dtype=str),
+        plate_names=np.array(["a", "a", "b", "b"], dtype=str),
+        treatment_names=np.array(
+            [["a", "b"], ["a", "b"], ["a", "b"], ["a", "b"]], dtype=str
+        ),
+        treatment_doses=np.array([[2.0, 2.0], [1.0, 2.0], [2.0, 1.0], [2.0, 0]]),
+    )
+
+    experiment_subset = ExperimentSubset(
+        experiment=experiment, selection_vector=np.array([True, True, False, False])
+    )
+
+    np.testing.assert_array_equal(
+        experiment_subset.observation_mask, np.array([True, True])
+    )
+    np.testing.assert_array_equal(experiment_subset.observations, np.array([0.1, 0.2]))
+    np.testing.assert_array_equal(
+        experiment_subset.unique_treatments, np.array([0, 1, 3])
+    )
+    np.testing.assert_array_equal(experiment_subset.unique_sample_ids, np.array([0, 1]))
+    np.testing.assert_array_equal(experiment_subset.unique_plate_ids, np.array([0]))
+    assert experiment_subset.n_unique_treatments == 3
+    assert experiment_subset.n_unique_samples == 2
+    assert experiment_subset.is_observed == True
+    assert experiment_subset.size == 2
+    assert experiment_subset.treatment_arity == 2
+
+
+def test_experiment_validates_observation_mask():
+    with pytest.raises(ValueError):
+        Experiment(
+            observations=np.array([0.1, 0.2, 0, 0]),
+            observation_mask=np.array([True, True, False, True]),
+            sample_names=np.array(["a", "b", "c", "d"], dtype=str),
+            plate_names=np.array(["a", "a", "b", "b"], dtype=str),
+            treatment_names=np.array(
+                [["a", "b"], ["a", "b"], ["a", "b"], ["a", "b"]], dtype=str
+            ),
+            treatment_doses=np.array([[2.0, 2.0], [1.0, 2.0], [2.0, 1.0], [2.0, 0]]),
+        )
+
+
+def test_experiment_initialization_succeeds_under_correct_condition():
     result = Experiment(
         observations=np.array([0.1, 0.2, 0.3, 0.4]),
         sample_names=np.array(["a", "b", "c", "d"], dtype=str),
@@ -59,7 +141,7 @@ def test_dataset_initialization_succeeds_under_correct_condition():
     )
 
 
-def test_dataset_serialization():
+def test_experiment_serialization():
     dset = Experiment(
         observations=np.array([0.1, 0.2, 0.3, 0.4]),
         sample_names=np.array(["a", "b", "c", "d"], dtype=str),
@@ -101,7 +183,7 @@ def test_dataset_serialization():
 
 
 def test_randomly_subsample_dataset():
-    test_dataset = Experiment(
+    test_experiment = Experiment(
         observations=np.array([0.1, 0.2, 0.3, 0.4]),
         sample_names=np.array(["a", "b", "c", "d"], dtype=str),
         plate_names=np.array(["a", "a", "b", "b"], dtype=str),
@@ -112,7 +194,7 @@ def test_randomly_subsample_dataset():
     )
 
     to_keep, to_drop = randomly_subsample_dataset(
-        dataset=test_dataset, sample_fraction=0.75
+        dataset=test_experiment, sample_fraction=0.75
     )
 
     assert to_keep.size == 3
@@ -120,7 +202,7 @@ def test_randomly_subsample_dataset():
 
 
 def test_filter_dataset_to_treatments_that_appear_in_at_least_one_combo():
-    test_dataset = Experiment(
+    test_experiment = Experiment(
         observations=np.array([0.1, 0.2, 0.3, 0.4]),
         sample_names=np.array(["a", "b", "c", "d"], dtype=str),
         plate_names=np.array(["a", "a", "b", "b"], dtype=str),
@@ -131,15 +213,15 @@ def test_filter_dataset_to_treatments_that_appear_in_at_least_one_combo():
     )
 
     result = filter_dataset_to_treatments_that_appear_in_at_least_one_combo(
-        dataset=test_dataset
+        dataset=test_experiment
     )
 
     assert result.size == 1
-    assert result.n_treatments == 2
+    assert result.treatment_arity == 2
 
 
-def test_data_subset():
-    test_dataset = Experiment(
+def test_experiment_subset():
+    test_experiment = Experiment(
         observations=np.array([0.1, 0.2, 0.3, 0.4]),
         sample_names=np.array(["a", "b", "c", "d"], dtype=str),
         plate_names=np.array(["a", "a", "b", "b"], dtype=str),
@@ -150,11 +232,12 @@ def test_data_subset():
     )
 
     subset = ExperimentSubset(
-        dataset=test_dataset, selection_vector=np.array([True, False, False, True])
+        experiment=test_experiment,
+        selection_vector=np.array([True, False, False, True]),
     )
 
     assert subset.size == 2
-    assert subset.n_treatments == 2
+    assert subset.treatment_arity == 2
     np.testing.assert_array_equal(subset.sample_ids, [0, 3])
     np.testing.assert_array_equal(subset.plate_ids, [0, 1])
     np.testing.assert_array_equal(

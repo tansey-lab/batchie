@@ -57,7 +57,7 @@ def test_predict_and_set_model_state(
 ):
     model = sparse_combo_interaction.SparseDrugComboInteraction(
         n_embedding_dimensions=5,
-        n_unique_treatments=test_dataset.n_treatments,
+        n_unique_treatments=test_dataset.treatment_arity,
         n_unique_samples=test_dataset.n_unique_samples,
         adjust_single=adjust_single,
         interaction_log_transform=interaction_log_transform,
@@ -80,14 +80,14 @@ def test_predict_and_set_model_state(
 def test_results_holder_serde(test_dataset):
     model = sparse_combo_interaction.SparseDrugComboInteraction(
         n_embedding_dimensions=5,
-        n_unique_treatments=test_dataset.n_treatments,
+        n_unique_treatments=test_dataset.treatment_arity,
         n_unique_samples=test_dataset.n_unique_samples,
     )
 
     results_holder = sparse_combo_interaction.SparseDrugComboInteractionResults(
         n_samples=2,
         n_embedding_dimensions=5,
-        n_unique_treatments=test_dataset.n_treatments,
+        n_unique_treatments=test_dataset.treatment_arity,
         n_unique_samples=test_dataset.n_unique_samples,
     )
     results_holder.add_sample(model.get_model_state(), model.variance())

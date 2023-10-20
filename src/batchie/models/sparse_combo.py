@@ -256,10 +256,10 @@ class SparseDrugCombo(BayesianModel):
         )
 
     def add_observations(self, data: ExperimentBase):
-        if data.n_treatments != 2:
+        if data.treatment_arity != 2:
             raise ValueError(
                 "SparseDrugCombo only works with two-treatments combination datasets, "
-                "received a {} treatment dataset".format(data.n_treatments)
+                "received a {} treatment dataset".format(data.treatment_arity)
             )
 
         self.y = np.concatenate([self.y, data.observations])
@@ -315,9 +315,9 @@ class SparseDrugCombo(BayesianModel):
 
     def predict(self, data: ExperimentBase):
         state = self.get_model_state()
-        if data.n_treatments == 1:
+        if data.treatment_arity == 1:
             return predict_single_drug(state, data)
-        elif data.n_treatments == 2:
+        elif data.treatment_arity == 2:
             predictions = predict(state, data)
             if self.predict_interactions:
                 single_effects = synergy.create_single_treatment_effect_array(

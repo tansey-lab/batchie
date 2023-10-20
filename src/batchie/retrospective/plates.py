@@ -156,4 +156,4 @@ def randomly_sample_plates(
     )
 
     mask = np.isin(dataset.plate_ids, sampled_plate_ids)
-    return ExperimentSubset(dataset=dataset, selection_vector=mask)
+    return ExperimentSubset(experiment=dataset, selection_vector=mask)
