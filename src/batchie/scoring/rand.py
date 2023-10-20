@@ -1,6 +1,6 @@
 import numpy as np
 
-from batchie.data import Data
+from batchie.data import ExperimentBase
 from batchie.core import Scorer
 
 

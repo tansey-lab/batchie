@@ -177,7 +177,7 @@ class GaussianDBALScorer(Scorer):
                 key: data.get_plate(key) for key in plate_subgroup_ids
             }
 
-            plate_subgroup_mask = np.array([False] * data.n_experiments, dtype=bool)
+            plate_subgroup_mask = np.array([False] * data.size, dtype=bool)
 
             for plate in current_plates.values():
                 plate_subgroup_mask = plate_subgroup_mask | plate.selection_vector

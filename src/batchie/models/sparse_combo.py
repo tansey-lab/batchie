@@ -5,7 +5,7 @@ from typing import Optional
 
 import h5py
 import numpy as np
-from batchie.data import Data
+from batchie.data import ExperimentBase
 from numpy.random import Generator
 from scipy.special import logit
 from batchie import synergy
@@ -255,11 +255,11 @@ class SparseDrugCombo(BayesianModel):
             n_samples=n_samples,
         )
 
-    def add_observations(self, data: Data):
-        if data.n_treatments != 2:
+    def add_observations(self, data: ExperimentBase):
+        if data.treatment_arity != 2:
             raise ValueError(
                 "SparseDrugCombo only works with two-treatments combination datasets, "
-                "received a {} treatment dataset".format(data.n_treatments)
+                "received a {} treatment dataset".format(data.treatment_arity)
             )
 
         self.y = np.concatenate([self.y, data.observations])
@@ -313,11 +313,11 @@ class SparseDrugCombo(BayesianModel):
             V1=self.V1.copy(),
         )
 
-    def predict(self, data: Data):
+    def predict(self, data: ExperimentBase):
         state = self.get_model_state()
-        if data.n_treatments == 1:
+        if data.treatment_arity == 1:
             return predict_single_drug(state, data)
-        elif data.n_treatments == 2:
+        elif data.treatment_arity == 2:
             predictions = predict(state, data)
             if self.predict_interactions:
                 single_effects = synergy.create_single_treatment_effect_array(
@@ -730,7 +730,7 @@ class SparseDrugCombo(BayesianModel):
     # endregion
 
 
-def predict(mcmc_sample: SparseDrugComboMCMCSample, data: Data):
+def predict(mcmc_sample: SparseDrugComboMCMCSample, data: ExperimentBase):
     interaction2 = np.sum(
         mcmc_sample.W[data.sample_ids]
         * copy_array_with_control_treatments_set_to_zero(
@@ -767,7 +767,7 @@ def predict(mcmc_sample: SparseDrugComboMCMCSample, data: Data):
     return Mu
 
 
-def predict_single_drug(mcmc_sample: SparseDrugComboMCMCSample, data: Data):
+def predict_single_drug(mcmc_sample: SparseDrugComboMCMCSample, data: ExperimentBase):
     interaction1 = np.sum(
         mcmc_sample.W[data.sample_ids]
         * copy_array_with_control_treatments_set_to_zero(
@@ -786,7 +786,7 @@ def predict_single_drug(mcmc_sample: SparseDrugComboMCMCSample, data: Data):
     return Mu
 
 
-def bliss(mcmc_sample: SparseDrugComboMCMCSample, data: Data):
+def bliss(mcmc_sample: SparseDrugComboMCMCSample, data: ExperimentBase):
     interaction2 = np.sum(
         mcmc_sample.W[data.treatment_ids]
         * copy_array_with_control_treatments_set_to_zero(

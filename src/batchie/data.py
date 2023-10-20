@@ -5,7 +5,7 @@ from typing import Optional, Callable, Any
 from abc import ABC, abstractmethod
 import pandas
 
-from batchie.common import ArrayType, CONTROL_SENTINEL_VALUE
+from batchie.common import ArrayType, FloatingPointType, CONTROL_SENTINEL_VALUE
 
 logger = logging.getLogger(__name__)
 
@@ -69,7 +69,7 @@ def encode_1d_array_to_0_indexed_ids(arr: ArrayType):
     return np.array([mapping[x] for x in arr])
 
 
-class Data(ABC):
+class ExperimentBase(ABC):
     @property
     @abstractmethod
     def plate_ids(self):
@@ -87,18 +87,21 @@ class Data(ABC):
 
     @property
     @abstractmethod
-    def n_experiments(self):
-        return NotImplemented
-
-    @property
-    @abstractmethod
     def observations(self):
         return NotImplemented
 
     @property
     @abstractmethod
-    def is_observed(self) -> bool:
+    def observation_mask(self):
         return NotImplemented
+
+    @property
+    def is_observed(self) -> bool:
+        return np.all(self.observation_mask)
+
+    @property
+    def size(self):
+        return self.treatment_ids.shape[0]
 
     @property
     def unique_plate_ids(self):
@@ -113,7 +116,15 @@ class Data(ABC):
         return np.setdiff1d(np.unique(self.treatment_ids), [CONTROL_SENTINEL_VALUE])
 
     @property
-    def n_treatments(self):
+    def n_unique_samples(self):
+        return len(self.unique_sample_ids)
+
+    @property
+    def n_unique_treatments(self):
+        return len(self.unique_treatments)
+
+    @property
+    def treatment_arity(self):
         return self.treatment_ids.shape[1]
 
     @property
@@ -121,23 +132,19 @@ class Data(ABC):
         return self.unique_plate_ids.shape[0]
 
 
-class ExperimentSubset(Data):
-    def __init__(self, dataset: "Experiment", selection_vector: ArrayType):
-        self.dataset = dataset
+class ExperimentSubset(ExperimentBase):
+    def __init__(self, experiment: "Experiment", selection_vector: ArrayType):
+        self.dataset = experiment
 
         if not np.issubdtype(selection_vector.dtype, bool):
             raise ValueError("selection_vector must be bool")
 
-        if selection_vector.shape[0] != dataset.n_experiments:
+        if selection_vector.shape[0] != experiment.size:
             raise ValueError(
                 "selection_vector must have same number of rows as dataset"
             )
 
         self.selection_vector = selection_vector
-
-    @property
-    def n_experiments(self):
-        return self.selection_vector.sum()
 
     @property
     def plate_ids(self):
@@ -152,33 +159,15 @@ class ExperimentSubset(Data):
         return self.dataset.treatment_ids[self.selection_vector]
 
     @property
-    def unique_plate_ids(self):
-        return np.unique(self.plate_ids)
-
-    @property
-    def unique_sample_ids(self):
-        return np.unique(self.sample_ids)
-
-    @property
-    def unique_treatments(self):
-        return np.setdiff1d(np.unique(self.treatment_ids), [CONTROL_SENTINEL_VALUE])
-
-    def invert(self):
-        return ExperimentSubset(self.dataset, ~self.selection_vector)
-
-    @property
     def observations(self):
         return self.dataset.observations[self.selection_vector]
 
     @property
-    def is_observed(self) -> bool:
-        return self.dataset.is_observed
+    def observation_mask(self):
+        return self.dataset.observation_mask[self.selection_vector]
 
-    @property
-    def single_effects(self):
-        if self.dataset.single_effects is None:
-            return None
-        return self.dataset.single_effects[self.selection_vector]
+    def invert(self):
+        return ExperimentSubset(self.dataset, ~self.selection_vector)
 
     def to_dataset(self):
         return Experiment(
@@ -191,7 +180,7 @@ class ExperimentSubset(Data):
         )
 
 
-class Experiment(Data):
+class Experiment(ExperimentBase):
     def __init__(
         self,
         treatment_names: ArrayType,
@@ -199,6 +188,7 @@ class Experiment(Data):
         sample_names: ArrayType,
         plate_names: ArrayType,
         observations: Optional[ArrayType] = None,
+        observation_mask: Optional[ArrayType] = None,
         control_treatment_name="",
     ):
         self.control_treatment_name = control_treatment_name
@@ -220,6 +210,8 @@ class Experiment(Data):
         ):
             raise ValueError("All arrays must have the same number of experiments")
 
+        n_experiment_dimension = treatment_names.shape[0]
+
         if len(treatment_names.shape) != 2:
             raise ValueError("treatment_names must be a column vector")
         if len(treatment_doses.shape) != 2:
@@ -233,22 +225,28 @@ class Experiment(Data):
                 )
             )
 
+        if observations is None and observation_mask is not None:
+            raise ValueError("observation_mask cannot be provided without observations")
+
         if observations is not None:
-            if observations.shape != sample_names.shape:
+            if observations.shape != (n_experiment_dimension,):
                 raise ValueError(
                     "Expected observations to have shape {} but got {}".format(
-                        sample_names.shape, observations.shape
+                        (n_experiment_dimension,), observations.shape
                     )
                 )
 
-            if not np.issubdtype(observations.dtype, float):
+            if not np.issubdtype(observations.dtype, FloatingPointType):
                 raise ValueError("observations must be floats")
+            if observation_mask is None:
+                observation_mask = np.ones((n_experiment_dimension,), dtype=bool)
 
-        if not np.issubdtype(treatment_doses.dtype, float):
+        else:
+            observation_mask = np.zeros((n_experiment_dimension,), dtype=bool)
+            observations = np.zeros((n_experiment_dimension,), dtype=FloatingPointType)
+
+        if not np.issubdtype(treatment_doses.dtype, FloatingPointType):
             raise ValueError("treatment_doses must be floats")
-
-        if not np.issubdtype(observations.dtype, float):
-            raise ValueError("observations must be floats")
 
         if not np.issubdtype(treatment_names.dtype, str):
             raise ValueError("treatment_names must be strings")
@@ -259,8 +257,21 @@ class Experiment(Data):
         if not np.issubdtype(sample_names.dtype, str):
             raise ValueError("sample_names must be strings")
 
+        # group observation mask by plate name, check that all groups are either all true or all false
+        plate_names_unique = np.unique(plate_names)
+        for plate_name in plate_names_unique:
+            plate_mask = plate_names == plate_name
+            if not np.all(
+                observation_mask[plate_mask] == observation_mask[plate_mask][0]
+            ):
+                raise ValueError(
+                    f"Plate {plate_name} has a mixture of observed and not observed outcomes."
+                )
+
+        treatment_arity = treatment_names.shape[1]
+
         dose_class_combos = []
-        for i in range(treatment_names.shape[1]):
+        for i in range(treatment_arity):
             dose_class_combos.append((treatment_names[:, i], treatment_doses[:, i]))
         all_dose_names = np.concatenate([x[0] for x in dose_class_combos])
         all_drug_names = np.concatenate([x[1] for x in dose_class_combos])
@@ -278,6 +289,7 @@ class Experiment(Data):
         self._sample_ids = encode_1d_array_to_0_indexed_ids(sample_names)
         self._plate_ids = encode_1d_array_to_0_indexed_ids(plate_names)
         self._observations = observations
+        self._observation_mask = observation_mask
         self.sample_names = sample_names
         self.plate_names = plate_names
         self.treatment_names = treatment_names
@@ -300,39 +312,11 @@ class Experiment(Data):
         return self._observations
 
     @property
-    def is_observed(self) -> bool:
-        return self._observations is not None
+    def observation_mask(self):
+        return self._observation_mask
 
     def get_plate(self, plate_id: int) -> ExperimentSubset:
         return ExperimentSubset(self, self.plate_ids == plate_id)
-
-    @property
-    def n_experiments(self):
-        return self.observations.shape[0]
-
-    @property
-    def n_samples(self):
-        return np.unique(self.sample_ids).shape[0]
-
-    @property
-    def unique_plate_ids(self):
-        return np.unique(self.plate_ids)
-
-    @property
-    def unique_sample_ids(self):
-        return np.unique(self.sample_ids)
-
-    @property
-    def unique_treatments(self):
-        return np.setdiff1d(np.unique(self.treatment_ids), [CONTROL_SENTINEL_VALUE])
-
-    @property
-    def n_treatments(self):
-        return self.treatment_ids.shape[1]
-
-    @property
-    def n_unique_treatments(self):
-        return len(np.unique(self.treatment_ids))
 
     @property
     def plates(self):
@@ -342,7 +326,7 @@ class Experiment(Data):
         if not np.issubdtype(selection_vector.dtype, bool):
             raise ValueError("selection_vector must be bool")
 
-        if not selection_vector.size == self.n_experiments:
+        if not selection_vector.size == self.size:
             raise ValueError("selection_vector must have same length as dataset")
 
         return Experiment(
@@ -363,6 +347,7 @@ class Experiment(Data):
             f.create_dataset("treatment_doses", data=self.treatment_doses)
             f.create_dataset("treatment_ids", data=self.treatment_ids)
             f.create_dataset("observations", data=self.observations)
+            f.create_dataset("observation_mask", data=self.observation_mask)
             f.create_dataset("sample_ids", data=self.sample_ids)
             f.create_dataset("sample_names", data=np.char.encode(self.sample_names))
             f.create_dataset("plate_ids", data=self.plate_ids)
@@ -377,6 +362,7 @@ class Experiment(Data):
                 treatment_names=np.char.decode(f["treatment_names"][:], "utf-8"),
                 treatment_doses=f["treatment_doses"][:],
                 observations=f["observations"][:],
+                observation_mask=f["observation_mask"][:],
                 sample_names=np.char.decode(f["sample_names"][:], "utf-8"),
                 plate_names=np.char.decode(f["plate_names"][:], "utf-8"),
                 control_treatment_name=f.attrs["control_treatment_name"],
@@ -397,7 +383,7 @@ def randomly_subsample_dataset(
         )
         rng = np.random.default_rng()
 
-    to_keep_vector = np.ones(dataset.n_experiments, dtype=bool)
+    to_keep_vector = np.ones(dataset.size, dtype=bool)
 
     # Select all values where the treatment class is in one of the randomly select proportions
     if treatment_class_fraction is not None:
@@ -443,16 +429,16 @@ def randomly_subsample_dataset(
         raise ValueError("No experiments left after subsampling")
 
     logger.info(
-        f"Keeping {np.sum(to_keep_vector)} experiments out of {dataset.n_experiments} total"
+        f"Keeping {np.sum(to_keep_vector)} experiments out of {dataset.size} total"
     )
 
     # Create two new dataset objects, one with the experiments to keep, and one with the experiments to drop
     dataset_of_kept_experiments = ExperimentSubset(
-        dataset=dataset, selection_vector=to_keep_vector
+        experiment=dataset, selection_vector=to_keep_vector
     )
 
     dataset_of_dropped_experiments = ExperimentSubset(
-        dataset=dataset, selection_vector=~to_keep_vector
+        experiment=dataset, selection_vector=~to_keep_vector
     )
 
     return dataset_of_kept_experiments, dataset_of_dropped_experiments
@@ -461,7 +447,7 @@ def randomly_subsample_dataset(
 def filter_dataset_to_treatments_that_appear_in_at_least_one_combo(
     dataset: Experiment,
 ) -> Experiment:
-    if dataset.n_treatments < 2:
+    if dataset.treatment_arity < 2:
         raise ValueError("Dataset must have at least 2 treatments")
 
     treatment_ids: ArrayType = dataset.treatment_ids
@@ -480,7 +466,7 @@ def filter_dataset_to_treatments_that_appear_in_at_least_one_combo(
 
     logger.info(
         "Filtering {}/{} treatments that appear in at least one combo".format(
-            treatments_to_select.size, dataset.n_treatments
+            treatments_to_select.size, dataset.treatment_arity
         )
     )
 

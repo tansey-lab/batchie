@@ -1,4 +1,4 @@
-from batchie.data import Data, Experiment, ExperimentSubset
+from batchie.data import ExperimentBase, Experiment, ExperimentSubset
 import numpy as np
 from batchie.common import ArrayType
 import h5py
@@ -113,7 +113,7 @@ class BayesianModel(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def predict(self, data: Data) -> ArrayType:
+    def predict(self, data: ExperimentBase) -> ArrayType:
         raise NotImplementedError
 
     @abstractmethod
@@ -134,7 +134,7 @@ class BayesianModel(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def add_observations(self, data: Data):
+    def add_observations(self, data: ExperimentBase):
         raise NotImplementedError
 
     @abstractmethod
@@ -308,7 +308,7 @@ class Scorer:
     def _score(
         self,
         model: BayesianModel,
-        data: Data,
+        data: ExperimentBase,
         distance_matrix: DistanceMatrix,
         samples: SamplesHolder,
         rng: np.random.Generator,
@@ -351,7 +351,7 @@ class Batcher:
         raise NotImplementedError
 
 
-def predict_all(model: BayesianModel, data: Data, samples: SamplesHolder):
+def predict_all(model: BayesianModel, data: ExperimentBase, samples: SamplesHolder):
     """
     :param model: The model to use for prediction
     :param data: The data to predict
@@ -359,7 +359,7 @@ def predict_all(model: BayesianModel, data: Data, samples: SamplesHolder):
     :return: A matrix of shape (n_samples, n_experiments) containing the
              predictions for each model / experiment combination
     """
-    result = np.zeros((samples.n_samples, data.n_experiments), dtype=np.float32)
+    result = np.zeros((samples.n_samples, data.size), dtype=np.float32)
 
     for theta_index in range(samples.n_samples):
         model.set_model_state(samples.get_sample(theta_index))

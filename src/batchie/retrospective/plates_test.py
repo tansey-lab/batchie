@@ -56,7 +56,7 @@ def test_create_sarcoma_plates(anchor_size, test_dataset):
         test_dataset, subset_size=1, anchor_size=anchor_size, rng=rng
     )
 
-    assert sum([x.n_experiments for x in result]) == test_dataset.n_experiments
+    assert sum([x.size for x in result]) == test_dataset.size
     assert len(result) == len(np.unique(test_dataset.sample_ids))
 
 
@@ -65,7 +65,7 @@ def test_randomly_sample_plates(test_dataset):
         test_dataset, proportion_of_plates_to_sample=0.5, rng=np.random.default_rng(0)
     )
 
-    assert result.n_experiments == 4
+    assert result.size == 4
     assert result.unique_plate_ids.shape[0] == 1
 
 
@@ -77,5 +77,5 @@ def test_randomly_sample_plates_with_force_include(test_dataset):
         rng=np.random.default_rng(0),
     )
 
-    assert result.n_experiments == 4
+    assert result.size == 4
     np.testing.assert_array_equal(result.unique_plate_ids, np.array([0]))
