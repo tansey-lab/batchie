@@ -1,8 +1,9 @@
-from batchie.batchers.k_per_sample import KPerSampleBatcher
+from unittest import mock
+
+import numpy as np
 import pytest
 from batchie.data import Experiment
-import numpy as np
-from unittest import mock
+from batchie.plate_policies.k_per_sample import KPerSamplePlatePolicy
 
 
 @pytest.fixture
@@ -41,19 +42,28 @@ def test_dataset():
 
 
 def test_k_per_sample_batcher(test_dataset):
-    batcher = KPerSampleBatcher(k=2)
+    batcher = KPerSamplePlatePolicy(k=2)
 
-    result = batcher.next_batch(
-        selected_plates=set(),
-        experiment=test_dataset,
+    all_plates = list(test_dataset.plates.values())
+
+    result = batcher.filter_eligible_plates(
+        observed_plates=[],
+        unobserved_plates=all_plates,
         rng=mock.MagicMock(),
     )
 
     assert len(result) == 8
 
-    result_after_one_sample_has_been_selected_twice = batcher.next_batch(
-        selected_plates={6, 7},
-        experiment=test_dataset,
+    result_after_one_sample_has_been_selected_twice = batcher.filter_eligible_plates(
+        observed_plates=[all_plates[6], all_plates[7]],
+        unobserved_plates=[
+            all_plates[0],
+            all_plates[1],
+            all_plates[2],
+            all_plates[3],
+            all_plates[4],
+            all_plates[5],
+        ],
         rng=mock.MagicMock(),
     )
 
@@ -96,10 +106,10 @@ def test_k_per_sample_batcher_preconditions():
             ]
         ),
     )
-    batcher = KPerSampleBatcher(k=2)
+    batcher = KPerSamplePlatePolicy(k=2)
     with pytest.raises(ValueError):
-        batcher.next_batch(
-            selected_plates={6, 7},
-            experiment=bad_plates,
+        batcher.filter_eligible_plates(
+            observed_plates=[],
+            unobserved_plates=list(bad_plates.plates.values()),
             rng=mock.MagicMock(),
         )

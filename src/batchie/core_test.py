@@ -1,9 +1,10 @@
-from batchie.core import DistanceMatrix, SamplesHolder, BayesianModelSample
-from batchie.common import ArrayType
-import numpy as np
-import pytest
 import os
 from dataclasses import dataclass
+
+import numpy as np
+import pytest
+from batchie.common import ArrayType
+from batchie.core import DistanceMatrix, SamplesHolder, BayesianModelSample
 
 
 @dataclass

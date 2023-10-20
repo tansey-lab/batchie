@@ -1,9 +1,10 @@
 from unittest import mock
-from batchie import distance_calculation
-from batchie.core import BayesianModel, DistanceMetric, SamplesHolder
+
 import numpy as np
-from batchie.data import Experiment
 import pytest
+from batchie import distance_calculation
+from batchie.core import BayesianModel, DistanceMetric
+from batchie.data import Experiment
 
 
 @pytest.fixture

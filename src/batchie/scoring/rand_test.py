@@ -1,8 +1,9 @@
+from unittest import mock
+
 import numpy as np
 import pytest
-from batchie.scoring import rand
 from batchie.data import Experiment
-from unittest import mock
+from batchie.scoring import rand
 
 
 @pytest.fixture
@@ -44,7 +45,7 @@ def test_random_scorer(test_dataset):
     rng = np.random.default_rng(0)
 
     result = rand.RandomScorer().score(
-        dataset=test_dataset,
+        plates=[x for x in test_dataset.plates.values()],
         model=mock.MagicMock(),
         samples=mock.MagicMock(),
         rng=rng,

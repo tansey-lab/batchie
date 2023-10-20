@@ -1,10 +1,10 @@
+import logging
+from abc import ABC, abstractmethod
+from typing import Optional
+
 import h5py
 import numpy as np
-import logging
-from typing import Optional, Callable, Any
-from abc import ABC, abstractmethod
 import pandas
-
 from batchie.common import ArrayType, FloatingPointType, CONTROL_SENTINEL_VALUE
 
 logger = logging.getLogger(__name__)
@@ -166,8 +166,45 @@ class ExperimentSubset(ExperimentBase):
     def observation_mask(self):
         return self.dataset.observation_mask[self.selection_vector]
 
+    @property
+    def plate_id(self):
+        unique_plate_ids = self.unique_plate_ids
+        if len(unique_plate_ids) != 1:
+            raise ValueError(
+                "Cannot retrieve a plate id from an experiment subset that contains more than one plate"
+            )
+
+        return unique_plate_ids[0]
+
     def invert(self):
         return ExperimentSubset(self.dataset, ~self.selection_vector)
+
+    def combine(self, other: "ExperimentSubset"):
+        if other.dataset is not self.dataset:
+            raise ValueError("Cannot combine two subsets of different datasets")
+        return ExperimentSubset(
+            self.dataset, self.selection_vector | other.selection_vector
+        )
+
+    @classmethod
+    def concat(cls, experiment_subsets: list):
+        selection_vector = None
+
+        if len(experiment_subsets) == 1:
+            return experiment_subsets[0]
+        elif len(experiment_subsets) == 0:
+            raise ValueError("Cannot concat empty list of experiment subsets")
+
+        for experiment_subset in experiment_subsets:
+            if experiment_subset.dataset is not experiment_subsets[0].dataset:
+                raise ValueError("Cannot concat subsets of different datasets")
+
+            if selection_vector is None:
+                selection_vector = experiment_subset.selection_vector
+            else:
+                selection_vector = selection_vector | experiment_subset.selection_vector
+
+        return ExperimentSubset(experiment_subsets[0].dataset, selection_vector)
 
     def to_dataset(self):
         return Experiment(

@@ -1,6 +1,6 @@
-from batchie.data import Experiment
-from batchie.core import DistanceMetric, SamplesHolder, BayesianModel, DistanceMatrix
 from batchie.common import ArrayType
+from batchie.core import DistanceMetric, SamplesHolder, BayesianModel, DistanceMatrix
+from batchie.data import Experiment
 
 
 def calculate_pairwise_distance_matrix_on_predictions(

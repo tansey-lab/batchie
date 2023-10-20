@@ -1,7 +1,6 @@
 import numpy.random
-from tqdm import trange
-
 from batchie.core import BayesianModel, SamplesHolder
+from tqdm import trange
 
 
 def sample(

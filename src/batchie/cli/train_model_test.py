@@ -1,7 +1,8 @@
-from batchie.cli import train_model
-import tempfile
 import os.path
 import shutil
+import tempfile
+
+from batchie.cli import train_model
 from batchie.models.sparse_combo import SparseDrugComboResults
 
 

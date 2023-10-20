@@ -5,7 +5,7 @@ import tempfile
 import numpy as np
 import numpy.testing
 import pytest
-
+from batchie.common import CONTROL_SENTINEL_VALUE
 from batchie.data import (
     Experiment,
     ExperimentSubset,
@@ -13,7 +13,6 @@ from batchie.data import (
     encode_treatment_arrays_to_0_indexed_ids,
     filter_dataset_to_treatments_that_appear_in_at_least_one_combo,
 )
-from batchie.common import CONTROL_SENTINEL_VALUE
 
 
 def test_encode_treatment_arrays_to_0_indexed_ids():
@@ -106,6 +105,30 @@ def test_experiment_subset_props():
     assert experiment_subset.is_observed == True
     assert experiment_subset.size == 2
     assert experiment_subset.treatment_arity == 2
+
+
+def test_experiment_subset_combine_and_concat():
+    experiment = Experiment(
+        observations=np.array([0.1, 0.2, 0, 0]),
+        observation_mask=np.array([True, True, False, False]),
+        sample_names=np.array(["a", "b", "c", "d"], dtype=str),
+        plate_names=np.array(["a", "a", "b", "b"], dtype=str),
+        treatment_names=np.array(
+            [["a", "b"], ["a", "b"], ["a", "b"], ["a", "b"]], dtype=str
+        ),
+        treatment_doses=np.array([[2.0, 2.0], [1.0, 2.0], [2.0, 1.0], [2.0, 0]]),
+    )
+
+    experiment_subset1 = ExperimentSubset(
+        experiment=experiment, selection_vector=np.array([True, True, False, False])
+    )
+
+    experiment_subset2 = ExperimentSubset(
+        experiment=experiment, selection_vector=np.array([False, False, True, True])
+    )
+
+    assert experiment_subset1.combine(experiment_subset2).size == 4
+    assert ExperimentSubset.concat([experiment_subset1, experiment_subset2]).size == 4
 
 
 def test_experiment_validates_observation_mask():

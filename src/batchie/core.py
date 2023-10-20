@@ -1,9 +1,9 @@
-from batchie.data import ExperimentBase, Experiment, ExperimentSubset
+from abc import ABC, abstractmethod
+
+import h5py
 import numpy as np
 from batchie.common import ArrayType
-import h5py
-from typing import Set
-from abc import ABC, abstractmethod
+from batchie.data import ExperimentBase, ExperimentSubset
 
 
 class BayesianModelSample:
@@ -305,47 +305,28 @@ class Scorer:
     This class represents a scoring function for plates, which are potential sets of experiments.
     """
 
-    def _score(
-        self,
-        model: BayesianModel,
-        data: ExperimentBase,
-        distance_matrix: DistanceMatrix,
-        samples: SamplesHolder,
-        rng: np.random.Generator,
-    ):
-        raise NotImplementedError
-
     def score(
         self,
         model: BayesianModel,
-        dataset: Experiment,
+        plates: list[ExperimentSubset],
         distance_matrix: DistanceMatrix,
         samples: SamplesHolder,
         rng: np.random.Generator,
-    ) -> dict:
-        result = {}
-        for plate_id, plate in dataset.plates.items():
-            result[plate_id] = self._score(
-                model=model,
-                data=plate,
-                distance_matrix=distance_matrix,
-                rng=rng,
-                samples=samples,
-            )
-        return result
+    ) -> dict[int, float]:
+        raise NotImplementedError
 
 
-class Batcher:
+class PlatePolicy:
     """
     Given an Experiment, which is a set of potential "plates" or ExperimentSubsets,
     implementations of this class will determine which set of plates is eligible
     for the next round.
     """
 
-    def next_batch(
+    def filter_eligible_plates(
         self,
-        selected_plates: Set[int],
-        experiment: Experiment,
+        observed_plates: list[ExperimentSubset],
+        unobserved_plates: list[ExperimentSubset],
         rng: np.random.Generator,
     ) -> list[ExperimentSubset]:
         raise NotImplementedError
