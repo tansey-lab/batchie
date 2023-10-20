@@ -20,6 +20,20 @@ class KVAppendAction(argparse.Action):
         setattr(args, self.dest, d)
 
 
+def str_to_bool(s):
+    """
+    Convert a string to a boolean.
+    :param s: A string.
+    :return: A boolean.
+    """
+    if s.lower() in ["true", "t", "yes", "y", "1"]:
+        return True
+    elif s.lower() in ["false", "f", "no", "n", "0"]:
+        return False
+    else:
+        raise ValueError(f"Could not convert '{s}' to a boolean.")
+
+
 def cast_dict_to_type(k_v_string: dict[str, str], k_v_types: dict[str, type]):
     """
     Cast a dictionary of strings to a dictionary of types.
@@ -27,4 +41,14 @@ def cast_dict_to_type(k_v_string: dict[str, str], k_v_types: dict[str, type]):
     :param k_v_types: A dictionary of types.
     :return: A dictionary of types.
     """
-    return {k: k_v_types[k](v) for k, v in k_v_string.items()}
+
+    converters = {
+        bool: str_to_bool,
+        int: int,
+        float: float,
+        str: str,
+    }
+
+    return {
+        k: converters.get(k_v_types[k], k_v_types[k])(v) for k, v in k_v_string.items()
+    }
