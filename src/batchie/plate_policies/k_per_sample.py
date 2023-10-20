@@ -6,7 +6,7 @@ from batchie.data import ExperimentSubset
 
 
 class KPerSamplePlatePolicy(PlatePolicy):
-    def __init__(self, k):
+    def __init__(self, k: int):
         self.k = k
 
     def filter_eligible_plates(
