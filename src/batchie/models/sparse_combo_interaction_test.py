@@ -58,7 +58,7 @@ def test_predict_and_set_model_state(
     model = sparse_combo_interaction.SparseDrugComboInteraction(
         n_embedding_dimensions=5,
         n_unique_treatments=test_dataset.n_treatments,
-        n_unique_samples=test_dataset.n_samples,
+        n_unique_samples=test_dataset.n_unique_samples,
         adjust_single=adjust_single,
         interaction_log_transform=interaction_log_transform,
     )
@@ -68,7 +68,7 @@ def test_predict_and_set_model_state(
 
     prediction = model.predict(test_dataset)
 
-    assert prediction.shape == (test_dataset.n_experiments,)
+    assert prediction.shape == (test_dataset.size,)
 
     model.reset_model()
     model.set_model_state(sample)
@@ -81,14 +81,14 @@ def test_results_holder_serde(test_dataset):
     model = sparse_combo_interaction.SparseDrugComboInteraction(
         n_embedding_dimensions=5,
         n_unique_treatments=test_dataset.n_treatments,
-        n_unique_samples=test_dataset.n_samples,
+        n_unique_samples=test_dataset.n_unique_samples,
     )
 
     results_holder = sparse_combo_interaction.SparseDrugComboInteractionResults(
         n_samples=2,
         n_embedding_dimensions=5,
         n_unique_treatments=test_dataset.n_treatments,
-        n_unique_samples=test_dataset.n_samples,
+        n_unique_samples=test_dataset.n_unique_samples,
     )
     results_holder.add_sample(model.get_model_state(), model.variance())
 
@@ -101,6 +101,6 @@ def test_results_holder_serde(test_dataset):
             sparse_combo_interaction.SparseDrugComboInteractionResults.load_h5(f.name)
         )
 
-    assert results_holder2.n_samples == results_holder.n_samples
+    assert results_holder2.n_unique_samples == results_holder.n_samples
     np.testing.assert_array_equal(results_holder2.V2, results_holder.V2)
     np.testing.assert_array_equal(results_holder2.W, results_holder.W)

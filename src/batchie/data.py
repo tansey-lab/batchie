@@ -69,7 +69,7 @@ def encode_1d_array_to_0_indexed_ids(arr: ArrayType):
     return np.array([mapping[x] for x in arr])
 
 
-class Data(ABC):
+class ExperimentBase(ABC):
     @property
     @abstractmethod
     def plate_ids(self):
@@ -87,11 +87,6 @@ class Data(ABC):
 
     @property
     @abstractmethod
-    def n_experiments(self):
-        return NotImplemented
-
-    @property
-    @abstractmethod
     def observations(self):
         return NotImplemented
 
@@ -99,6 +94,10 @@ class Data(ABC):
     @abstractmethod
     def is_observed(self) -> bool:
         return NotImplemented
+
+    @property
+    def size(self):
+        return self.treatment_ids.shape[0]
 
     @property
     def unique_plate_ids(self):
@@ -113,6 +112,14 @@ class Data(ABC):
         return np.setdiff1d(np.unique(self.treatment_ids), [CONTROL_SENTINEL_VALUE])
 
     @property
+    def n_unique_samples(self):
+        return len(self.unique_sample_ids)
+
+    @property
+    def n_unique_treatments(self):
+        return len(self.unique_treatments)
+
+    @property
     def n_treatments(self):
         return self.treatment_ids.shape[1]
 
@@ -121,23 +128,19 @@ class Data(ABC):
         return self.unique_plate_ids.shape[0]
 
 
-class ExperimentSubset(Data):
+class ExperimentSubset(ExperimentBase):
     def __init__(self, dataset: "Experiment", selection_vector: ArrayType):
         self.dataset = dataset
 
         if not np.issubdtype(selection_vector.dtype, bool):
             raise ValueError("selection_vector must be bool")
 
-        if selection_vector.shape[0] != dataset.n_experiments:
+        if selection_vector.shape[0] != dataset.size:
             raise ValueError(
                 "selection_vector must have same number of rows as dataset"
             )
 
         self.selection_vector = selection_vector
-
-    @property
-    def n_experiments(self):
-        return self.selection_vector.sum()
 
     @property
     def plate_ids(self):
@@ -152,33 +155,15 @@ class ExperimentSubset(Data):
         return self.dataset.treatment_ids[self.selection_vector]
 
     @property
-    def unique_plate_ids(self):
-        return np.unique(self.plate_ids)
-
-    @property
-    def unique_sample_ids(self):
-        return np.unique(self.sample_ids)
-
-    @property
-    def unique_treatments(self):
-        return np.setdiff1d(np.unique(self.treatment_ids), [CONTROL_SENTINEL_VALUE])
+    def observations(self):
+        return self.dataset.observations[self.selection_vector]
 
     def invert(self):
         return ExperimentSubset(self.dataset, ~self.selection_vector)
 
     @property
-    def observations(self):
-        return self.dataset.observations[self.selection_vector]
-
-    @property
     def is_observed(self) -> bool:
         return self.dataset.is_observed
-
-    @property
-    def single_effects(self):
-        if self.dataset.single_effects is None:
-            return None
-        return self.dataset.single_effects[self.selection_vector]
 
     def to_dataset(self):
         return Experiment(
@@ -191,7 +176,7 @@ class ExperimentSubset(Data):
         )
 
 
-class Experiment(Data):
+class Experiment(ExperimentBase):
     def __init__(
         self,
         treatment_names: ArrayType,
@@ -307,34 +292,6 @@ class Experiment(Data):
         return ExperimentSubset(self, self.plate_ids == plate_id)
 
     @property
-    def n_experiments(self):
-        return self.observations.shape[0]
-
-    @property
-    def n_samples(self):
-        return np.unique(self.sample_ids).shape[0]
-
-    @property
-    def unique_plate_ids(self):
-        return np.unique(self.plate_ids)
-
-    @property
-    def unique_sample_ids(self):
-        return np.unique(self.sample_ids)
-
-    @property
-    def unique_treatments(self):
-        return np.setdiff1d(np.unique(self.treatment_ids), [CONTROL_SENTINEL_VALUE])
-
-    @property
-    def n_treatments(self):
-        return self.treatment_ids.shape[1]
-
-    @property
-    def n_unique_treatments(self):
-        return len(np.unique(self.treatment_ids))
-
-    @property
     def plates(self):
         return {x: self.get_plate(x) for x in self.unique_plate_ids}
 
@@ -342,7 +299,7 @@ class Experiment(Data):
         if not np.issubdtype(selection_vector.dtype, bool):
             raise ValueError("selection_vector must be bool")
 
-        if not selection_vector.size == self.n_experiments:
+        if not selection_vector.size == self.size:
             raise ValueError("selection_vector must have same length as dataset")
 
         return Experiment(
@@ -397,7 +354,7 @@ def randomly_subsample_dataset(
         )
         rng = np.random.default_rng()
 
-    to_keep_vector = np.ones(dataset.n_experiments, dtype=bool)
+    to_keep_vector = np.ones(dataset.size, dtype=bool)
 
     # Select all values where the treatment class is in one of the randomly select proportions
     if treatment_class_fraction is not None:
@@ -443,7 +400,7 @@ def randomly_subsample_dataset(
         raise ValueError("No experiments left after subsampling")
 
     logger.info(
-        f"Keeping {np.sum(to_keep_vector)} experiments out of {dataset.n_experiments} total"
+        f"Keeping {np.sum(to_keep_vector)} experiments out of {dataset.size} total"
     )
 
     # Create two new dataset objects, one with the experiments to keep, and one with the experiments to drop

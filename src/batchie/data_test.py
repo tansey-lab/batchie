@@ -51,7 +51,7 @@ def test_dataset_initialization_succeeds_under_correct_condition():
         treatment_doses=np.array([[2.0, 2.0], [1.0, 2.0], [2.0, 1.0], [2.0, 0]]),
     )
 
-    assert result.n_experiments == 4
+    assert result.size == 4
     numpy.testing.assert_array_equal(result.plate_ids, np.array([0, 0, 1, 1]))
     numpy.testing.assert_array_equal(result.sample_ids, np.array([0, 1, 2, 3]))
     numpy.testing.assert_array_equal(
@@ -115,8 +115,8 @@ def test_randomly_subsample_dataset():
         dataset=test_dataset, sample_fraction=0.75
     )
 
-    assert to_keep.n_experiments == 3
-    assert to_drop.n_experiments == 1
+    assert to_keep.size == 3
+    assert to_drop.size == 1
 
 
 def test_filter_dataset_to_treatments_that_appear_in_at_least_one_combo():
@@ -134,7 +134,7 @@ def test_filter_dataset_to_treatments_that_appear_in_at_least_one_combo():
         dataset=test_dataset
     )
 
-    assert result.n_experiments == 1
+    assert result.size == 1
     assert result.n_treatments == 2
 
 
@@ -153,7 +153,7 @@ def test_data_subset():
         dataset=test_dataset, selection_vector=np.array([True, False, False, True])
     )
 
-    assert subset.n_experiments == 2
+    assert subset.size == 2
     assert subset.n_treatments == 2
     np.testing.assert_array_equal(subset.sample_ids, [0, 3])
     np.testing.assert_array_equal(subset.plate_ids, [0, 1])

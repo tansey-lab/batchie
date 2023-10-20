@@ -5,7 +5,7 @@ from typing import Optional
 
 import h5py
 import numpy as np
-from batchie.data import Data
+from batchie.data import ExperimentBase
 from batchie import synergy
 from numpy.random import Generator
 from scipy.special import logit
@@ -161,7 +161,7 @@ class SparseDrugComboInteraction(SparseDrugCombo):
         self.precision = model_state.precision
         self._reconstruct_Mu()
 
-    def add_observations(self, data: Data):
+    def add_observations(self, data: ExperimentBase):
         if data.n_treatments != 2:
             raise ValueError(
                 "SparseDrugComboInteraction only works with two-treatments combination datasets, "
@@ -189,7 +189,7 @@ class SparseDrugComboInteraction(SparseDrugCombo):
             [self.treatment_2, data.treatment_ids[combo_mask, 1]]
         )
 
-    def predict(self, data: Data):
+    def predict(self, data: ExperimentBase):
         if not data.n_treatments == 2:
             raise ValueError(
                 "SparseDrugComboInteraction only supports data sets with combinations of 2 treatments"

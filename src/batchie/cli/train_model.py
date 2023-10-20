@@ -90,7 +90,7 @@ def main():
 
     data = Experiment.load_h5(args.data)
 
-    args.model_params[N_UNIQUE_SAMPLES] = data.n_samples
+    args.model_params[N_UNIQUE_SAMPLES] = data.n_unique_samples
     args.model_params[N_UNIQUE_TREATMENTS] = data.n_unique_treatments
 
     model: BayesianModel = args.model_cls(**args.model_params)

@@ -64,7 +64,7 @@ def create_sparse_cover_plate(
         )
 
     final_plate_selection_vector = np.isin(
-        np.arange(dataset.n_experiments), chosen_selection_indices
+        np.arange(dataset.size), chosen_selection_indices
     )
 
     return ExperimentSubset(dataset, final_plate_selection_vector)
