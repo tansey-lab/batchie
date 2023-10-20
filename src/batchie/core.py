@@ -175,24 +175,6 @@ class DistanceMetric:
     def distance(self, a: ArrayType, b: ArrayType) -> float:
         raise NotImplementedError
 
-    def square_form(self, samples: list[BayesianModelSample]) -> ArrayType:
-        dists = np.zeros((len(samples), len(samples)), dtype=np.float32)
-
-        for idx1, m1 in enumerate(samples):
-            for idx2, m2 in enumerate(samples[idx1 + 1 :]):
-                d = self.distance(m1, m2)
-                dists[idx1, idx2] = d
-                dists[idx2, idx1] = d
-        return dists
-
-    def one_v_rest(
-        self, sample: BayesianModelSample, others: list[BayesianModelSample]
-    ) -> ArrayType:
-        dists = np.zeros(len(others), dtype=np.float32)
-        for idx, other in enumerate(others):
-            dists[idx] = self.distance(sample, other)
-        return dists
-
 
 class DistanceMatrix:
     """
@@ -269,7 +251,7 @@ class DistanceMatrix:
             instance.current_index = len(values)
         return instance
 
-    def compose(self, other):
+    def combine(self, other):
         if self.size != other.size:
             raise ValueError(
                 "The matrices must be of the same size to be composed together"
@@ -298,6 +280,20 @@ class DistanceMatrix:
                 composed.add_value(row, col, value)
 
         return composed
+
+    @classmethod
+    def concat(cls, matrices: list):
+        if len(matrices) == 1:
+            return matrices[0]
+        elif len(matrices) == 0:
+            raise ValueError("Cannot concat empty list of matrices")
+
+        accumulator = matrices[0]
+        for matrix in matrices[1:]:
+            if accumulator.size != matrix.size:
+                raise ValueError("Cannot concat matrices of different sizes")
+            accumulator = accumulator.combine(matrix)
+        return accumulator
 
 
 class Scorer:

@@ -21,3 +21,4 @@ def copy_array_with_control_treatments_set_to_zero(
 
 N_UNIQUE_TREATMENTS = "n_unique_treatments"
 N_UNIQUE_SAMPLES = "n_unique_samples"
+SELECTED_PLATES_KEY = "selected_plates"

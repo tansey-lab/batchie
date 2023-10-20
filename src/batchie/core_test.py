@@ -134,7 +134,7 @@ def test_save_load(distance_matrix):
     os.remove(filename)  # Cleanup
 
 
-def test_compose():
+def test_combine_and_concat():
     dm = DistanceMatrix(5, chunk_size=10)
     dm.add_value(0, 1, 2.5)
     dm.add_value(2, 3, 1.5)
@@ -142,7 +142,7 @@ def test_compose():
     dm2.add_value(1, 2, 3.5)
     dm2.add_value(3, 4, 0.5)
 
-    composed = dm.compose(dm2)
+    composed = dm.combine(dm2)
 
     assert composed.values[0] == 2.5
     assert composed.values[1] == 1.5
@@ -151,4 +151,11 @@ def test_compose():
 
     with pytest.raises(ValueError):
         dm3 = DistanceMatrix(6, chunk_size=10)  # Different size
-        dm2.compose(dm3)
+        dm2.combine(dm3)
+
+    concatted = DistanceMatrix.concat([dm, dm2])
+
+    assert concatted.values[0] == 2.5
+    assert concatted.values[1] == 1.5
+    assert concatted.values[2] == 3.5
+    assert concatted.values[3] == 0.5
