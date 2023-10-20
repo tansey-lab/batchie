@@ -5,7 +5,7 @@ from batchie.core import (
     SamplesHolder,
     DistanceMatrix,
 )
-from batchie.data import Experiment
+from batchie.data import Experiment, ExperimentSubset
 from typing import Optional
 import numpy as np
 
@@ -19,19 +19,23 @@ def select_next_batch(
     policy: Optional[PlatePolicy],
     batch_size: int = 1,
     rng: Optional[np.random.Generator] = None,
-):
+) -> list[ExperimentSubset]:
     if rng is None:
         rng = np.random.default_rng()
 
     observed_plates = [
-        plate for plate_id, plate in experiment_space.plates if plate.is_observed
+        plate
+        for plate_id, plate in experiment_space.plates.items()
+        if plate.is_observed
     ]
 
     unobserved_plates = [
-        plate for plate_id, plate in experiment_space.plates if not plate.is_observed
+        plate
+        for plate_id, plate in experiment_space.plates.items()
+        if not plate.is_observed
     ]
 
-    selected_unobserved_plates = []
+    selected_plates = []
 
     for i in range(batch_size):
         if policy is None:
@@ -43,10 +47,25 @@ def select_next_batch(
                 rng=rng,
             )
 
-        scores = scorer.score(
-            dataset=experiment_space,
+        scores: dict[int, float] = scorer.score(
+            plates=eligible_plates,
             model=model,
             samples=samples,
             rng=rng,
             distance_matrix=distance_matrix,
         )
+
+        best_plate_id = max(scores, key=scores.get)
+
+        # move best plate from unobserved to selected
+        selected_plates.append(
+            unobserved_plates.pop(
+                next(
+                    i
+                    for i, plate in enumerate(unobserved_plates)
+                    if plate.plate_id == best_plate_id
+                )
+            )
+        )
+
+    return selected_plates
