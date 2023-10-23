@@ -1,4 +1,5 @@
 import argparse
+import numpy.random
 
 
 class KVAppendAction(argparse.Action):
@@ -52,3 +53,8 @@ def cast_dict_to_type(k_v_string: dict[str, str], k_v_types: dict[str, type]):
     return {
         k: converters.get(k_v_types[k], k_v_types[k])(v) for k, v in k_v_string.items()
     }
+
+
+def get_prng_from_seed_argument(args):
+    better_seed = numpy.random.SeedSequence(args.seed).generate_state(1)[0]
+    return numpy.random.default_rng(better_seed)

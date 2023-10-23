@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 
+import json
 import h5py
 import numpy as np
 from batchie.common import ArrayType
@@ -317,3 +318,27 @@ class PlatePolicy:
         rng: np.random.Generator,
     ) -> list[Plate]:
         raise NotImplementedError
+
+
+class ExperimentTracker:
+    """
+    This class tracks the state of an active learning experiment.
+    """
+
+    def __init__(
+        self, plate_ids_selected: list[list[int]], losses: list[float], seed: int
+    ):
+        self.plate_ids_selected = plate_ids_selected
+        self.losses = losses
+        self.seed = seed
+
+    def save(self, fn):
+        # write to json
+        with open(fn, "w") as f:
+            json.dump(self.__dict__, f)
+
+    @classmethod
+    def load(cls, fn):
+        with open(fn, "r") as f:
+            data = json.load(f)
+        return cls(**data)
