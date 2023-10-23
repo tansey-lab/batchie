@@ -1,5 +1,7 @@
 FROM python:3.10
 
+RUN apt-get update && apt-get install -y jq
+
 RUN --mount=type=cache,target=/.cache/pip pip install --upgrade pip
 RUN --mount=type=cache,target=/.cache/pip pip install ipython
 
