@@ -183,12 +183,12 @@ def calculate_mse(
     full_experiment: Experiment,
     masked_experiment: Experiment,
     model: BayesianModel,
-    samples_holder: ThetaHolder,
-):
+    thetas: ThetaHolder,
+) -> float:
     preds = predict_avg(
         model=model,
         experiment=masked_experiment,
-        thetas=samples_holder,
+        thetas=thetas,
     )
 
     masked_obs = full_experiment.observations[~masked_experiment.observation_mask]

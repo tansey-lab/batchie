@@ -145,7 +145,7 @@ def test_calculate_mse(test_dataset, masked_dataset):
     result = retrospective.calculate_mse(
         masked_experiment=masked_dataset,
         full_experiment=full_dataset,
-        samples_holder=samples_holder,
+        thetas=samples_holder,
         model=model,
     )
 

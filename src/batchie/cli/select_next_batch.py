@@ -4,7 +4,11 @@ import json
 import numpy as np
 from batchie import introspection
 from batchie import log_config
-from batchie.cli.argument_parsing import KVAppendAction, cast_dict_to_type
+from batchie.cli.argument_parsing import (
+    KVAppendAction,
+    cast_dict_to_type,
+    get_prng_from_seed_argument,
+)
 from batchie.core import (
     BayesianModel,
     ThetaHolder,
@@ -53,6 +57,12 @@ def get_parser():
     )
 
     parser.add_argument("--output", type=str, required=True)
+    parser.add_argument(
+        "--seed",
+        help="Seed to use for PRNG.",
+        type=int,
+        default=0,
+    )
     return parser
 
 
@@ -118,8 +128,9 @@ def main():
 
     model: BayesianModel = args.model_cls(**args.model_params)
     scorer: Scorer = args.scorer_cls(**args.scorer_params)
-    samples_holder: ThetaHolder = model.get_results_holder(n_samples=1)
-    samples = samples_holder.concat([samples_holder.load_h5(x) for x in args.samples])
+    theta_holder: ThetaHolder = model.get_results_holder(n_samples=1)
+    thetas = theta_holder.concat([theta_holder.load_h5(x) for x in args.samples])
+
     distance_matrix = DistanceMatrix.concat(
         [DistanceMatrix.load(x) for x in args.distance_matrix]
     )
@@ -127,14 +138,17 @@ def main():
     if args.policy is not None:
         policy = args.policy_cls(**args.policy_params)
 
+    rng = get_prng_from_seed_argument(args)
+
     next_batch = select_next_batch(
         model=model,
         scorer=scorer,
         experiment_space=experiment,
         distance_matrix=distance_matrix,
         policy=policy,
-        samples=samples,
+        samples=thetas,
         batch_size=args.batch_size,
+        rng=rng,
     )
 
     result_object = {
