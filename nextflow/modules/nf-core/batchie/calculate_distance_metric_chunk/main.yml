@@ -1,11 +1,11 @@
-name: train_model
-description: Train a model on the provided dataset
+name: calculate_distance_metric_chunk
+description: Calculate one chunk of the pairwise distance matrix.
 keywords:
   - active_learning
 tools:
-  - train_model:
+  - calculate_distance_matrix:
       description: |
-        This is a command line utility in the batchie package that trains a model and saves it to disk.
+        Calculate one chunk of the pairwise distance matrix.
       homepage: https://batchie.readthedocs.io/en/latest/command_line_interface.html#train-model
       documentation: https://batchie.readthedocs.io/en/latest/command_line_interface.html#train-model
       licence: []
@@ -21,15 +21,22 @@ input:
       description: |
         Batchie experiment file (.h5) as documented at
         https://batchie.readthedocs.io/en/latest/data_format.html#experiment-format
-  - chain_index:
-      type: integer
-      description: If multiple models are being trained in parallel, this is the index of the current model
-
-output:
   - thetas:
       type: file
-      description: h5 file containing trained model parameters (.h5)
-      pattern: "thetas.h5"
+      description: |
+        h5 file containing trained model parameters (.h5)
+  - chunk_index:
+      type: integer
+      description: Index of the current chunk being calculated
+  - n_chunks:
+      type: integer
+      description: Number of chunks in the total distance matrix
+
+output:
+  - distance_matrix_chunk:
+      type: file
+      description: h5 file containing the distance matrix chunk
+      pattern: "distance_matrix_chunk.h5"
   - versions:
       type: file
       description: File containing software versions
