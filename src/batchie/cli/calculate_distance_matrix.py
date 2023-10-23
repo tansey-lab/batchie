@@ -6,7 +6,7 @@ from batchie import introspection
 from batchie import log_config
 from batchie.cli.argument_parsing import KVAppendAction, cast_dict_to_type
 from batchie.common import N_UNIQUE_SAMPLES, N_UNIQUE_TREATMENTS
-from batchie.core import DistanceMetric, BayesianModel, SamplesHolder
+from batchie.core import DistanceMetric, BayesianModel, ThetaHolder
 from batchie.data import Experiment
 from batchie.distance_calculation import (
     calculate_pairwise_distance_matrix_on_predictions,
@@ -89,21 +89,21 @@ def main():
 
     model: BayesianModel = args.model_cls(**args.model_params)
 
-    samples_holder: SamplesHolder = model.get_results_holder(n_samples=1)
+    samples_holder: ThetaHolder = model.get_results_holder(n_samples=1)
 
     samples = samples_holder.concat([samples_holder.load_h5(x) for x in args.samples])
 
     distance_metric: DistanceMetric = args.metric_cls(**args.metric_params)
 
     if args.n_chunks > 1:
-        idx_chunks = np.array_split(np.arange(samples.n_samples), args.n_chunks)
+        idx_chunks = np.array_split(np.arange(samples.n_thetas), args.n_chunks)
 
         chunk_to_run = sorted(list(combinations(idx_chunks, 2)))[args.chunk_index]
 
         chunk_indices = tuple([np.array(chunk_to_run[0]), np.array(chunk_to_run[1])])
     else:
         chunk_indices = tuple(
-            [np.arange(samples.n_samples), np.arange(samples.n_samples)]
+            [np.arange(samples.n_thetas), np.arange(samples.n_thetas)]
         )
 
     result = calculate_pairwise_distance_matrix_on_predictions(

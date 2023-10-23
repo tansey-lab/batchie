@@ -7,7 +7,7 @@ from batchie import log_config
 from batchie.cli.argument_parsing import KVAppendAction, cast_dict_to_type
 from batchie.core import (
     BayesianModel,
-    SamplesHolder,
+    ThetaHolder,
     Scorer,
     DistanceMatrix,
     PlatePolicy,
@@ -118,7 +118,7 @@ def main():
 
     model: BayesianModel = args.model_cls(**args.model_params)
     scorer: Scorer = args.scorer_cls(**args.scorer_params)
-    samples_holder: SamplesHolder = model.get_results_holder(n_samples=1)
+    samples_holder: ThetaHolder = model.get_results_holder(n_samples=1)
     samples = samples_holder.concat([samples_holder.load_h5(x) for x in args.samples])
     distance_matrix = DistanceMatrix.concat(
         [DistanceMatrix.load(x) for x in args.distance_matrix]

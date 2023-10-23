@@ -45,7 +45,7 @@ def test_random_scorer(test_dataset):
     rng = np.random.default_rng(0)
 
     result = rand.RandomScorer().score(
-        plates=[x for x in test_dataset.plates.values()],
+        plates=[x for x in test_dataset.plates],
         model=mock.MagicMock(),
         samples=mock.MagicMock(),
         rng=rng,

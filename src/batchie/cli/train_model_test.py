@@ -31,7 +31,7 @@ def test_main(mocker, test_combo_dataset):
     try:
         train_model.main()
         results = SparseDrugComboResults.load_h5(os.path.join(tmpdir, "samples.h5"))
-        assert results.n_samples == 1
+        assert results.n_thetas == 1
 
     finally:
         shutil.rmtree(tmpdir)

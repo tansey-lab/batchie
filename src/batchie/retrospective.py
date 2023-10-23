@@ -2,14 +2,14 @@ from typing import Optional
 
 import numpy as np
 from batchie.common import CONTROL_SENTINEL_VALUE
-from batchie.data import Experiment, ExperimentSubset
-from batchie.core import BayesianModel, SamplesHolder
+from batchie.data import Experiment, Plate
+from batchie.core import BayesianModel, ThetaHolder
 from batchie.models.main import predict_avg
 
 
 def create_sparse_cover_plate(
     dataset: Experiment, rng: np.random.BitGenerator
-) -> ExperimentSubset:
+) -> Plate:
     """
     We want to make sure we have at least one observation for
     each cell line/drug dose combination in the first plate
@@ -69,7 +69,7 @@ def create_sparse_cover_plate(
         np.arange(dataset.size), chosen_selection_indices
     )
 
-    return ExperimentSubset(dataset, final_plate_selection_vector)
+    return Plate(dataset, final_plate_selection_vector)
 
 
 def create_sarcoma_plates(
@@ -77,7 +77,7 @@ def create_sarcoma_plates(
     subset_size: int,
     rng: np.random.BitGenerator,
     anchor_size: int = 0,
-) -> list[ExperimentSubset]:
+) -> list[Plate]:
     """
     Break up your drug doses into groups of size subset_size
 
@@ -133,7 +133,7 @@ def create_sarcoma_plates(
     results = []
     for unique_grouping_tuple in unique_grouping_tuples:
         mask = (grouping_tuples == unique_grouping_tuple).all(axis=1)
-        results.append(ExperimentSubset(dataset, mask))
+        results.append(Plate(dataset, mask))
 
     return results
 
@@ -158,7 +158,7 @@ def randomly_sample_plates(
     )
 
     mask = np.isin(dataset.plate_ids, sampled_plate_ids)
-    return ExperimentSubset(experiment=dataset, selection_vector=mask)
+    return Plate(experiment=dataset, selection_vector=mask)
 
 
 def reveal_plates(
@@ -183,12 +183,12 @@ def calculate_mse(
     full_experiment: Experiment,
     masked_experiment: Experiment,
     model: BayesianModel,
-    samples_holder: SamplesHolder,
+    samples_holder: ThetaHolder,
 ):
     preds = predict_avg(
         model=model,
         experiment=masked_experiment,
-        samples=samples_holder,
+        thetas=samples_holder,
     )
 
     masked_obs = full_experiment.observations[~masked_experiment.observation_mask]

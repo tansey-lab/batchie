@@ -3,29 +3,31 @@ from abc import ABC, abstractmethod
 import h5py
 import numpy as np
 from batchie.common import ArrayType
-from batchie.data import ExperimentBase, ExperimentSubset
+from batchie.data import ExperimentBase, Plate
 
 
-class BayesianModelSample:
+class Theta:
     """
-    This class represents a snapshot of all random variables
-    in the model. Should be implemented by dataclass or similar.
+    This class represents parameters for a BayesianModel.
+    Should be implemented by dataclass or similar.
     """
 
     pass
 
 
-class SamplesHolder:
-    def __init__(self, n_samples: int, *args, **kwargs):
-        self._cursor = 0
-        self.n_samples = n_samples
+class ThetaHolder:
+    """
+    This class represents multiple parameter sets for a BayesianModel.
+    """
 
-    def _save_sample(
-        self, sample: BayesianModelSample, variance: float, sample_index: int
-    ):
+    def __init__(self, n_thetas: int, *args, **kwargs):
+        self._cursor = 0
+        self.n_thetas = n_thetas
+
+    def _save_theta(self, theta: Theta, variance: float, sample_index: int):
         raise NotImplementedError
 
-    def get_sample(self, step_index: int) -> BayesianModelSample:
+    def get_theta(self, step_index: int) -> Theta:
         raise NotImplementedError
 
     def get_variance(self, step_index: int) -> float:
@@ -38,21 +40,21 @@ class SamplesHolder:
     def load_h5(path: str):
         raise NotImplementedError
 
-    def add_sample(self, sample: BayesianModelSample, variance: float):
+    def add_theta(self, theta: Theta, variance: float):
         # test if we are at the end of the chain
-        if self._cursor >= self.n_samples:
+        if self._cursor >= self.n_thetas:
             raise ValueError("Cannot add more samples to the results object")
 
-        self._save_sample(sample, variance, self._cursor)
+        self._save_theta(theta, variance, self._cursor)
         self._cursor += 1
 
     def __iter__(self):
-        for i in range(self.n_samples):
-            yield self.get_sample(i)
+        for i in range(self.n_thetas):
+            yield self.get_theta(i)
 
     @property
     def is_complete(self):
-        return self._cursor == self.n_samples
+        return self._cursor == self.n_thetas
 
     @classmethod
     def concat(cls, instances: list):
@@ -64,11 +66,11 @@ class SamplesHolder:
         if len(instances) == 1:
             return instances[0]
 
-        n_samples = sum([x.n_samples for x in instances])
+        n_samples = sum([x.n_thetas for x in instances])
         combined = cls(n_samples)
         for instance in instances:
             for sample_index, sample in enumerate(instance):
-                combined.add_sample(
+                combined.add_theta(
                     sample,
                     instance.get_variance(sample_index),
                 )
@@ -79,17 +81,17 @@ class BayesianModel(ABC):
     """
     This class represents a Bayesian model.
 
-    A Bayesian model has internal state. Each BayesianModel should have a companion BayesianModelSample
-    class which represents the models internal state in a serializable way,
+    A Bayesian model has internal state. Each BayesianModel should have a companion Theta and ThetaHolder
+    class which represents the models internal state in a serializable way.
 
-    The internal state of the model can be set explicitly via BayesianModel#set_model_state
-    or it can be advanced via BayesianModel#mcmc_step.
+    The internal state of the model can be set explicitly via BayesianModel#set_model_state.
+    or it can be advanced via BayesianModel#step.
 
     A BayesianModel can have data added to it via BayesianModel#add_observations.
     If data is present, the model should use that data somehow when BayesianModel#mcmc_step is called.
     BayesianModel#n_obs should report the number of datapoints that have been added to the model.
 
-    A BayesianModel can be used to predict an outcome given a set of inputs via BayesianModel#predict.
+    A BayesianModel can be used to predict an outcome via BayesianModel#predict.
     """
 
     def __init__(
@@ -105,11 +107,11 @@ class BayesianModel(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def set_model_state(self, parameters: BayesianModelSample):
+    def set_model_state(self, parameters: Theta):
         raise NotImplementedError
 
     @abstractmethod
-    def get_model_state(self) -> BayesianModelSample:
+    def get_model_state(self) -> Theta:
         raise NotImplementedError
 
     @abstractmethod
@@ -142,21 +144,10 @@ class BayesianModel(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def get_results_holder(self, n_samples: int) -> SamplesHolder:
+    def get_results_holder(self, n_samples: int) -> ThetaHolder:
         """
         Return a SamplesHolder class that goes with this model
         """
-        raise NotImplementedError
-
-
-class PredictionsHolder:
-    def add_prediction(self, prediction: ArrayType):
-        raise NotImplementedError
-
-    def save_h5(self, fn: str):
-        raise NotImplementedError
-
-    def load_h5(self, fn: str):
         raise NotImplementedError
 
 
@@ -164,10 +155,10 @@ class Metric:
     def __init__(self, model: BayesianModel):
         self.model = model
 
-    def evaluate(self, sample: BayesianModelSample) -> float:
+    def evaluate(self, sample: Theta) -> float:
         raise NotImplementedError
 
-    def evaluate_all(self, results_holder: SamplesHolder) -> ArrayType:
+    def evaluate_all(self, results_holder: ThetaHolder) -> ArrayType:
         return np.array([self.evaluate(x) for x in results_holder])
 
 
@@ -298,15 +289,15 @@ class DistanceMatrix:
 
 class Scorer:
     """
-    This class represents a scoring function for plates, which are potential sets of experiments.
+    This class represents a scoring function for Plates.
     """
 
     def score(
         self,
         model: BayesianModel,
-        plates: list[ExperimentSubset],
+        plates: list[Plate],
         distance_matrix: DistanceMatrix,
-        samples: SamplesHolder,
+        samples: ThetaHolder,
         rng: np.random.Generator,
     ) -> dict[int, float]:
         raise NotImplementedError
@@ -314,15 +305,15 @@ class Scorer:
 
 class PlatePolicy:
     """
-    Given an Experiment, which is a set of potential "plates" or ExperimentSubsets,
+    Given an Experiment, which is a set of potential Plates,
     implementations of this class will determine which set of plates is eligible
     for the next round.
     """
 
     def filter_eligible_plates(
         self,
-        observed_plates: list[ExperimentSubset],
-        unobserved_plates: list[ExperimentSubset],
+        observed_plates: list[Plate],
+        unobserved_plates: list[Plate],
         rng: np.random.Generator,
-    ) -> list[ExperimentSubset]:
+    ) -> list[Plate]:
         raise NotImplementedError

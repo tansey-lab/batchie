@@ -166,25 +166,13 @@ class ExperimentSubset(ExperimentBase):
     def observation_mask(self):
         return self.dataset.observation_mask[self.selection_vector]
 
-    @property
-    def plate_id(self):
-        unique_plate_ids = self.unique_plate_ids
-        if len(unique_plate_ids) != 1:
-            raise ValueError(
-                "Cannot retrieve a plate id from an experiment subset that contains more than one plate"
-            )
-
-        return unique_plate_ids[0]
-
     def invert(self):
-        return ExperimentSubset(self.dataset, ~self.selection_vector)
+        return Plate(self.dataset, ~self.selection_vector)
 
-    def combine(self, other: "ExperimentSubset"):
+    def combine(self, other: "Plate"):
         if other.dataset is not self.dataset:
             raise ValueError("Cannot combine two subsets of different datasets")
-        return ExperimentSubset(
-            self.dataset, self.selection_vector | other.selection_vector
-        )
+        return Plate(self.dataset, self.selection_vector | other.selection_vector)
 
     @classmethod
     def concat(cls, experiment_subsets: list):
@@ -204,7 +192,7 @@ class ExperimentSubset(ExperimentBase):
             else:
                 selection_vector = selection_vector | experiment_subset.selection_vector
 
-        return ExperimentSubset(experiment_subsets[0].dataset, selection_vector)
+        return Plate(experiment_subsets[0].dataset, selection_vector)
 
     def to_dataset(self):
         return Experiment(
@@ -215,6 +203,18 @@ class ExperimentSubset(ExperimentBase):
             plate_names=self.dataset.plate_names[self.selection_vector].copy(),
             control_treatment_name=self.dataset.control_treatment_name,
         )
+
+
+class Plate(ExperimentSubset):
+    @property
+    def plate_id(self):
+        unique_plate_ids = self.unique_plate_ids
+        if len(unique_plate_ids) != 1:
+            raise ValueError(
+                "Cannot retrieve a plate id from an experiment subset that contains more than one plate"
+            )
+
+        return unique_plate_ids[0]
 
 
 class Experiment(ExperimentBase):
@@ -352,8 +352,8 @@ class Experiment(ExperimentBase):
     def observation_mask(self):
         return self._observation_mask
 
-    def get_plate(self, plate_id: int) -> ExperimentSubset:
-        return ExperimentSubset(self, self.plate_ids == plate_id)
+    def get_plate(self, plate_id: int) -> Plate:
+        return Plate(self, self.plate_ids == plate_id)
 
     def set_observed(self, selection_mask: ArrayType, observations: ArrayType):
         if not np.issubdtype(selection_mask.dtype, bool):
@@ -366,7 +366,7 @@ class Experiment(ExperimentBase):
 
     @property
     def plates(self):
-        return {x: self.get_plate(x) for x in self.unique_plate_ids}
+        return [self.get_plate(x) for x in self.unique_plate_ids]
 
     def subset(self, selection_vector: ArrayType):
         if not np.issubdtype(selection_vector.dtype, bool):
@@ -421,7 +421,7 @@ def randomly_subsample_dataset(
     treatment_fraction: Optional[float] = None,
     sample_fraction: Optional[float] = None,
     rng: Optional[np.random.BitGenerator] = None,
-) -> (ExperimentSubset, ExperimentSubset):
+) -> (Plate, Plate):
     if rng is None:
         logger.warning(
             "No random number generator provided to randomly_subsample_dataset, using default. "
@@ -479,11 +479,11 @@ def randomly_subsample_dataset(
     )
 
     # Create two new dataset objects, one with the experiments to keep, and one with the experiments to drop
-    dataset_of_kept_experiments = ExperimentSubset(
+    dataset_of_kept_experiments = Plate(
         experiment=dataset, selection_vector=to_keep_vector
     )
 
-    dataset_of_dropped_experiments = ExperimentSubset(
+    dataset_of_dropped_experiments = Plate(
         experiment=dataset, selection_vector=~to_keep_vector
     )
 

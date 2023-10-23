@@ -2,7 +2,7 @@ from collections import defaultdict
 
 import numpy as np
 from batchie.core import PlatePolicy
-from batchie.data import ExperimentSubset
+from batchie.data import Plate
 
 
 class KPerSamplePlatePolicy(PlatePolicy):
@@ -11,10 +11,10 @@ class KPerSamplePlatePolicy(PlatePolicy):
 
     def filter_eligible_plates(
         self,
-        observed_plates: list[ExperimentSubset],
-        unobserved_plates: list[ExperimentSubset],
+        observed_plates: list[Plate],
+        unobserved_plates: list[Plate],
         rng: np.random.Generator,
-    ) -> list[ExperimentSubset]:
+    ) -> list[Plate]:
         for plate in observed_plates + unobserved_plates:
             if plate.n_unique_samples != 1:
                 raise ValueError(
