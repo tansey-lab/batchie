@@ -4,7 +4,7 @@ from batchie.core import (
     Scorer,
     BayesianModel,
     DistanceMatrix,
-    ModelParamsHolder,
+    ThetaHolder,
 )
 from batchie.models.main import predict_all
 from batchie.data import Plate
@@ -159,12 +159,10 @@ class GaussianDBALScorer(Scorer):
         model: BayesianModel,
         plates: list[Plate],
         distance_matrix: DistanceMatrix,
-        samples: ModelParamsHolder,
+        samples: ThetaHolder,
         rng: np.random.Generator,
     ) -> dict[int, float]:
-        variances = np.array(
-            [samples.get_variance(i) for i in range(samples.n_samples)]
-        )
+        variances = np.array([samples.get_variance(i) for i in range(samples.n_thetas)])
 
         n_subs = np.ceil(len(plates) / self.max_chunk)
         plate_subgroups = np.array_split(np.arange(len(plates)), n_subs)
@@ -186,7 +184,7 @@ class GaussianDBALScorer(Scorer):
             ]
 
             per_plate_predictions = [
-                predict_all(experiment=plate, model=model, samples=samples)
+                predict_all(experiment=plate, model=model, thetas=samples)
                 for plate in current_plates
             ]
 

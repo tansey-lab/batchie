@@ -5,7 +5,7 @@ from batchie.core import (
     Scorer,
     PlatePolicy,
     BayesianModel,
-    ModelParamsHolder,
+    ThetaHolder,
     DistanceMatrix,
 )
 from batchie.data import Experiment, Plate
@@ -14,7 +14,7 @@ from batchie.data import Experiment, Plate
 def select_next_batch(
     model: BayesianModel,
     scorer: Scorer,
-    samples: ModelParamsHolder,
+    samples: ThetaHolder,
     experiment_space: Experiment,
     distance_matrix: DistanceMatrix,
     policy: Optional[PlatePolicy],

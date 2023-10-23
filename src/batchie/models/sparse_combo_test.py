@@ -128,7 +128,7 @@ def test_results_holder_accumulate(test_dataset):
     while not results_holder.is_complete:
         model.step()
         sample = model.get_model_state()
-        results_holder.add_sample(sample, model.variance())
+        results_holder.add_theta(sample, model.variance())
 
 
 def test_results_holder_serde(test_dataset):
@@ -144,7 +144,7 @@ def test_results_holder_serde(test_dataset):
         n_unique_treatments=test_dataset.treatment_arity,
         n_unique_samples=test_dataset.n_unique_samples,
     )
-    results_holder.add_sample(model.get_model_state(), model.variance())
+    results_holder.add_theta(model.get_model_state(), model.variance())
 
     # create temporary file
 
@@ -153,7 +153,7 @@ def test_results_holder_serde(test_dataset):
 
         results_holder2 = sparse_combo.SparseDrugComboResults.load_h5(f.name)
 
-    assert results_holder2.n_unique_samples == results_holder.n_samples
+    assert results_holder2.n_unique_samples == results_holder.n_thetas
     np.testing.assert_array_equal(results_holder2.V2, results_holder.V2)
     np.testing.assert_array_equal(results_holder2.V1, results_holder.V1)
     np.testing.assert_array_equal(results_holder2.V0, results_holder.V0)

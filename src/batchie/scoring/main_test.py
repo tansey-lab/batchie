@@ -5,7 +5,7 @@ import pytest
 from batchie.core import (
     BayesianModel,
     DistanceMatrix,
-    ModelParamsHolder,
+    ThetaHolder,
     Scorer,
     PlatePolicy,
 )
@@ -42,7 +42,7 @@ def test_select_next_batch_with_policy(test_experiment):
     next_batch = main.select_next_batch(
         model=mock.MagicMock(BayesianModel),
         scorer=scorer,
-        samples=mock.MagicMock(ModelParamsHolder),
+        samples=mock.MagicMock(ThetaHolder),
         experiment_space=test_experiment,
         distance_matrix=mock.MagicMock(DistanceMatrix),
         policy=policy,
@@ -58,7 +58,7 @@ def test_select_next_batch_without_policy(test_experiment):
     next_batch = main.select_next_batch(
         model=mock.MagicMock(BayesianModel),
         scorer=scorer,
-        samples=mock.MagicMock(ModelParamsHolder),
+        samples=mock.MagicMock(ThetaHolder),
         experiment_space=test_experiment,
         distance_matrix=mock.MagicMock(DistanceMatrix),
         policy=None,

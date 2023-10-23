@@ -3,7 +3,7 @@ from unittest import mock
 import numpy as np
 import pytest
 from batchie import distance_calculation
-from batchie.core import BayesianModel, DistanceMetric
+from batchie.core import BayesianModel, DistanceMetric, ThetaHolder
 from batchie.data import Experiment
 
 
@@ -43,8 +43,8 @@ def test_calculate_pairwise_distance_matrix_on_predictions(test_dataset):
     distance_metric = mock.MagicMock(DistanceMetric)
     distance_metric.distance = mock.MagicMock(return_value=0.0)
 
-    samples_holder = mock.Mock()
-    samples_holder.n_samples = 3
+    samples_holder = mock.MagicMock(ThetaHolder)
+    samples_holder.n_thetas = 3
 
     result = distance_calculation.calculate_pairwise_distance_matrix_on_predictions(
         model=mock.MagicMock(BayesianModel),

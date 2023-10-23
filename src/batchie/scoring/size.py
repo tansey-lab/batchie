@@ -4,7 +4,7 @@ from batchie.core import (
     Scorer,
     BayesianModel,
     DistanceMatrix,
-    ModelParamsHolder,
+    ThetaHolder,
     Plate,
 )
 
@@ -15,7 +15,7 @@ class SizeScorer(Scorer):
         model: BayesianModel,
         plates: list[Plate],
         distance_matrix: DistanceMatrix,
-        samples: ModelParamsHolder,
+        samples: ThetaHolder,
         rng: np.random.Generator,
     ) -> dict[int, float]:
         scores = {plate.plate_id: plate.size for plate in plates}

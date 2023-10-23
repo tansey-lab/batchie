@@ -4,15 +4,15 @@ from dataclasses import dataclass
 import numpy as np
 import pytest
 from batchie.common import ArrayType
-from batchie.core import DistanceMatrix, ModelParamsHolder, BayesianModelParams
+from batchie.core import DistanceMatrix, ThetaHolder, Theta
 
 
 @dataclass
-class TestBayesianModelParamsImpl(BayesianModelParams):
+class TestBayesianModelParamsImpl(Theta):
     W: ArrayType
 
 
-class TestModelParamsHolderImpl(ModelParamsHolder):
+class TestThetaHolderImpl(ThetaHolder):
     def __init__(
         self,
         n_mcmc_steps: int,
@@ -25,12 +25,12 @@ class TestModelParamsHolderImpl(ModelParamsHolder):
             dtype=np.float32,
         )
 
-    def _save_sample(
+    def _save_theta(
         self, sample: TestBayesianModelParamsImpl, variance: float, sample_index: int
     ):
         self.W[sample_index] = sample.W
 
-    def get_sample(self, step_index: int) -> TestBayesianModelParamsImpl:
+    def get_theta(self, step_index: int) -> TestBayesianModelParamsImpl:
         return TestBayesianModelParamsImpl(W=self.W[step_index])
 
     def get_variance(self, step_index: int) -> float:
@@ -41,15 +41,15 @@ class TestModelParamsHolderImpl(ModelParamsHolder):
 
     @staticmethod
     def load_h5(path: str):
-        return TestModelParamsHolderImpl(1)
+        return TestThetaHolderImpl(1)
 
 
 def test_samples_holder():
-    holder = TestModelParamsHolderImpl(3)
+    holder = TestThetaHolderImpl(3)
 
     for i in range(3):
         sample = TestBayesianModelParamsImpl(W=np.ones((2, 2)) * i)
-        holder.add_sample(sample, 1.0)
+        holder.add_theta(sample, 1.0)
 
     assert holder.is_complete
 
@@ -60,8 +60,8 @@ def test_samples_holder():
 
 
 def test_samples_holder_concat():
-    holder = TestModelParamsHolderImpl.concat(
-        [TestModelParamsHolderImpl(3), TestModelParamsHolderImpl(3)]
+    holder = TestThetaHolderImpl.concat(
+        [TestThetaHolderImpl(3), TestThetaHolderImpl(3)]
     )
 
     assert len(list(holder)) == 6

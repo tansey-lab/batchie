@@ -7,7 +7,7 @@ import numpy as np
 from batchie import synergy
 from batchie.common import ArrayType, copy_array_with_control_treatments_set_to_zero
 from batchie.common import CONTROL_SENTINEL_VALUE
-from batchie.core import BayesianModelParams, ModelParamsHolder
+from batchie.core import Theta, ThetaHolder
 from batchie.data import ExperimentBase
 from batchie.fast_mvn import sample_mvn_from_precision
 from batchie.models.sparse_combo import SparseDrugCombo
@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 
 @dataclass
-class SparseDrugComboInteractionMCMCSample(BayesianModelParams):
+class SparseDrugComboInteractionMCMCSample(Theta):
     """A single sample from the MCMC chain for the sparse drug combo model"""
 
     W: ArrayType
@@ -25,7 +25,7 @@ class SparseDrugComboInteractionMCMCSample(BayesianModelParams):
     precision: float
 
 
-class SparseDrugComboInteractionResults(ModelParamsHolder):
+class SparseDrugComboInteractionResults(ThetaHolder):
     def __init__(
         self,
         n_unique_samples: int,
@@ -50,7 +50,7 @@ class SparseDrugComboInteractionResults(ModelParamsHolder):
         self.alpha = np.zeros((n_samples,), np.float32)
         self.precision = np.zeros((n_samples,), np.float32)
 
-    def get_sample(self, step_index: int) -> SparseDrugComboInteractionMCMCSample:
+    def get_theta(self, step_index: int) -> SparseDrugComboInteractionMCMCSample:
         """Get one sample from the MCMC chain"""
         # Test if this is beyond the step we are current at with the cursor
         if step_index >= self._cursor:
@@ -65,7 +65,7 @@ class SparseDrugComboInteractionResults(ModelParamsHolder):
     def get_variance(self, step_index: int) -> float:
         return 1.0 / self.precision[step_index]
 
-    def _save_sample(
+    def _save_theta(
         self,
         sample: SparseDrugComboInteractionMCMCSample,
         variance: float,
