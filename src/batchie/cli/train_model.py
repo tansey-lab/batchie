@@ -21,7 +21,12 @@ def get_parser():
         metavar="KEY=VALUE",
         help="Model parameters",
     )
-    parser.add_argument("--output", type=str, required=True)
+    parser.add_argument(
+        "--output",
+        help="Output file to save learned model parameters to.",
+        type=str,
+        required=True,
+    )
     parser.add_argument(
         "--n-samples",
         help="Number of samples to save from the posterior distribution",
