@@ -1,6 +1,7 @@
 from typing import Optional
 
 import numpy as np
+import logging
 from batchie.core import (
     Scorer,
     PlatePolicy,
@@ -9,6 +10,9 @@ from batchie.core import (
     DistanceMatrix,
 )
 from batchie.data import Experiment, Plate
+
+
+logger = logging.getLogger(__name__)
 
 
 def select_next_batch(
@@ -41,6 +45,10 @@ def select_next_batch(
                 unobserved_plates=unobserved_plates,
                 rng=rng,
             )
+
+        if not eligible_plates:
+            logger.warning("No eligible plates remaining, exiting early.")
+            break
 
         scores: dict[int, float] = scorer.score(
             plates=eligible_plates,
