@@ -1,16 +1,16 @@
-process TRAIN_MODEL {
+process ADVANCE_RETOSPECTIVE_EXPERIMENT {
     tag "$meta.id"
-    label 'process_long'
-    label 'process_high_memory'
+    label 'process_single'
     container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
         'docker://jeffquinnmsk/batchie:latest' :
         'docker.io/jeffquinnmsk/batchie:latest' }"
 
     input:
-    tuple val(meta), path(data), val(chain_index), val(n_chains)
+    tuple val(meta), path(data), path(thetas), path(plate_selection), path(experiment_tracker),
 
     output:
-    tuple val(meta), path("${prefix}/thetas.h5"), emit: thetas
+    tuple val(meta), path("${prefix}/advanced_experiment.h5"), emit: advanced_experiment
+    tuple val(meta), path("${prefix}/experiment_tracker_output.json"), emit: experiment_tracker
     path  "versions.yml"                , emit: versions
 
 
@@ -22,10 +22,11 @@ process TRAIN_MODEL {
     def args = task.ext.args ?: ""
     """
     mkdir "${prefix}"
-    train_model --data ${data} \
-        --chain-index ${chain_index} \
-        --n-chains ${n_chains} \
-        --output "${prefix}/thetas.h5" \
+    calculate_distance_matrix --data ${data} \
+        --thetas ${thetas} \
+        --chunk-index ${chunk_index} \
+        --n-chunks ${n_chunks} \
+        --output "${prefix}/distance_matrix_chunk.h5" \
         ${args}
 
     cat <<-END_VERSIONS > versions.yml
