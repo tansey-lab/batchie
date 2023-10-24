@@ -1,0 +1,26 @@
+name: run_retrospective_step
+description: A subworkflow for running one iteration of a retrospective active learning simulation
+keywords:
+  - active_learning
+
+components:
+  - batchie/advance_retrospective_experiment
+  - batchie/calculate_distance_metric_chunk
+  - batchie/extract_experiment_metadata
+  - batchie/select_next_batch
+  - batchie/train_model
+
+input:
+  - ch_input:
+      description: |
+        An input channel containing experiment and up-to-date series of batch selections and losses
+        Structure: [  val(meta), path(masked_experiment), path(unmasked_experiment), path(experiment_tracker), val(n_chains), val(n_chunks) ]
+
+output:
+  - ch_output:
+      description: |
+        Same structure as the input, but with the next batch unmasked and the losses for the last batch added to the
+        experiment tracker.
+        Structure: [ val(meta), path(masked_experiment), path(unmasked_experiment), path(experiment_tracker), val(n_chains), val(n_chunks) ]
+authors:
+  - "@jeffquinn-msk"
