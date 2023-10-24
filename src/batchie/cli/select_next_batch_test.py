@@ -51,7 +51,7 @@ def test_main(mocker, test_dataset, test_dist_matrix, use_policy):
         "RandomScorer",
         "--data",
         os.path.join(tmpdir, "data.h5"),
-        "--samples",
+        "--thetas",
         os.path.join(tmpdir, "samples.h5"),
         "--output",
         os.path.join(tmpdir, "results.json"),

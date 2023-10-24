@@ -22,7 +22,19 @@ process ADVANCE_RETOSPECTIVE_EXPERIMENT {
     def args = task.ext.args ?: ""
     """
     mkdir "${prefix}"
-    calculate_distance_matrix --data ${data} \
+    advance_retrospective_experiment --data ${data} \
+
+
+        parser.add_argument("--unmasked-experiment", type=str, required=True)
+    parser.add_argument("--masked-experiment", type=str, required=True)
+    parser.add_argument("--batch-selection", type=str, required=True)
+    parser.add_argument("--experiment-output", type=str, required=True)
+    parser.add_argument("--experiment-tracker-input", type=str, required=True)
+    parser.add_argument("--experiment-tracker-output", type=str, required=True)
+    parser.add_argument("--samples", type=str, required=True, nargs="+")
+    parser.add_argument("--model", type=str, required=True)
+
+
         --thetas ${thetas} \
         --chunk-index ${chunk_index} \
         --n-chunks ${n_chunks} \

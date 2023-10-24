@@ -56,7 +56,7 @@ def test_main(mocker, test_masked_dataset, test_unmasked_dataset):
         os.path.join(tmpdir, "unmasked_experiment.h5"),
         "--masked-experiment",
         os.path.join(tmpdir, "masked_experiment.h5"),
-        "--samples",
+        "--thetas",
         os.path.join(tmpdir, "samples.h5"),
         "--experiment-tracker-input",
         os.path.join(tmpdir, "experiment_tracker_input.json"),

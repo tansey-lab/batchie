@@ -25,7 +25,7 @@ def get_parser():
     parser = argparse.ArgumentParser(description="calculate_distance_matrix.py")
     log_config.add_logging_args(parser)
     parser.add_argument("--data", type=str, required=True)
-    parser.add_argument("--samples", type=str, required=True, nargs="+")
+    parser.add_argument("--thetas", type=str, required=True, nargs="+")
     parser.add_argument("--distance-matrix", type=str, required=True, nargs="+")
     parser.add_argument("--batch-size", type=int, default=4)
 
@@ -129,7 +129,7 @@ def main():
     model: BayesianModel = args.model_cls(**args.model_params)
     scorer: Scorer = args.scorer_cls(**args.scorer_params)
     theta_holder: ThetaHolder = model.get_results_holder(n_samples=1)
-    thetas = theta_holder.concat([theta_holder.load_h5(x) for x in args.samples])
+    thetas = theta_holder.concat([theta_holder.load_h5(x) for x in args.thetas])
 
     distance_matrix = DistanceMatrix.concat(
         [DistanceMatrix.load(x) for x in args.distance_matrix]
