@@ -6,7 +6,7 @@ process ADVANCE_RETOSPECTIVE_EXPERIMENT {
         'docker.io/jeffquinnmsk/batchie:latest' }"
 
     input:
-    tuple val(meta), path(data), path(thetas), path(plate_selection), path(experiment_tracker),
+    tuple val(meta), path(data_masked), path(data_unmasked), path(thetas), path(batch_selection), path(experiment_tracker),
 
     output:
     tuple val(meta), path("${prefix}/advanced_experiment.h5"), emit: advanced_experiment
@@ -22,23 +22,14 @@ process ADVANCE_RETOSPECTIVE_EXPERIMENT {
     def args = task.ext.args ?: ""
     """
     mkdir "${prefix}"
-    advance_retrospective_experiment --data ${data} \
-
-
-        parser.add_argument("--unmasked-experiment", type=str, required=True)
-    parser.add_argument("--masked-experiment", type=str, required=True)
-    parser.add_argument("--batch-selection", type=str, required=True)
-    parser.add_argument("--experiment-output", type=str, required=True)
-    parser.add_argument("--experiment-tracker-input", type=str, required=True)
-    parser.add_argument("--experiment-tracker-output", type=str, required=True)
-    parser.add_argument("--samples", type=str, required=True, nargs="+")
-    parser.add_argument("--model", type=str, required=True)
-
-
+    advance_retrospective_experiment \
         --thetas ${thetas} \
-        --chunk-index ${chunk_index} \
-        --n-chunks ${n_chunks} \
-        --output "${prefix}/distance_matrix_chunk.h5" \
+        --masked-experiment ${data_masked} \
+        --unmasked-experiment ${data_unmasked} \
+        --batch-selection ${batch_selection} \
+        --experiment-tracker-output ${prefix}/experiment_tracker_output.json \
+        --experiment-tracker-input ${experiment_tracker} \
+        --experiment-output ${prefix}/advanced_experiment.h5 \
         ${args}
 
     cat <<-END_VERSIONS > versions.yml
