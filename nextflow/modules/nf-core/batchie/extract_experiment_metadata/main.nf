@@ -30,12 +30,12 @@ process EXTRACT_EXPERIMENT_METADATA {
         --output ${prefix}/experiment_metadata.json \
         ${args}
 
-    n_unique_samples=$(jq -r '.n_unique_samples' ${prefix}/experiment_metadata.json)
-    n_unique_treatments=$(jq -r '.n_unique_treatments' ${prefix}/experiment_metadata.json)
-    n_observed_plates=$(jq -r '.n_observed_plates' ${prefix}/experiment_metadata.json)
-    n_unobserved_plates=$(jq -r '.n_unobserved_plates' ${prefix}/experiment_metadata.json)
-    n_plates=$(jq -r '.n_plates' ${prefix}/experiment_metadata.json)
-    size=$(jq -r '.size' ${prefix}/experiment_metadata.json)
+    n_unique_samples=\$(jq -r '.n_unique_samples' ${prefix}/experiment_metadata.json)
+    n_unique_treatments=\$(jq -r '.n_unique_treatments' ${prefix}/experiment_metadata.json)
+    n_observed_plates=\$(jq -r '.n_observed_plates' ${prefix}/experiment_metadata.json)
+    n_unobserved_plates=\$(jq -r '.n_unobserved_plates' ${prefix}/experiment_metadata.json)
+    n_plates=\$(jq -r '.n_plates' ${prefix}/experiment_metadata.json)
+    size=\$(jq -r '.size' ${prefix}/experiment_metadata.json)
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":

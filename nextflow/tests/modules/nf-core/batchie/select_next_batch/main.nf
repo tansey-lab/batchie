@@ -3,7 +3,7 @@ nextflow.enable.dsl = 2
 
 include { SELECT_NEXT_BATCH } from '../../../../../modules/nf-core/batchie/select_next_batch/main'
 
-workflow train_model {
+workflow select_next_batch {
     input = [ [ id:'test', single_end:false ], // meta map
               file(params.test_data['batchie']['masked_experiment'], checkIfExists: true),
               file(params.test_data['batchie']['thetas'], checkIfExists: true),
