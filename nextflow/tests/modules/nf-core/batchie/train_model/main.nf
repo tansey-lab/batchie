@@ -5,7 +5,7 @@ include { TRAIN_MODEL } from '../../../../../modules/nf-core/batchie/train_model
 
 workflow train_model {
     input = [ [ id:'test', single_end:false ], // meta map
-              file(params.test_data['batchie']['unmasked_dataset'], checkIfExists: true),
+              file(params.test_data['batchie']['unmasked_experiment'], checkIfExists: true),
               0, // chain_index
               1 // n_chains
             ]
