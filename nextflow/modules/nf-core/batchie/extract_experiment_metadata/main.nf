@@ -25,7 +25,7 @@ process EXTRACT_EXPERIMENT_METADATA {
     prefix = task.ext.prefix ?: "${meta.id}"
     def args = task.ext.args ?: ""
     """
-    mkdir "${prefix}"
+    mkdir -p "${prefix}"
     extract_experiment_metadata --experiment ${data} \
         --output ${prefix}/experiment_metadata.json \
         ${args}

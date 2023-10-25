@@ -10,7 +10,7 @@ process CALCULATE_DISTANCE_MATRIX_CHUNK {
     tuple val(meta), path(data), path(thetas), val(chunk_index), val(n_chunks)
 
     output:
-    tuple val(meta), path("${prefix}/distance_matrix_chunk.h5"), emit: distance_matrix_chunk
+    tuple val(meta), path("${prefix}/distance_matrix_chunk*.h5"), emit: distance_matrix_chunk
     path  "versions.yml"                , emit: versions
 
 
@@ -21,12 +21,12 @@ process CALCULATE_DISTANCE_MATRIX_CHUNK {
     prefix = task.ext.prefix ?: "${meta.id}"
     def args = task.ext.args ?: ""
     """
-    mkdir "${prefix}"
+    mkdir -p "${prefix}"
     calculate_distance_matrix --data ${data} \
         --thetas ${thetas} \
         --chunk-index ${chunk_index} \
         --n-chunks ${n_chunks} \
-        --output "${prefix}/distance_matrix_chunk.h5" \
+        --output "${prefix}/distance_matrix_chunk_${chunk_index}.h5" \
         ${args}
 
     cat <<-END_VERSIONS > versions.yml

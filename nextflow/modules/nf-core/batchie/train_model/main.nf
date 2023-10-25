@@ -10,7 +10,7 @@ process TRAIN_MODEL {
     tuple val(meta), path(data), val(chain_index), val(n_chains)
 
     output:
-    tuple val(meta), path("${prefix}/thetas.h5"), emit: thetas
+    tuple val(meta), path("${prefix}/thetas*.h5"), emit: thetas
     path  "versions.yml"                , emit: versions
 
 
@@ -21,11 +21,11 @@ process TRAIN_MODEL {
     prefix = task.ext.prefix ?: "${meta.id}"
     def args = task.ext.args ?: ""
     """
-    mkdir "${prefix}"
+    mkdir -p "${prefix}"
     train_model --data ${data} \
         --chain-index ${chain_index} \
         --n-chains ${n_chains} \
-        --output "${prefix}/thetas.h5" \
+        --output "${prefix}/thetas_${chain_index}.h5" \
         ${args}
 
     cat <<-END_VERSIONS > versions.yml

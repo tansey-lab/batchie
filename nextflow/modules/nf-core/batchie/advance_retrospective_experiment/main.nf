@@ -21,7 +21,7 @@ process ADVANCE_RETROSPECTIVE_EXPERIMENT {
     prefix = task.ext.prefix ?: "${meta.id}"
     def args = task.ext.args ?: ""
     """
-    mkdir "${prefix}"
+    mkdir -p "${prefix}"
     advance_retrospective_experiment \
         --thetas ${thetas} \
         --masked-experiment ${data_masked} \

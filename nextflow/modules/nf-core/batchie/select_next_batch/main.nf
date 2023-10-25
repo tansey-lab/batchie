@@ -21,7 +21,7 @@ process SELECT_NEXT_BATCH {
     prefix = task.ext.prefix ?: "${meta.id}"
     def args = task.ext.args ?: ""
     """
-    mkdir "${prefix}"
+    mkdir -p "${prefix}"
     select_next_batch --data ${data} \
         --thetas ${thetas} \
         --distance-matrix ${distance_matrix} \
