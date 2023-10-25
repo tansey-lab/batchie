@@ -1,4 +1,4 @@
-name: calculate_distance_metric_chunk
+name: calculate_distance_matrix_chunk
 description: Calculate one chunk of the pairwise distance matrix.
 keywords:
   - active_learning

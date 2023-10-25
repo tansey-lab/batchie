@@ -1,4 +1,4 @@
-process CALCULATE_DISTANCE_METRIC_CHUNK {
+process CALCULATE_DISTANCE_MATRIX_CHUNK {
     tag "$meta.id"
     label 'process_long'
     label 'process_high_memory'
