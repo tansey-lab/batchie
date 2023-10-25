@@ -6,7 +6,7 @@ process ADVANCE_RETROSPECTIVE_EXPERIMENT {
         'docker.io/jeffquinnmsk/batchie:latest' }"
 
     input:
-    tuple val(meta), path(data_masked), path(data_unmasked), path(thetas), path(batch_selection), path(experiment_tracker),
+    tuple val(meta), path(data_masked), path(data_unmasked), path(thetas), path(batch_selection), path(experiment_tracker)
 
     output:
     tuple val(meta), path("${prefix}/advanced_experiment.h5"), emit: advanced_experiment
