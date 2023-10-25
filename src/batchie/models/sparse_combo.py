@@ -91,7 +91,7 @@ class SparseDrugComboResults(ThetaHolder):
             n_unique_samples=self.n_unique_samples,
             n_unique_treatments=self.n_unique_treatments,
             n_embedding_dimensions=self.n_embedding_dimensions,
-            n_thetas=self.n_thetas + other.n_samples,
+            n_thetas=self.n_thetas + other.n_thetas,
         )
 
         for i in range(self.n_thetas):

@@ -23,7 +23,7 @@ class ThetaHolder(ABC):
 
     def __init__(self, n_thetas: int, *args, **kwargs):
         self._cursor = 0
-        self.n_thetas = n_thetas
+        self._n_thetas = n_thetas
 
     @abstractmethod
     def _save_theta(self, theta: Theta, variance: float, sample_index: int):
@@ -57,6 +57,10 @@ class ThetaHolder(ABC):
 
         self._save_theta(theta, variance, self._cursor)
         self._cursor += 1
+
+    @property
+    def n_thetas(self):
+        return self._n_thetas
 
     def __iter__(self):
         for i in range(self.n_thetas):

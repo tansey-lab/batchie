@@ -15,13 +15,12 @@ class TestBayesianModelParamsImpl(Theta):
 class TestThetaHolderImpl(ThetaHolder):
     def __init__(
         self,
-        n_mcmc_steps: int,
+        n_thetas: int,
     ):
-        super().__init__(n_mcmc_steps)
-        self.n_mcmc_steps = n_mcmc_steps
+        super().__init__(n_thetas)
 
         self.W = np.zeros(
-            (self.n_mcmc_steps, 2, 2),
+            (self.n_thetas, 2, 2),
             dtype=np.float32,
         )
 
@@ -38,6 +37,26 @@ class TestThetaHolderImpl(ThetaHolder):
 
     def save_h5(self, fn: str):
         pass
+
+    def combine(self, other):
+        if type(self) != type(other):
+            raise ValueError("Cannot combine with different type")
+
+        output = TestThetaHolderImpl(
+            n_thetas=self.n_thetas + other.n_thetas,
+        )
+
+        for i in range(self.n_thetas):
+            sample = self.get_theta(i)
+            variance = self.get_variance(i)
+            output.add_theta(sample, variance)
+
+        for i in range(other.n_thetas):
+            sample = other.get_theta(i)
+            variance = other.get_variance(i)
+            output.add_theta(sample, variance)
+
+        return output
 
     @staticmethod
     def load_h5(path: str):
