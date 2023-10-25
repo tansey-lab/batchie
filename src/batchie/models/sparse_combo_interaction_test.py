@@ -144,7 +144,7 @@ def test_results_holder_serde(test_dataset):
     )
 
     results_holder = sparse_combo_interaction.SparseDrugComboInteractionResults(
-        n_samples=2,
+        n_thetas=2,
         n_embedding_dimensions=5,
         n_unique_treatments=test_dataset.treatment_arity,
         n_unique_samples=test_dataset.n_unique_samples,

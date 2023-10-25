@@ -31,7 +31,7 @@ def test_main_complete(mocker, test_combo_dataset):
 
     test_combo_dataset.save_h5(os.path.join(tmpdir, "data.h5"))
     results_holder = SparseDrugComboResults(
-        n_samples=10,
+        n_thetas=10,
         n_unique_samples=test_combo_dataset.n_unique_samples,
         n_unique_treatments=test_combo_dataset.n_unique_treatments,
         n_embedding_dimensions=5,
@@ -75,7 +75,7 @@ def test_main_partial(mocker, test_combo_dataset):
 
     test_combo_dataset.save_h5(os.path.join(tmpdir, "data.h5"))
     results_holder = SparseDrugComboResults(
-        n_samples=10,
+        n_thetas=10,
         n_unique_samples=test_combo_dataset.n_unique_samples,
         n_unique_treatments=test_combo_dataset.n_unique_treatments,
         n_embedding_dimensions=5,

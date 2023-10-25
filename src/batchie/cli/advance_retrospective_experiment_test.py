@@ -71,7 +71,7 @@ def test_main(mocker, test_masked_dataset, test_unmasked_dataset):
     test_masked_dataset.save_h5(os.path.join(tmpdir, "masked_experiment.h5"))
     test_masked_dataset.save_h5(os.path.join(tmpdir, "unmasked_experiment.h5"))
     results_holder = SparseDrugComboResults(
-        n_samples=10,
+        n_thetas=10,
         n_unique_samples=test_masked_dataset.n_unique_samples,
         n_unique_treatments=test_masked_dataset.n_unique_treatments,
         n_embedding_dimensions=5,

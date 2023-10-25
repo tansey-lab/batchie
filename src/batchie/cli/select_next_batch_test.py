@@ -73,7 +73,7 @@ def test_main(mocker, test_dataset, test_dist_matrix, use_policy):
 
     test_dataset.save_h5(os.path.join(tmpdir, "data.h5"))
     results_holder = SparseDrugComboResults(
-        n_samples=10,
+        n_thetas=10,
         n_unique_samples=test_dataset.n_unique_samples,
         n_unique_treatments=test_dataset.n_unique_treatments,
         n_embedding_dimensions=5,

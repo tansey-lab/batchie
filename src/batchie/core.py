@@ -16,7 +16,7 @@ class Theta:
     pass
 
 
-class ThetaHolder:
+class ThetaHolder(ABC):
     """
     This class represents multiple parameter sets for a BayesianModel.
     """
@@ -25,19 +25,28 @@ class ThetaHolder:
         self._cursor = 0
         self.n_thetas = n_thetas
 
+    @abstractmethod
     def _save_theta(self, theta: Theta, variance: float, sample_index: int):
         raise NotImplementedError
 
+    @abstractmethod
     def get_theta(self, step_index: int) -> Theta:
         raise NotImplementedError
 
+    @abstractmethod
     def get_variance(self, step_index: int) -> float:
         raise NotImplementedError
 
+    @abstractmethod
     def save_h5(self, fn: str):
         raise NotImplementedError
 
+    @abstractmethod
+    def combine(self, other):
+        raise NotImplementedError
+
     @staticmethod
+    @abstractmethod
     def load_h5(path: str):
         raise NotImplementedError
 
@@ -67,15 +76,15 @@ class ThetaHolder:
         if len(instances) == 1:
             return instances[0]
 
-        n_samples = sum([x.n_thetas for x in instances])
-        combined = cls(n_samples)
-        for instance in instances:
-            for sample_index, sample in enumerate(instance):
-                combined.add_theta(
-                    sample,
-                    instance.get_variance(sample_index),
-                )
-        return combined
+        first = instances[0]
+
+        for instance in instances[1:]:
+            if type(instance) != type(first):
+                raise ValueError("Cannot concatenate different types of SamplesHolders")
+
+            first = first.combine(instance)
+
+        return first
 
 
 class BayesianModel(ABC):

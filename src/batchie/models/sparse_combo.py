@@ -35,42 +35,76 @@ class SparseDrugComboResults(ThetaHolder):
         n_unique_samples: int,
         n_unique_treatments: int,
         n_embedding_dimensions: int,
-        n_samples: int,
+        n_thetas: int,
     ):
-        super().__init__(n_samples)
+        super().__init__(n_thetas)
         self.n_unique_samples = n_unique_samples
         self.n_unique_treatments = n_unique_treatments
         self.n_embedding_dimensions = n_embedding_dimensions
 
         self.V2 = np.zeros(
-            (n_samples, self.n_unique_treatments, self.n_embedding_dimensions),
+            (n_thetas, self.n_unique_treatments, self.n_embedding_dimensions),
             dtype=np.float32,
         )
         self.V1 = np.zeros(
-            (n_samples, self.n_unique_treatments, self.n_embedding_dimensions),
+            (n_thetas, self.n_unique_treatments, self.n_embedding_dimensions),
             dtype=np.float32,
         )
         self.W = np.zeros(
-            (n_samples, self.n_unique_samples, self.n_embedding_dimensions),
+            (n_thetas, self.n_unique_samples, self.n_embedding_dimensions),
             dtype=np.float32,
         )
         self.V0 = np.zeros(
             (
-                n_samples,
+                n_thetas,
                 self.n_unique_treatments,
             ),
             np.float32,
         )
         self.W0 = np.zeros(
             (
-                n_samples,
+                n_thetas,
                 self.n_unique_samples,
             ),
             np.float32,
         )
 
-        self.alpha = np.zeros((n_samples,), np.float32)
-        self.precision = np.zeros((n_samples,), np.float32)
+        self.alpha = np.zeros((n_thetas,), np.float32)
+        self.precision = np.zeros((n_thetas,), np.float32)
+
+    def combine(self, other):
+        if type(self) != type(other):
+            raise ValueError("Cannot combine with different type")
+
+        if self.n_embedding_dimensions != other.n_embedding_dimensions:
+            raise ValueError("Cannot combine with different embedding dimensions")
+
+        if self.n_unique_samples != other.n_unique_samples:
+            raise ValueError("Cannot combine with different number of unique samples")
+
+        if self.n_unique_treatments != other.n_unique_treatments:
+            raise ValueError(
+                "Cannot combine with different number of unique treatments"
+            )
+
+        output = SparseDrugComboResults(
+            n_unique_samples=self.n_unique_samples,
+            n_unique_treatments=self.n_unique_treatments,
+            n_embedding_dimensions=self.n_embedding_dimensions,
+            n_thetas=self.n_thetas + other.n_samples,
+        )
+
+        for i in range(self.n_thetas):
+            sample = self.get_theta(i)
+            variance = self.get_variance(i)
+            output.add_theta(sample, variance)
+
+        for i in range(other.n_thetas):
+            sample = other.get_theta(i)
+            variance = other.get_variance(i)
+            output.add_theta(sample, variance)
+
+        return output
 
     def get_theta(self, step_index: int) -> SparseDrugComboMCMCSample:
         """Get one sample from the MCMC chain"""
@@ -129,7 +163,7 @@ class SparseDrugComboResults(ThetaHolder):
                 n_unique_samples=n_unique_samples,
                 n_unique_treatments=n_unique_treatments,
                 n_embedding_dimensions=n_embedding_dimensions,
-                n_samples=n_samples,
+                n_thetas=n_samples,
             )
 
             results.V2 = f["V2"][:]
@@ -252,7 +286,7 @@ class SparseDrugCombo(BayesianModel):
             n_unique_samples=self.n_unique_samples,
             n_unique_treatments=self.n_unique_treatments,
             n_embedding_dimensions=self.n_embedding_dimensions,
-            n_samples=n_samples,
+            n_thetas=n_samples,
         )
 
     def add_observations(self, data: ExperimentBase):
