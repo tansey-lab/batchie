@@ -7,7 +7,7 @@ process SELECT_NEXT_BATCH {
         'docker.io/jeffquinnmsk/batchie:latest' }"
 
     input:
-    tuple val(meta), path(data), path(thetas), val(distance_matrix)
+    tuple val(meta), path(data), path(thetas), path(distance_matrix)
 
     output:
     tuple val(meta), path("${prefix}/selected_plates.json"), emit: selected_plates

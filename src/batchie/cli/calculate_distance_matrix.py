@@ -98,7 +98,9 @@ def main():
     if args.n_chunks > 1:
         idx_chunks = np.array_split(np.arange(thetas.n_thetas), args.n_chunks)
 
-        chunk_to_run = sorted(list(combinations(idx_chunks, 2)))[args.chunk_index]
+        chunk_to_run = sorted(list(combinations(idx_chunks, 2)), key=lambda x: repr(x))[
+            args.chunk_index
+        ]
 
         chunk_indices = tuple([np.array(chunk_to_run[0]), np.array(chunk_to_run[1])])
     else:

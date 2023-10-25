@@ -36,13 +36,17 @@ workflow RUN_RETROSPECTIVE_STEP {
         .combine(dist_input, by: 0).tap { meta_exp_theta_chunk_idx_n_chunks }
 
     CALCULATE_DISTANCE_MATRIX_CHUNK( meta_exp_theta_chunk_idx_n_chunks )
-/*
+
     meta_exp_theta_dist = ch_input.map { tuple(it[0], it[1]) }
         .join(TRAIN_MODEL.out.thetas.groupTuple())
-        .join(CALCULATE_DISTANCE_METRIC_CHUNK.out.distance_matrix_chunk.groupTuple())
+        .join(CALCULATE_DISTANCE_MATRIX_CHUNK.out.distance_matrix_chunk.groupTuple())
+        .tap { meta_exp_theta_dist }
+
+    meta_exp_theta_dist.view()
 
     SELECT_NEXT_BATCH( meta_exp_theta_dist )
 
+ /*
     advance_retrospective_experiment_input = ch_input.map { tuple(it[0], it[1], it[2]) }
         .join(TRAIN_MODEL.out.thetas.groupTuple())
         .join(SELECT_NEXT_BATCH.out.batch_selection)
