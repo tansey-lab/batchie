@@ -135,11 +135,23 @@ class ChunkedDistanceMatrix(DistanceMatrix):
     def add_value(self, i, j, value):
         if i >= self.size or j >= self.size:
             raise ValueError("Indices are out of bounds")
+
+        if i < j:
+            raise ValueError("Indices must be lower triangular")
+
         if self.current_index + 1 > len(self.values):
             self._expand_storage()
 
+        if self.row_indices[self.current_index] != 0:
+            raise ValueError("This distance has already been calculated")
         self.row_indices[self.current_index] = i
+
+        if self.col_indices[self.current_index] != 0:
+            raise ValueError("This distance has already been calculated")
+
         self.col_indices[self.current_index] = j
+        if self.values[self.current_index] != 0:
+            raise ValueError("This distance has already been calculated")
         self.values[self.current_index] = value
         self.current_index += 1
 
@@ -183,7 +195,7 @@ class ChunkedDistanceMatrix(DistanceMatrix):
                 "The matrices must be of the same size to be composed together"
             )
 
-        composed = ChunkedDistanceMatrix(self.size, chunk_size=self.chunk_size)
+        composed = ChunkedDistanceMatrix(self.size, chunk_size=self.current_index)
         composed.row_indices[: self.current_index] = self.row_indices[
             : self.current_index
         ]

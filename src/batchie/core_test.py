@@ -90,14 +90,14 @@ def test_samples_holder_concat():
 @pytest.fixture
 def distance_matrix():
     dm = ChunkedDistanceMatrix(5)
-    dm.add_value(0, 1, 2.5)
-    dm.add_value(2, 3, 1.5)
+    dm.add_value(1, 0, 2.5)
+    dm.add_value(3, 2, 1.5)
     return dm
 
 
 def test_add_value():
     dm = ChunkedDistanceMatrix(5)
-    dm.add_value(0, 1, 2.5)
+    dm.add_value(1, 0, 2.5)
     assert dm.values[0] == 2.5
 
     with pytest.raises(ValueError):
@@ -153,30 +153,3 @@ def test_save_load(distance_matrix):
     )
 
     os.remove(filename)  # Cleanup
-
-
-def test_combine_and_concat():
-    dm = ChunkedDistanceMatrix(5, chunk_size=10)
-    dm.add_value(0, 1, 2.5)
-    dm.add_value(2, 3, 1.5)
-    dm2 = ChunkedDistanceMatrix(5, chunk_size=10)
-    dm2.add_value(1, 2, 3.5)
-    dm2.add_value(3, 4, 0.5)
-
-    composed = dm.combine(dm2)
-
-    assert composed.values[0] == 2.5
-    assert composed.values[1] == 1.5
-    assert composed.values[2] == 3.5
-    assert composed.values[3] == 0.5
-
-    with pytest.raises(ValueError):
-        dm3 = ChunkedDistanceMatrix(6, chunk_size=10)  # Different size
-        dm2.combine(dm3)
-
-    concatted = ChunkedDistanceMatrix.concat([dm, dm2])
-
-    assert concatted.values[0] == 2.5
-    assert concatted.values[1] == 1.5
-    assert concatted.values[2] == 3.5
-    assert concatted.values[3] == 0.5

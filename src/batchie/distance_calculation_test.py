@@ -5,6 +5,7 @@ import pytest
 from batchie import distance_calculation
 from batchie.core import BayesianModel, DistanceMetric, ThetaHolder
 from batchie.data import Experiment
+from batchie.distance_calculation import ChunkedDistanceMatrix
 
 
 @pytest.fixture
@@ -99,3 +100,42 @@ def test_get_lower_triangular_indices_chunk(n, n_chunks):
     assert np.sum(mat) == distance_calculation.get_number_of_lower_triangular_indices(n)
 
     np.testing.assert_array_equal(mat, np.tril(mat))
+
+
+def test_combine_and_concat():
+    dm = ChunkedDistanceMatrix(5, chunk_size=2)
+    dm.add_value(1, 0, 2.5)
+    dm.add_value(3, 2, 1.5)
+    dm2 = ChunkedDistanceMatrix(5, chunk_size=2)
+    dm2.add_value(2, 1, 3.5)
+    dm2.add_value(4, 3, 0.5)
+    dm3 = ChunkedDistanceMatrix(5, chunk_size=2)
+    dm3.add_value(2, 2, 6.5)
+    dm3.add_value(4, 0, 7.5)
+
+    composed = dm.combine(dm2)
+
+    assert composed.values[0] == 2.5
+    assert composed.values[1] == 1.5
+    assert composed.values[2] == 3.5
+    assert composed.values[3] == 0.5
+
+    with pytest.raises(ValueError):
+        dm_other_size = ChunkedDistanceMatrix(6, chunk_size=10)  # Different size
+        dm2.combine(dm_other_size)
+
+    concatted = ChunkedDistanceMatrix.concat([dm, dm2])
+
+    assert concatted.values[0] == 2.5
+    assert concatted.values[1] == 1.5
+    assert concatted.values[2] == 3.5
+    assert concatted.values[3] == 0.5
+
+    concatted2 = ChunkedDistanceMatrix.concat([dm, dm2, dm3])
+
+    assert concatted2.values[0] == 2.5
+    assert concatted2.values[1] == 1.5
+    assert concatted2.values[2] == 3.5
+    assert concatted2.values[3] == 0.5
+    assert concatted2.values[4] == 6.5
+    assert concatted2.values[5] == 7.5
