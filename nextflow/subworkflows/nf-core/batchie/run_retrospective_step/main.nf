@@ -20,8 +20,6 @@ workflow RUN_RETROSPECTIVE_STEP {
     ch_input  // channel: [ val(meta), path(masked_experiment), path(unmasked_experiment), path(experiment_tracker), val(n_chains), val(n_chunks) ]
 
     main:
-    output_channel = Channel.fromList([])
-
     ch_input.flatMap { create_parallel_sequence(it[0], it[4]) }.tap { chain_sequence }
 
     ch_input.map { tuple(it[0], it[1]) }.combine(chain_sequence, by: 0).tap { train_model_input }
@@ -42,23 +40,22 @@ workflow RUN_RETROSPECTIVE_STEP {
         .join(CALCULATE_DISTANCE_MATRIX_CHUNK.out.distance_matrix_chunk.groupTuple())
         .tap { meta_exp_theta_dist }
 
-    meta_exp_theta_dist.view()
-
     SELECT_NEXT_BATCH( meta_exp_theta_dist )
 
- /*
     advance_retrospective_experiment_input = ch_input.map { tuple(it[0], it[1], it[2]) }
         .join(TRAIN_MODEL.out.thetas.groupTuple())
-        .join(SELECT_NEXT_BATCH.out.batch_selection)
+        .join(SELECT_NEXT_BATCH.out.selected_plates)
         .join(ch_input.map { tuple(it[0], it[3]) })
+        .tap { advance_retrospective_experiment_input }
 
     ADVANCE_RETROSPECTIVE_EXPERIMENT( advance_retrospective_experiment_input )
 
-    output_channel = ADVANCE_RETROSPECTIVE_EXPERIMENT.out.advanced_experiment
+    ADVANCE_RETROSPECTIVE_EXPERIMENT.out.advanced_experiment
         .join(ch_input.map { tuple(it[0], it[2]) })
         .join(ADVANCE_RETROSPECTIVE_EXPERIMENT.out.experiment_tracker)
         .join(ch_input.map { tuple(it[0], it[4], it[5]) })
-    */
+        .tap { output_channel }
+
     emit:
     ch_output       = output_channel
 }
