@@ -5,7 +5,7 @@ import pytest
 import numpy as np
 import json
 from batchie.cli import select_next_batch
-from batchie.core import DistanceMatrix
+from batchie.distance_calculation import ChunkedDistanceMatrix
 from batchie.models.sparse_combo import SparseDrugComboResults
 from batchie.data import Experiment
 from batchie.common import SELECTED_PLATES_KEY
@@ -30,10 +30,10 @@ def test_dataset():
 
 @pytest.fixture
 def test_dist_matrix():
-    distance_matrix = DistanceMatrix(size=10)
+    distance_matrix = ChunkedDistanceMatrix(size=10)
 
     for i in range(10):
-        for j in range(10):
+        for j in range(i):
             distance_matrix.add_value(i, j, i + j)
     return distance_matrix
 
@@ -51,7 +51,7 @@ def test_main(mocker, test_dataset, test_dist_matrix, use_policy):
         "RandomScorer",
         "--data",
         os.path.join(tmpdir, "data.h5"),
-        "--samples",
+        "--thetas",
         os.path.join(tmpdir, "samples.h5"),
         "--output",
         os.path.join(tmpdir, "results.json"),
@@ -73,7 +73,7 @@ def test_main(mocker, test_dataset, test_dist_matrix, use_policy):
 
     test_dataset.save_h5(os.path.join(tmpdir, "data.h5"))
     results_holder = SparseDrugComboResults(
-        n_samples=10,
+        n_thetas=10,
         n_unique_samples=test_dataset.n_unique_samples,
         n_unique_treatments=test_dataset.n_unique_treatments,
         n_embedding_dimensions=5,

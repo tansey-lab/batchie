@@ -22,7 +22,7 @@ def get_parser():
     parser.add_argument("--experiment-output", type=str, required=True)
     parser.add_argument("--experiment-tracker-input", type=str, required=True)
     parser.add_argument("--experiment-tracker-output", type=str, required=True)
-    parser.add_argument("--samples", type=str, required=True, nargs="+")
+    parser.add_argument("--thetas", type=str, required=True, nargs="+")
     parser.add_argument("--model", type=str, required=True)
     parser.add_argument(
         "--model-param",
@@ -66,7 +66,7 @@ def main():
 
     model: BayesianModel = args.model_cls(**args.model_params)
     theta_holder: ThetaHolder = model.get_results_holder(n_samples=1)
-    thetas = theta_holder.concat([theta_holder.load_h5(x) for x in args.samples])
+    thetas = theta_holder.concat([theta_holder.load_h5(x) for x in args.thetas])
 
     unmasked_experiment = Experiment.load_h5(args.unmasked_experiment)
 

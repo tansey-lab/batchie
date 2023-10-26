@@ -3,9 +3,9 @@ from batchie.common import ArrayType
 from batchie.core import (
     Scorer,
     BayesianModel,
-    DistanceMatrix,
     ThetaHolder,
 )
+from batchie.distance_calculation import ChunkedDistanceMatrix
 from batchie.models.main import predict_all
 from batchie.data import Plate
 from scipy.special import logsumexp, comb
@@ -158,7 +158,7 @@ class GaussianDBALScorer(Scorer):
         self,
         model: BayesianModel,
         plates: list[Plate],
-        distance_matrix: DistanceMatrix,
+        distance_matrix: ChunkedDistanceMatrix,
         samples: ThetaHolder,
         rng: np.random.Generator,
     ) -> dict[int, float]:

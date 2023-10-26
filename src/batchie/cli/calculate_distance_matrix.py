@@ -1,5 +1,5 @@
 import argparse
-from itertools import combinations
+from itertools import product
 
 import numpy as np
 from batchie import introspection
@@ -17,7 +17,7 @@ def get_parser():
     parser = argparse.ArgumentParser(description="calculate_distance_matrix.py")
     log_config.add_logging_args(parser)
     parser.add_argument("--data", type=str, required=True)
-    parser.add_argument("--samples", type=str, required=True, nargs="+")
+    parser.add_argument("--thetas", type=str, required=True, nargs="+")
     parser.add_argument("--distance-metric", type=str, required=True)
     parser.add_argument(
         "--distance-metric-param",
@@ -89,29 +89,19 @@ def main():
 
     model: BayesianModel = args.model_cls(**args.model_params)
 
-    samples_holder: ThetaHolder = model.get_results_holder(n_samples=1)
+    thetas_holder: ThetaHolder = model.get_results_holder(n_samples=1)
 
-    samples = samples_holder.concat([samples_holder.load_h5(x) for x in args.samples])
+    thetas = thetas_holder.concat([thetas_holder.load_h5(x) for x in args.thetas])
 
     distance_metric: DistanceMetric = args.metric_cls(**args.metric_params)
 
-    if args.n_chunks > 1:
-        idx_chunks = np.array_split(np.arange(samples.n_thetas), args.n_chunks)
-
-        chunk_to_run = sorted(list(combinations(idx_chunks, 2)))[args.chunk_index]
-
-        chunk_indices = tuple([np.array(chunk_to_run[0]), np.array(chunk_to_run[1])])
-    else:
-        chunk_indices = tuple(
-            [np.arange(samples.n_thetas), np.arange(samples.n_thetas)]
-        )
-
     result = calculate_pairwise_distance_matrix_on_predictions(
         model=model,
-        samples=samples,
+        thetas=thetas,
         distance_metric=distance_metric,
         data=data,
-        chunk_indices=chunk_indices,
+        chunk_index=args.chunk_index,
+        n_chunks=args.n_chunks,
     )
 
     result.save(args.output)

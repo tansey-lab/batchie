@@ -1,0 +1,5 @@
+- name: train_model
+  command: nextflow run ./nextflow/tests/modules/nf-core/batchie/train_model -entry train_model -c ./nextflow/tests/modules/nf-core/batchie/train_model/nextflow.config -c ./nextflow/tests/config/nextflow.config
+  tags:
+    - train_model
+  files: []

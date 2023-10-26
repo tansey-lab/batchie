@@ -1,14 +1,18 @@
 from typing import Optional
 
 import numpy as np
+import logging
 from batchie.core import (
     Scorer,
     PlatePolicy,
     BayesianModel,
     ThetaHolder,
-    DistanceMatrix,
 )
+from batchie.distance_calculation import ChunkedDistanceMatrix
 from batchie.data import Experiment, Plate
+
+
+logger = logging.getLogger(__name__)
 
 
 def select_next_batch(
@@ -16,7 +20,7 @@ def select_next_batch(
     scorer: Scorer,
     samples: ThetaHolder,
     experiment_space: Experiment,
-    distance_matrix: DistanceMatrix,
+    distance_matrix: ChunkedDistanceMatrix,
     policy: Optional[PlatePolicy],
     batch_size: int = 1,
     rng: Optional[np.random.Generator] = None,
@@ -41,6 +45,10 @@ def select_next_batch(
                 unobserved_plates=unobserved_plates,
                 rng=rng,
             )
+
+        if not eligible_plates:
+            logger.warning("No eligible plates remaining, exiting early.")
+            break
 
         scores: dict[int, float] = scorer.score(
             plates=eligible_plates,

@@ -38,6 +38,65 @@ def test_dataset():
     return test_dataset
 
 
+Experiment(
+    observations=np.array([0.1, 0.2, 0.3, 0.4, 0.1, 0.2]),
+    sample_names=np.array(["a", "a", "a", "a", "a", "a"], dtype=str),
+    plate_names=np.array(["a", "a", "b", "b", "c", "c"], dtype=str),
+    treatment_names=np.array(
+        [
+            ["a", "control"],
+            ["b", "control"],
+            ["a", "b"],
+            ["a", "b"],
+            ["a", "b"],
+            ["a", "b"],
+        ],
+        dtype=str,
+    ),
+    treatment_doses=np.array(
+        [
+            [2.0, 2.0],
+            [2.0, 2.0],
+            [2.0, 2.0],
+            [2.0, 2.0],
+            [2.0, 2.0],
+            [2.0, 2.0],
+        ]
+    ),
+    control_treatment_name="control",
+)
+
+
+Experiment(
+    observations=np.array([0.1, 0.2, 0, 0, 0, 0]),
+    observation_mask=np.array([True, True, False, False, False, False]),
+    sample_names=np.array(["a", "a", "a", "a", "a", "a"], dtype=str),
+    plate_names=np.array(["a", "a", "b", "b", "c", "c"], dtype=str),
+    treatment_names=np.array(
+        [
+            ["a", "control"],
+            ["b", "control"],
+            ["a", "b"],
+            ["a", "b"],
+            ["a", "b"],
+            ["a", "b"],
+        ],
+        dtype=str,
+    ),
+    treatment_doses=np.array(
+        [
+            [2.0, 2.0],
+            [2.0, 2.0],
+            [2.0, 2.0],
+            [2.0, 2.0],
+            [2.0, 2.0],
+            [2.0, 2.0],
+        ]
+    ),
+    control_treatment_name="control",
+)
+
+
 def test_step_with_observed_data(test_dataset):
     model = sparse_combo_interaction.SparseDrugComboInteraction(
         n_embedding_dimensions=5, n_unique_treatments=2, n_unique_samples=4
@@ -85,7 +144,7 @@ def test_results_holder_serde(test_dataset):
     )
 
     results_holder = sparse_combo_interaction.SparseDrugComboInteractionResults(
-        n_samples=2,
+        n_thetas=2,
         n_embedding_dimensions=5,
         n_unique_treatments=test_dataset.treatment_arity,
         n_unique_samples=test_dataset.n_unique_samples,

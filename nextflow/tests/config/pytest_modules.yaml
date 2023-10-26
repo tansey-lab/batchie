@@ -1,0 +1,3 @@
+batchie:
+  - modules/nf-core/batchie/**
+  - tests/modules/nf-core/batchie/**
