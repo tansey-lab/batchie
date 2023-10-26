@@ -260,6 +260,13 @@ class ExperimentTracker:
         return cls(**data)
 
 
+class InitialRetrospectivePlateGenerator:
+    def generate_and_unmask_initial_plate(
+        self, experiment: Experiment, rng: np.random.BitGenerator
+    ) -> Experiment:
+        raise NotImplementedError
+
+
 class RetrospectivePlateGenerator:
     def generate_plates(
         self, experiment: Experiment, rng: np.random.BitGenerator
