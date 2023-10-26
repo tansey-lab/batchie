@@ -7,8 +7,8 @@ from batchie.core import (
     PlatePolicy,
     BayesianModel,
     ThetaHolder,
-    DistanceMatrix,
 )
+from batchie.distance_calculation import ChunkedDistanceMatrix
 from batchie.data import Experiment, Plate
 
 
@@ -20,7 +20,7 @@ def select_next_batch(
     scorer: Scorer,
     samples: ThetaHolder,
     experiment_space: Experiment,
-    distance_matrix: DistanceMatrix,
+    distance_matrix: ChunkedDistanceMatrix,
     policy: Optional[PlatePolicy],
     batch_size: int = 1,
     rng: Optional[np.random.Generator] = None,

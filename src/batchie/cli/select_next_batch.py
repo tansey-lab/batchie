@@ -13,9 +13,9 @@ from batchie.core import (
     BayesianModel,
     ThetaHolder,
     Scorer,
-    DistanceMatrix,
     PlatePolicy,
 )
+from batchie.distance_calculation import ChunkedDistanceMatrix
 from batchie.data import Experiment
 from batchie.scoring.main import select_next_batch
 from batchie.common import N_UNIQUE_SAMPLES, N_UNIQUE_TREATMENTS, SELECTED_PLATES_KEY
@@ -131,8 +131,8 @@ def main():
     theta_holder: ThetaHolder = model.get_results_holder(n_samples=1)
     thetas = theta_holder.concat([theta_holder.load_h5(x) for x in args.thetas])
 
-    distance_matrix = DistanceMatrix.concat(
-        [DistanceMatrix.load(x) for x in args.distance_matrix]
+    distance_matrix = ChunkedDistanceMatrix.concat(
+        [ChunkedDistanceMatrix.load(x) for x in args.distance_matrix]
     )
     policy = None
     if args.policy is not None:

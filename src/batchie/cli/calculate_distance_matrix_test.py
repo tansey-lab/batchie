@@ -3,7 +3,7 @@ import shutil
 import tempfile
 
 from batchie.cli import calculate_distance_matrix
-from batchie.core import DistanceMatrix
+from batchie.distance_calculation import ChunkedDistanceMatrix
 from batchie.models.sparse_combo import SparseDrugComboResults
 
 
@@ -44,7 +44,7 @@ def test_main_complete(mocker, test_combo_dataset):
     mocker.patch("sys.argv", command_line_args)
     try:
         calculate_distance_matrix.main()
-        results = DistanceMatrix.load(os.path.join(tmpdir, "matrix.h5"))
+        results = ChunkedDistanceMatrix.load(os.path.join(tmpdir, "matrix.h5"))
         assert results.is_complete()
 
     finally:
@@ -90,12 +90,12 @@ def test_main_partial(mocker, test_combo_dataset):
         mocker.patch("sys.argv", command_line_args)
         try:
             calculate_distance_matrix.main()
-            results = DistanceMatrix.load(os.path.join(tmpdir, "matrix.h5"))
+            results = ChunkedDistanceMatrix.load(os.path.join(tmpdir, "matrix.h5"))
             assert not results.is_complete()
             all_results.append(results)
 
         finally:
             shutil.rmtree(tmpdir)
 
-    end_result = DistanceMatrix.concat(all_results)
+    end_result = ChunkedDistanceMatrix.concat(all_results)
     assert end_result.is_complete()

@@ -4,11 +4,11 @@ import numpy as np
 import pytest
 from batchie.core import (
     BayesianModel,
-    DistanceMatrix,
     ThetaHolder,
     Scorer,
     PlatePolicy,
 )
+from batchie.distance_calculation import ChunkedDistanceMatrix
 from batchie.scoring import main
 from batchie.data import Experiment
 
@@ -44,7 +44,7 @@ def test_select_next_batch_with_policy(test_experiment):
         scorer=scorer,
         samples=mock.MagicMock(ThetaHolder),
         experiment_space=test_experiment,
-        distance_matrix=mock.MagicMock(DistanceMatrix),
+        distance_matrix=mock.MagicMock(ChunkedDistanceMatrix),
         policy=policy,
     )
 
@@ -60,7 +60,7 @@ def test_select_next_batch_without_policy(test_experiment):
         scorer=scorer,
         samples=mock.MagicMock(ThetaHolder),
         experiment_space=test_experiment,
-        distance_matrix=mock.MagicMock(DistanceMatrix),
+        distance_matrix=mock.MagicMock(ChunkedDistanceMatrix),
         policy=None,
     )
 

@@ -3,10 +3,10 @@ import numpy as np
 from batchie.core import (
     Scorer,
     BayesianModel,
-    DistanceMatrix,
     ThetaHolder,
     Plate,
 )
+from batchie.distance_calculation import ChunkedDistanceMatrix
 
 
 class SizeScorer(Scorer):
@@ -14,7 +14,7 @@ class SizeScorer(Scorer):
         self,
         model: BayesianModel,
         plates: list[Plate],
-        distance_matrix: DistanceMatrix,
+        distance_matrix: ChunkedDistanceMatrix,
         samples: ThetaHolder,
         rng: np.random.Generator,
     ) -> dict[int, float]:

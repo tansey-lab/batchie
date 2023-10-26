@@ -4,7 +4,8 @@ from dataclasses import dataclass
 import numpy as np
 import pytest
 from batchie.common import ArrayType
-from batchie.core import DistanceMatrix, ThetaHolder, Theta
+from batchie.core import ThetaHolder, Theta
+from batchie.distance_calculation import ChunkedDistanceMatrix
 
 
 @dataclass
@@ -88,14 +89,14 @@ def test_samples_holder_concat():
 
 @pytest.fixture
 def distance_matrix():
-    dm = DistanceMatrix(5, chunk_size=10)
+    dm = ChunkedDistanceMatrix(5)
     dm.add_value(0, 1, 2.5)
     dm.add_value(2, 3, 1.5)
     return dm
 
 
 def test_add_value():
-    dm = DistanceMatrix(5, chunk_size=10)
+    dm = ChunkedDistanceMatrix(5)
     dm.add_value(0, 1, 2.5)
     assert dm.values[0] == 2.5
 
@@ -104,7 +105,7 @@ def test_add_value():
 
 
 def test_is_complete():
-    distance_matrix = DistanceMatrix(5, chunk_size=25)
+    distance_matrix = ChunkedDistanceMatrix(5)
 
     assert not distance_matrix.is_complete()
 
@@ -117,7 +118,7 @@ def test_is_complete():
 
 
 def test_to_dense():
-    distance_matrix = DistanceMatrix(5, chunk_size=10)
+    distance_matrix = ChunkedDistanceMatrix(5)
     with pytest.raises(ValueError):
         distance_matrix.to_dense()  # Incomplete matrix
 
@@ -137,7 +138,7 @@ def test_save_load(distance_matrix):
     distance_matrix.save(filename)
     assert os.path.exists(filename)
 
-    loaded = DistanceMatrix.load(filename)
+    loaded = ChunkedDistanceMatrix.load(filename)
     assert np.array_equal(
         loaded.row_indices[: loaded.current_index],
         distance_matrix.row_indices[: distance_matrix.current_index],
@@ -155,10 +156,10 @@ def test_save_load(distance_matrix):
 
 
 def test_combine_and_concat():
-    dm = DistanceMatrix(5, chunk_size=10)
+    dm = ChunkedDistanceMatrix(5, chunk_size=10)
     dm.add_value(0, 1, 2.5)
     dm.add_value(2, 3, 1.5)
-    dm2 = DistanceMatrix(5, chunk_size=10)
+    dm2 = ChunkedDistanceMatrix(5, chunk_size=10)
     dm2.add_value(1, 2, 3.5)
     dm2.add_value(3, 4, 0.5)
 
@@ -170,10 +171,10 @@ def test_combine_and_concat():
     assert composed.values[3] == 0.5
 
     with pytest.raises(ValueError):
-        dm3 = DistanceMatrix(6, chunk_size=10)  # Different size
+        dm3 = ChunkedDistanceMatrix(6, chunk_size=10)  # Different size
         dm2.combine(dm3)
 
-    concatted = DistanceMatrix.concat([dm, dm2])
+    concatted = ChunkedDistanceMatrix.concat([dm, dm2])
 
     assert concatted.values[0] == 2.5
     assert concatted.values[1] == 1.5
