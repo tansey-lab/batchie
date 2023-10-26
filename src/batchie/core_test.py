@@ -110,7 +110,7 @@ def test_is_complete():
 
     # Fill up the matrix to make it complete
     for i in range(5):
-        for j in range(5):
+        for j in range(i):
             distance_matrix.add_value(i, j, 1.0)
 
     assert distance_matrix.is_complete()
@@ -123,12 +123,13 @@ def test_to_dense():
 
     # Fill up the matrix to make it complete
     for i in range(5):
-        for j in range(5):
+        for j in range(i):
             distance_matrix.add_value(i, j, 1.0)
 
     dense = distance_matrix.to_dense()
     assert isinstance(dense, np.ndarray)
-    assert dense[0, 1] == 1.0
+    assert dense[1, 0] == 1.0
+    np.testing.assert_array_equal(dense, np.tril(dense))
 
 
 def test_save_load(distance_matrix):

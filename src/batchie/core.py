@@ -177,6 +177,11 @@ class Metric:
 
 
 class DistanceMetric:
+    """
+    This class represents a symmetric distance metric between two arrays
+    of model predictions.
+    """
+
     def distance(self, a: ArrayType, b: ArrayType) -> float:
         raise NotImplementedError
 
@@ -223,7 +228,7 @@ class DistanceMatrix:
         self.current_index += 1
 
     def is_complete(self):
-        return self.current_index == (self.size * self.size)
+        return self.current_index == (self.size * (self.size - 1) // 2)
 
     def to_dense(self):
         if not self.is_complete():

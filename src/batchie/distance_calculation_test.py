@@ -51,7 +51,8 @@ def test_calculate_pairwise_distance_matrix_on_predictions(test_dataset):
         thetas=samples_holder,
         distance_metric=mock.MagicMock(DistanceMetric),
         data=test_dataset,
-        chunk_indices=(np.array([0, 1]), np.array([0, 1])),
+        chunk_index=0,
+        n_chunks=2,
     )
 
     assert not result.is_complete()
@@ -61,7 +62,40 @@ def test_calculate_pairwise_distance_matrix_on_predictions(test_dataset):
         thetas=samples_holder,
         distance_metric=mock.MagicMock(DistanceMetric),
         data=test_dataset,
-        chunk_indices=(np.array([0, 1, 2]), np.array([0, 1, 2])),
+        chunk_index=0,
+        n_chunks=1,
     )
 
     assert result2.is_complete()
+
+
+@pytest.mark.parametrize(
+    "n,n_chunks",
+    [
+        (10, 1),
+        (10, 2),
+        (10, 3),
+        (10, 4),
+        (10, 5),
+        (10, 6),
+        (10, 7),
+        (10, 8),
+        (10, 9),
+        (10, 10),
+    ],
+)
+def test_get_lower_triangular_indices_chunk(n, n_chunks):
+    mat = np.zeros((n, n))
+
+    for chunk_index in range(n_chunks):
+        for x, y in distance_calculation.get_lower_triangular_indices_chunk(
+            n=n, chunk_index=chunk_index, n_chunks=n_chunks
+        ):
+            mat[x, y] += 1
+
+    for x, y in distance_calculation.lower_triangular_indices(n):
+        assert mat[x, y] == 1
+
+    assert np.sum(mat) == distance_calculation.get_number_of_lower_triangular_indices(n)
+
+    np.testing.assert_array_equal(mat, np.tril(mat))

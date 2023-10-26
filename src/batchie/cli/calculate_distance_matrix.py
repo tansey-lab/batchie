@@ -1,5 +1,5 @@
 import argparse
-from itertools import combinations
+from itertools import product
 
 import numpy as np
 from batchie import introspection
@@ -95,23 +95,13 @@ def main():
 
     distance_metric: DistanceMetric = args.metric_cls(**args.metric_params)
 
-    if args.n_chunks > 1:
-        idx_chunks = np.array_split(np.arange(thetas.n_thetas), args.n_chunks)
-
-        chunk_to_run = sorted(list(combinations(idx_chunks, 2)), key=lambda x: repr(x))[
-            args.chunk_index
-        ]
-
-        chunk_indices = tuple([np.array(chunk_to_run[0]), np.array(chunk_to_run[1])])
-    else:
-        chunk_indices = tuple([np.arange(thetas.n_thetas), np.arange(thetas.n_thetas)])
-
     result = calculate_pairwise_distance_matrix_on_predictions(
         model=model,
         thetas=thetas,
         distance_metric=distance_metric,
         data=data,
-        chunk_indices=chunk_indices,
+        chunk_index=args.chunk_index,
+        n_chunks=args.n_chunks,
     )
 
     result.save(args.output)
