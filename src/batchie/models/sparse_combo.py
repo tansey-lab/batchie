@@ -5,7 +5,7 @@ from typing import Optional
 
 import h5py
 import numpy as np
-from batchie import synergy
+
 from batchie.common import ArrayType, copy_array_with_control_treatments_set_to_zero
 from batchie.core import BayesianModel, Theta, ThetaHolder
 from batchie.data import ExperimentBase
@@ -354,11 +354,12 @@ class SparseDrugCombo(BayesianModel):
         elif data.treatment_arity == 2:
             predictions = predict(state, data)
             if self.predict_interactions:
-                single_effects = synergy.create_single_treatment_effect_array(
-                    sample_ids=data.sample_ids,
-                    treatment_ids=data.treatment_ids,
-                    observation=data.observations,
-                )
+                single_effects = data.single_treatment_effects
+
+                if single_effects is None:
+                    raise ValueError(
+                        "Cannot predict interactions without observed single treatment effects"
+                    )
 
                 return interactions_to_logits(
                     predictions, single_effects, self.interaction_log_transform
