@@ -84,7 +84,7 @@ def create_sarcoma_plates(
     Each plate will contain all pairwise combinations of the two groups of drug doses
     restricted to a single cell line
 
-    IF you do this for GDCS youll get weird plates because they have some "anchor drugs"
+    IF you do this for GDCS you'll get weird plates because they have some "anchor drugs"
     that are used in almost every experiment. So you need to make sure that you have
     <anchor_size> anchor drugs in each group
     """

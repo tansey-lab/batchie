@@ -4,6 +4,8 @@ from dataclasses import dataclass
 
 import h5py
 import numpy as np
+
+import batchie.data
 from batchie import synergy
 from batchie.common import ArrayType, copy_array_with_control_treatments_set_to_zero
 from batchie.common import CONTROL_SENTINEL_VALUE
@@ -199,7 +201,7 @@ class SparseDrugComboInteraction(SparseDrugCombo):
             )
 
         self.single_effect_lookup.update(
-            synergy.create_single_treatment_effect_map(
+            batchie.data.create_single_treatment_effect_map(
                 sample_ids=data.sample_ids,
                 treatment_ids=data.treatment_ids,
                 observation=data.observations,

@@ -69,6 +69,74 @@ def encode_1d_array_to_0_indexed_ids(arr: ArrayType):
     return np.array([mapping[x] for x in arr])
 
 
+def create_single_treatment_effect_map(
+    sample_ids: ArrayType,
+    treatment_ids: ArrayType,
+    observation: ArrayType,
+):
+    if treatment_ids.shape[1] < 2:
+        raise ValueError(
+            "Experiment must have more than one treatment to get single treatment effects"
+        )
+
+    # find observations where all but one treatment ids are control
+    single_treatment_mask = np.sum(treatment_ids == CONTROL_SENTINEL_VALUE, axis=1) == (
+        treatment_ids.shape[1] - 1
+    )
+    single_treatment_observations = observation[single_treatment_mask]
+    single_treatment_treatments = np.sort(
+        treatment_ids[single_treatment_mask, :], axis=1
+    )[:, -1]
+    single_treatment_sample_ids = sample_ids[single_treatment_mask]
+
+    result: dict[tuple[int, int], float] = {}
+
+    for current_sample_id in np.unique(sample_ids):
+        for current_treatment_id in np.unique(treatment_ids.flatten()):
+            if current_treatment_id == CONTROL_SENTINEL_VALUE:
+                result[(current_sample_id, current_treatment_id)] = 1.0
+                continue
+
+            mask = (single_treatment_treatments == current_treatment_id) & (
+                single_treatment_sample_ids == current_sample_id
+            )
+
+            if not np.any(mask):
+                continue
+
+            single_effect = np.mean(single_treatment_observations[mask])
+            result[(current_sample_id, current_treatment_id)] = single_effect
+
+    return result
+
+
+def create_single_treatment_effect_array(
+    sample_ids: ArrayType,
+    treatment_ids: ArrayType,
+    observation: ArrayType,
+):
+    single_treatment_effect_map = create_single_treatment_effect_map(
+        sample_ids=sample_ids,
+        treatment_ids=treatment_ids,
+        observation=observation,
+    )
+
+    result = np.ones_like(treatment_ids, dtype=float)
+
+    for idx, (current_sample_id, current_treatment_ids) in enumerate(
+        zip(
+            sample_ids,
+            treatment_ids,
+        )
+    ):
+        for treatment_idx, current_treatment_id in enumerate(current_treatment_ids):
+            result[idx, treatment_idx] = single_treatment_effect_map[
+                (current_sample_id, current_treatment_id)
+            ]
+
+    return result
+
+
 class ExperimentBase(ABC):
     @property
     @abstractmethod
@@ -88,6 +156,11 @@ class ExperimentBase(ABC):
     @property
     @abstractmethod
     def observations(self):
+        return NotImplemented
+
+    @property
+    @abstractmethod
+    def single_treatment_effects(self) -> Optional[ArrayType]:
         return NotImplemented
 
     @property
@@ -161,6 +234,12 @@ class ExperimentSubset(ExperimentBase):
     @property
     def observations(self):
         return self.dataset.observations[self.selection_vector]
+
+    @property
+    def single_treatment_effects(self) -> Optional[ArrayType]:
+        if self.dataset.single_treatment_effects is None:
+            return None
+        return self.dataset.single_treatment_effects[self.selection_vector]
 
     @property
     def observation_mask(self):
@@ -347,6 +426,18 @@ class Experiment(ExperimentBase):
     @property
     def observations(self):
         return self._observations
+
+    @property
+    def single_treatment_effects(self) -> Optional[ArrayType]:
+        try:
+            return create_single_treatment_effect_array(
+                sample_ids=self.sample_ids,
+                treatment_ids=self.treatment_ids,
+                observation=self.observations,
+            )
+        except KeyError:
+            logger.warning("Could not create single treatment effects array.")
+            return None
 
     @property
     def observation_mask(self):
