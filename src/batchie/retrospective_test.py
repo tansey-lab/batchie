@@ -42,6 +42,44 @@ def test_dataset():
 
 
 @pytest.fixture
+def unobserved_dataset():
+    test_dataset = Experiment(
+        observations=np.array([0.1, 0.2, 0.3, 0.4, 0.1, 0.2, 0.3, 0.4]),
+        observation_mask=np.array(
+            [False, False, False, False, False, False, False, False]
+        ),
+        sample_names=np.array(["a", "b", "c", "d", "a", "b", "c", "d"], dtype=str),
+        plate_names=np.array(["a", "a", "b", "b", "a", "a", "b", "b"], dtype=str),
+        treatment_names=np.array(
+            [
+                ["a", "b"],
+                ["a", "b"],
+                ["a", "b"],
+                ["a", "b"],
+                ["a", "b"],
+                ["a", "b"],
+                ["a", "b"],
+                ["a", "b"],
+            ],
+            dtype=str,
+        ),
+        treatment_doses=np.array(
+            [
+                [2.0, 2.0],
+                [2.0, 2.0],
+                [2.0, 2.0],
+                [2.0, 2.0],
+                [2.0, 2.0],
+                [2.0, 2.0],
+                [2.0, 2.0],
+                [2.0, 2.0],
+            ]
+        ),
+    )
+    return test_dataset
+
+
+@pytest.fixture
 def masked_dataset():
     return Experiment(
         observations=np.array([0.1, 0.2, 0.3, 0.4, 0.1, 0.2, 0, 0]),
@@ -86,24 +124,29 @@ def test_create_sparse_cover_plate(test_dataset):
 
 
 @pytest.mark.parametrize("anchor_size", [0, 1])
-def test_create_sarcoma_plates(anchor_size, test_dataset):
+def test_create_sarcoma_plates(anchor_size, unobserved_dataset):
     rng = np.random.default_rng(0)
 
-    result = retrospective.create_sarcoma_plates(
-        test_dataset, subset_size=1, anchor_size=anchor_size, rng=rng
+    plate_generator = retrospective.PairwisePlateGenerator(
+        subset_size=1, anchor_size=anchor_size
     )
 
-    assert sum([x.size for x in result]) == test_dataset.size
-    assert len(result) == len(np.unique(test_dataset.sample_ids))
+    result = plate_generator.generate_plates(unobserved_dataset, rng)
+
+    assert result.size == unobserved_dataset.size
 
 
-def test_randomly_sample_plates(test_dataset):
-    result = retrospective.randomly_sample_plates(
-        test_dataset, proportion_of_plates_to_sample=0.5, rng=np.random.default_rng(0)
+@pytest.mark.parametrize("force_include_plate_names", [["a"], None])
+def test_randomly_sample_plates(unobserved_dataset, force_include_plate_names):
+    rng = np.random.default_rng(0)
+
+    plate_generator = retrospective.RandomPlateGenerator(
+        force_include_plate_names=force_include_plate_names
     )
 
-    assert result.size == 4
-    assert result.unique_plate_ids.shape[0] == 1
+    result = plate_generator.generate_plates(unobserved_dataset, rng)
+
+    assert list(result.plate_names) != list(unobserved_dataset.plate_names)
 
 
 def test_randomly_sample_plates_with_force_include(test_dataset):

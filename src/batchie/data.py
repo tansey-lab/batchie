@@ -205,7 +205,7 @@ class ExperimentBase(ABC):
         return self.unique_plate_ids.shape[0]
 
     @abstractmethod
-    def combine(self, other: "Plate"):
+    def combine(self, other):
         raise NotImplementedError
 
 
@@ -252,7 +252,7 @@ class ExperimentSubset(ExperimentBase):
     def invert(self):
         return Plate(self.dataset, ~self.selection_vector)
 
-    def combine(self, other: "Plate"):
+    def combine(self, other):
         if other.dataset is not self.dataset:
             raise ValueError("Cannot combine two subsets of different datasets")
         return Plate(self.dataset, self.selection_vector | other.selection_vector)
@@ -298,6 +298,10 @@ class Plate(ExperimentSubset):
             )
 
         return unique_plate_ids[0]
+
+    @property
+    def plate_name(self):
+        return self.dataset.plate_names[self.selection_vector][0]
 
 
 class Experiment(ExperimentBase):
@@ -476,6 +480,35 @@ class Experiment(ExperimentBase):
             observations=self.observations[selection_vector],
             sample_names=self.sample_names[selection_vector],
             plate_names=self.plate_names[selection_vector],
+            control_treatment_name=self.control_treatment_name,
+        )
+
+    def subset_unobserved(self) -> Optional["Experiment"]:
+        if np.any(~self.observation_mask):
+            return self.subset(~self.observation_mask)
+
+    def subset_observed(self) -> Optional["Experiment"]:
+        if np.any(self.observation_mask):
+            return self.subset(self.observation_mask)
+
+    def combine(self, other):
+        if not isinstance(other, Experiment):
+            raise ValueError("other must be an Experiment")
+        if other.control_treatment_name != self.control_treatment_name:
+            raise ValueError(
+                "Cannot combine experiments with different control treatment names"
+            )
+
+        return Experiment(
+            treatment_names=np.concatenate(
+                [self.treatment_names, other.treatment_names]
+            ),
+            treatment_doses=np.concatenate(
+                [self.treatment_doses, other.treatment_doses]
+            ),
+            observations=np.concatenate([self.observations, other.observations]),
+            sample_names=np.concatenate([self.sample_names, other.sample_names]),
+            plate_names=np.concatenate([self.plate_names, other.plate_names]),
             control_treatment_name=self.control_treatment_name,
         )
 

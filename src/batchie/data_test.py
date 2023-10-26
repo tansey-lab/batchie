@@ -76,6 +76,36 @@ def test_experiment_props():
     assert experiment.treatment_arity == 2
     assert experiment.n_plates == 2
 
+    first_half = experiment.subset(np.array([True, True, False, False]))
+    second_half = experiment.subset(np.array([False, False, True, True]))
+
+    assert first_half.size == 2
+    assert second_half.size == 2
+    together = first_half.combine(second_half)
+    assert together.size == 4
+    np.testing.assert_array_equal(
+        experiment.treatment_names,
+        together.treatment_names,
+    )
+    np.testing.assert_array_equal(
+        experiment.treatment_doses,
+        together.treatment_doses,
+    )
+    np.testing.assert_array_equal(
+        experiment.sample_names,
+        together.sample_names,
+    )
+    np.testing.assert_array_equal(
+        experiment.plate_names,
+        together.plate_names,
+    )
+    np.testing.assert_array_equal(
+        experiment.observations,
+        together.observations,
+    )
+
+    assert experiment.subset_unobserved().size == 2
+
 
 def test_experiment_subset_props():
     experiment = Experiment(

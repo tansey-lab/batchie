@@ -5,71 +5,77 @@ from batchie.common import CONTROL_SENTINEL_VALUE
 from batchie.data import Experiment, Plate
 from batchie.core import BayesianModel, ThetaHolder, RetrospectivePlateGenerator
 from batchie.models.main import predict_avg
+import logging
+
+logger = logging.getLogger(__name__)
 
 
-def create_sparse_cover_plate(
-    dataset: Experiment, rng: np.random.BitGenerator
-) -> Plate:
-    """
-    We want to make sure we have at least one observation for
-    each cell line/drug dose combination in the first plate
+class SparseCoverPlateGenerator(RetrospectivePlateGenerator):
+    def generate_plates(
+        self, experiment: Experiment, rng: np.random.BitGenerator
+    ) -> Plate:
+        """
+        We want to make sure we have at least one observation for
+        each cell line/drug dose combination in the first plate
 
-    This is called a greedy cover algorithm
+        This is called a greedy cover algorithm
 
-    We'll use this to construct the first plate, this initialization causes
-    faster convergence of the algorithm.
-    """
-    covered_treatments = set()
-    chosen_selection_indices = []
+        We'll use this to construct the first plate, this initialization causes
+        faster convergence of the algorithm.
+        """
+        covered_treatments = set()
+        chosen_selection_indices = []
 
-    for sample_id in dataset.unique_sample_ids:
-        experiments_with_at_least_one_treatment_not_in_covered_treatments = np.any(
-            ~np.isin(dataset.treatment_ids, list(covered_treatments)), axis=1
-        )
-
-        selection_vector = (
-            dataset.sample_ids == sample_id
-        ) & experiments_with_at_least_one_treatment_not_in_covered_treatments
-        if selection_vector.sum() > 0:
-            selection_indices = np.arange(selection_vector.size)[selection_vector]
-            chosen_selection_index = rng.choice(selection_indices, size=1)
-            chosen_selection_indices.append(chosen_selection_index)
-
-            covered_treatments.update(
-                set(dataset.treatment_ids[chosen_selection_indices].flatten())
-            )
-        else:  ## randomly choose some index corresponding to c
-            selection_vector = dataset.sample_ids == sample_id
-            selection_indices = np.arange(selection_vector.size)[selection_vector]
-            chosen_selection_index = rng.choice(selection_indices, size=1)
-            chosen_selection_indices.append(chosen_selection_index)
-            covered_treatments.update(
-                set(dataset.treatment_ids[chosen_selection_indices].flatten())
+        for sample_id in experiment.unique_sample_ids:
+            experiments_with_at_least_one_treatment_not_in_covered_treatments = np.any(
+                ~np.isin(experiment.treatment_ids, list(covered_treatments)), axis=1
             )
 
-    remaining_treatments = np.setdiff1d(dataset.treatment_ids, list(covered_treatments))
+            selection_vector = (
+                experiment.sample_ids == sample_id
+            ) & experiments_with_at_least_one_treatment_not_in_covered_treatments
+            if selection_vector.sum() > 0:
+                selection_indices = np.arange(selection_vector.size)[selection_vector]
+                chosen_selection_index = rng.choice(selection_indices, size=1)
+                chosen_selection_indices.append(chosen_selection_index)
 
-    while len(remaining_treatments) > 0:
-        experiments_with_at_least_one_treatment_in_remaining_treatments = np.any(
-            np.isin(dataset.treatment_ids, list(remaining_treatments)), axis=1
-        )
-        selection_indices = np.arange(selection_vector.size)[
-            experiments_with_at_least_one_treatment_in_remaining_treatments
-        ]
-        chosen_selection_index = rng.choice(selection_indices)
-        chosen_selection_indices.append(chosen_selection_index)
-        covered_treatments.update(
-            set(dataset.treatment_ids[chosen_selection_indices].flatten())
-        )
+                covered_treatments.update(
+                    set(experiment.treatment_ids[chosen_selection_indices].flatten())
+                )
+            else:  ## randomly choose some index corresponding to c
+                selection_vector = experiment.sample_ids == sample_id
+                selection_indices = np.arange(selection_vector.size)[selection_vector]
+                chosen_selection_index = rng.choice(selection_indices, size=1)
+                chosen_selection_indices.append(chosen_selection_index)
+                covered_treatments.update(
+                    set(experiment.treatment_ids[chosen_selection_indices].flatten())
+                )
+
         remaining_treatments = np.setdiff1d(
-            dataset.treatment_ids, list(covered_treatments)
+            experiment.treatment_ids, list(covered_treatments)
         )
 
-    final_plate_selection_vector = np.isin(
-        np.arange(dataset.size), chosen_selection_indices
-    )
+        while len(remaining_treatments) > 0:
+            experiments_with_at_least_one_treatment_in_remaining_treatments = np.any(
+                np.isin(experiment.treatment_ids, list(remaining_treatments)), axis=1
+            )
+            selection_indices = np.arange(selection_vector.size)[
+                experiments_with_at_least_one_treatment_in_remaining_treatments
+            ]
+            chosen_selection_index = rng.choice(selection_indices)
+            chosen_selection_indices.append(chosen_selection_index)
+            covered_treatments.update(
+                set(experiment.treatment_ids[chosen_selection_indices].flatten())
+            )
+            remaining_treatments = np.setdiff1d(
+                experiment.treatment_ids, list(covered_treatments)
+            )
 
-    return Plate(dataset, final_plate_selection_vector)
+        final_plate_selection_vector = np.isin(
+            np.arange(experiment.size), chosen_selection_indices
+        )
+
+        return Plate(experiment, final_plate_selection_vector)
 
 
 class PairwisePlateGenerator(RetrospectivePlateGenerator):
@@ -90,11 +96,18 @@ class PairwisePlateGenerator(RetrospectivePlateGenerator):
         that are used in almost every experiment. So you need to make sure that you have
         <anchor_size> anchor drugs in each group
         """
+
+        unobserved_data = experiment.subset_unobserved()
+
+        if not unobserved_data:
+            logger.warning("No unobserved data found, returning original experiment")
+            return experiment
+
         combo_mask = ~np.any(
-            (experiment.treatment_ids == CONTROL_SENTINEL_VALUE), axis=1
+            (unobserved_data.treatment_ids == CONTROL_SENTINEL_VALUE), axis=1
         )
         unique_treatments, unique_treatment_counts = np.unique(
-            experiment.treatment_ids[combo_mask], return_counts=True
+            unobserved_data.treatment_ids[combo_mask], return_counts=True
         )
 
         if self.anchor_size > 0:
@@ -119,7 +132,9 @@ class PairwisePlateGenerator(RetrospectivePlateGenerator):
                 group_lookup[j] = g
         group_lookup[CONTROL_SENTINEL_VALUE] = CONTROL_SENTINEL_VALUE
 
-        treatment_group_ids = np.vectorize(group_lookup.get)(experiment.treatment_ids)
+        treatment_group_ids = np.vectorize(group_lookup.get)(
+            unobserved_data.treatment_ids
+        )
 
         # Assign the groups for control treatments
         n_control = np.sum(treatment_group_ids == CONTROL_SENTINEL_VALUE)
@@ -128,41 +143,84 @@ class PairwisePlateGenerator(RetrospectivePlateGenerator):
         )
         treatment_group_ids_sorted = np.sort(treatment_group_ids, axis=1)
 
-        sample_id_col_vector = experiment.sample_ids[:, np.newaxis]
+        sample_id_col_vector = unobserved_data.sample_ids[:, np.newaxis]
 
         grouping_tuples = np.hstack([sample_id_col_vector, treatment_group_ids_sorted])
 
         unique_grouping_tuples = np.unique(grouping_tuples, axis=0)
 
-        results = []
-        for unique_grouping_tuple in unique_grouping_tuples:
+        new_plate_names = np.array([""] * unobserved_data.size, dtype=str)
+
+        for idx, unique_grouping_tuple in enumerate(unique_grouping_tuples):
             mask = (grouping_tuples == unique_grouping_tuple).all(axis=1)
-            results.append(Plate(experiment, mask))
+            new_plate_names[mask] = f"generated_plate_{idx}"
 
-        return results
+        unobserved_with_generated_plates = Experiment(
+            treatment_names=unobserved_data.treatment_names,
+            treatment_doses=unobserved_data.treatment_doses,
+            observations=unobserved_data.observations,
+            sample_names=unobserved_data.sample_names,
+            plate_names=new_plate_names,
+            control_treatment_name=unobserved_data.control_treatment_name,
+        )
+
+        observed_subset = experiment.subset_observed()
+
+        if observed_subset:
+            return experiment.subset_observed().combine(
+                unobserved_with_generated_plates
+            )
+        else:
+            return unobserved_with_generated_plates
 
 
-def randomly_sample_plates(
-    dataset: Experiment,
-    proportion_of_plates_to_sample: float,
-    rng: np.random.BitGenerator,
-    force_include_plate_ids: Optional[list[int]] = None,
-):
-    n_plates = dataset.unique_plate_ids.size
-    n_plates_to_sample = int(n_plates * proportion_of_plates_to_sample)
+class RandomPlateGenerator(RetrospectivePlateGenerator):
+    def __init__(self, force_include_plate_names: Optional[list[str]] = None):
+        self.force_include_plate_names = force_include_plate_names
 
-    sampled_plate_ids = []
+    def generate_plates(self, experiment: Experiment, rng: np.random.BitGenerator):
+        unobserved_experiment = experiment.subset_unobserved()
 
-    if force_include_plate_ids:
-        n_plates_to_sample = n_plates_to_sample - len(force_include_plate_ids)
-        sampled_plate_ids.extend(force_include_plate_ids)
+        if unobserved_experiment is None:
+            logger.warning("No unobserved data found, returning original experiment")
+            return experiment
 
-    sampled_plate_ids.extend(
-        rng.choice(dataset.unique_plate_ids, size=n_plates_to_sample, replace=False)
-    )
+        if self.force_include_plate_names:
+            selection_vector = ~np.isin(
+                unobserved_experiment.plate_names, self.force_include_plate_names
+            )
+        else:
+            selection_vector = np.ones(unobserved_experiment.size, dtype=bool)
 
-    mask = np.isin(dataset.plate_ids, sampled_plate_ids)
-    return Plate(experiment=dataset, selection_vector=mask)
+        unobserved_experiment.subset(selection_vector)
+
+        if np.any(~selection_vector):
+            to_permute = unobserved_experiment.subset(selection_vector)
+            non_permuted = unobserved_experiment.subset(~selection_vector)
+        else:
+            to_permute = unobserved_experiment.subset(selection_vector)
+            non_permuted = None
+
+        new_plate_names = rng.permutation(to_permute.plate_names)
+
+        permuted = Experiment(
+            treatment_names=to_permute.treatment_names,
+            treatment_doses=to_permute.treatment_doses,
+            observations=to_permute.observations,
+            sample_names=to_permute.sample_names,
+            plate_names=new_plate_names,
+            control_treatment_name=to_permute.control_treatment_name,
+        )
+
+        if non_permuted is not None:
+            new_unobserved = permuted.combine(non_permuted)
+        else:
+            new_unobserved = permuted
+
+        if experiment.subset_observed():
+            return experiment.subset_observed().combine(new_unobserved)
+        else:
+            return new_unobserved
 
 
 def reveal_plates(
