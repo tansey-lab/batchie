@@ -3,7 +3,7 @@ from typing import Optional
 import numpy as np
 from batchie.common import CONTROL_SENTINEL_VALUE
 from batchie.data import Experiment, Plate
-from batchie.core import BayesianModel, ThetaHolder
+from batchie.core import BayesianModel, ThetaHolder, RetrospectivePlateGenerator
 from batchie.models.main import predict_avg
 
 
@@ -72,70 +72,74 @@ def create_sparse_cover_plate(
     return Plate(dataset, final_plate_selection_vector)
 
 
-def create_sarcoma_plates(
-    dataset: Experiment,
-    subset_size: int,
-    rng: np.random.BitGenerator,
-    anchor_size: int = 0,
-) -> list[Plate]:
-    """
-    Break up your drug doses into groups of size subset_size
+class PairwisePlateGenerator(RetrospectivePlateGenerator):
+    def __init__(self, subset_size: int, anchor_size: int):
+        self.anchor_size = anchor_size
+        self.subset_size = subset_size
 
-    Each plate will contain all pairwise combinations of the two groups of drug doses
-    restricted to a single cell line
+    def generate_plates(
+        self, experiment: Experiment, rng: np.random.BitGenerator
+    ) -> Experiment:
+        """
+        Break up your drug doses into groups of size subset_size
 
-    IF you do this for GDCS you'll get weird plates because they have some "anchor drugs"
-    that are used in almost every experiment. So you need to make sure that you have
-    <anchor_size> anchor drugs in each group
-    """
-    combo_mask = ~np.any((dataset.treatment_ids == CONTROL_SENTINEL_VALUE), axis=1)
-    unique_treatments, unique_treatment_counts = np.unique(
-        dataset.treatment_ids[combo_mask], return_counts=True
-    )
+        Each plate will contain all pairwise combinations of the two groups of drug doses
+        restricted to a single cell line
 
-    if anchor_size > 0:
-        anchor_dds = unique_treatments[
-            np.argsort(-unique_treatment_counts)[:anchor_size]
-        ]
-        n_anchor_groups = len(anchor_dds) // subset_size
-        anchor_groups = np.array_split(rng.permutation(anchor_dds), n_anchor_groups)
+        IF you do this for GDCS you'll get weird plates because they have some "anchor drugs"
+        that are used in almost every experiment. So you need to make sure that you have
+        <anchor_size> anchor drugs in each group
+        """
+        combo_mask = ~np.any(
+            (experiment.treatment_ids == CONTROL_SENTINEL_VALUE), axis=1
+        )
+        unique_treatments, unique_treatment_counts = np.unique(
+            experiment.treatment_ids[combo_mask], return_counts=True
+        )
 
-        remain_dds = np.setdiff1d(unique_treatments, anchor_dds)
-        n_remain_groups = len(remain_dds) // subset_size
-        remain_groups = np.array_split(rng.permutation(remain_dds), n_remain_groups)
-        groupings = anchor_groups + remain_groups
-    else:
-        n_groups = len(unique_treatments) // subset_size
-        groupings = np.array_split(rng.permutation(unique_treatments), n_groups)
+        if self.anchor_size > 0:
+            anchor_dds = unique_treatments[
+                np.argsort(-unique_treatment_counts)[: self.anchor_size]
+            ]
+            n_anchor_groups = len(anchor_dds) // self.subset_size
+            anchor_groups = np.array_split(rng.permutation(anchor_dds), n_anchor_groups)
 
-    num_groups = len(groupings)
-    group_lookup = {}
-    for g, idxs in enumerate(groupings):
-        for j in idxs:
-            group_lookup[j] = g
-    group_lookup[CONTROL_SENTINEL_VALUE] = CONTROL_SENTINEL_VALUE
+            remain_dds = np.setdiff1d(unique_treatments, anchor_dds)
+            n_remain_groups = len(remain_dds) // self.subset_size
+            remain_groups = np.array_split(rng.permutation(remain_dds), n_remain_groups)
+            groupings = anchor_groups + remain_groups
+        else:
+            n_groups = len(unique_treatments) // self.subset_size
+            groupings = np.array_split(rng.permutation(unique_treatments), n_groups)
 
-    treatment_group_ids = np.vectorize(group_lookup.get)(dataset.treatment_ids)
+        num_groups = len(groupings)
+        group_lookup = {}
+        for g, idxs in enumerate(groupings):
+            for j in idxs:
+                group_lookup[j] = g
+        group_lookup[CONTROL_SENTINEL_VALUE] = CONTROL_SENTINEL_VALUE
 
-    # Assign the groups for control treatments
-    n_control = np.sum(treatment_group_ids == CONTROL_SENTINEL_VALUE)
-    treatment_group_ids[treatment_group_ids == CONTROL_SENTINEL_VALUE] = rng.choice(
-        range(num_groups), size=n_control, replace=True
-    )
-    treatment_group_ids_sorted = np.sort(treatment_group_ids, axis=1)
+        treatment_group_ids = np.vectorize(group_lookup.get)(experiment.treatment_ids)
 
-    sample_id_col_vector = dataset.sample_ids[:, np.newaxis]
+        # Assign the groups for control treatments
+        n_control = np.sum(treatment_group_ids == CONTROL_SENTINEL_VALUE)
+        treatment_group_ids[treatment_group_ids == CONTROL_SENTINEL_VALUE] = rng.choice(
+            range(num_groups), size=n_control, replace=True
+        )
+        treatment_group_ids_sorted = np.sort(treatment_group_ids, axis=1)
 
-    grouping_tuples = np.hstack([sample_id_col_vector, treatment_group_ids_sorted])
+        sample_id_col_vector = experiment.sample_ids[:, np.newaxis]
 
-    unique_grouping_tuples = np.unique(grouping_tuples, axis=0)
+        grouping_tuples = np.hstack([sample_id_col_vector, treatment_group_ids_sorted])
 
-    results = []
-    for unique_grouping_tuple in unique_grouping_tuples:
-        mask = (grouping_tuples == unique_grouping_tuple).all(axis=1)
-        results.append(Plate(dataset, mask))
+        unique_grouping_tuples = np.unique(grouping_tuples, axis=0)
 
-    return results
+        results = []
+        for unique_grouping_tuple in unique_grouping_tuples:
+            mask = (grouping_tuples == unique_grouping_tuple).all(axis=1)
+            results.append(Plate(experiment, mask))
+
+        return results
 
 
 def randomly_sample_plates(

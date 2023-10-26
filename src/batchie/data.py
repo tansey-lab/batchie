@@ -204,6 +204,10 @@ class ExperimentBase(ABC):
     def n_plates(self):
         return self.unique_plate_ids.shape[0]
 
+    @abstractmethod
+    def combine(self, other: "Plate"):
+        raise NotImplementedError
+
 
 class ExperimentSubset(ExperimentBase):
     def __init__(self, experiment: "Experiment", selection_vector: ArrayType):
