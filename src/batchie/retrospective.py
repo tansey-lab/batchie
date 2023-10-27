@@ -1,7 +1,7 @@
 from typing import Optional
 
 import numpy as np
-from batchie.common import CONTROL_SENTINEL_VALUE
+from batchie.common import CONTROL_SENTINEL_VALUE, FloatingPointType
 from batchie.data import Experiment, Plate
 from batchie.core import (
     BayesianModel,
@@ -247,6 +247,18 @@ class RandomPlateGenerator(RetrospectivePlateGenerator):
             return experiment.subset_observed().combine(new_unobserved)
         else:
             return new_unobserved
+
+
+def mask_experiment(experiment: Experiment) -> Experiment:
+    return Experiment(
+        treatment_names=experiment.treatment_names,
+        treatment_doses=experiment.treatment_doses,
+        observations=np.zeros(experiment.size, dtype=FloatingPointType),
+        sample_names=experiment.sample_names,
+        plate_names=experiment.plate_names,
+        control_treatment_name=experiment.control_treatment_name,
+        observation_mask=np.zeros(experiment.size, dtype=bool),
+    )
 
 
 def reveal_plates(
