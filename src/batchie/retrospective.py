@@ -73,7 +73,7 @@ class SparseCoverPlateGenerator(InitialRetrospectivePlateGenerator):
             selection_indices = np.arange(selection_vector.size)[
                 experiments_with_at_least_one_treatment_in_remaining_treatments
             ]
-            chosen_selection_index = rng.choice(selection_indices)
+            chosen_selection_index = rng.choice(selection_indices, 1)
             chosen_selection_indices.append(chosen_selection_index)
             covered_treatments.update(
                 set(experiment.treatment_ids[chosen_selection_indices].flatten())
@@ -185,6 +185,7 @@ class PairwisePlateGenerator(RetrospectivePlateGenerator):
             treatment_names=unobserved_data.treatment_names,
             treatment_doses=unobserved_data.treatment_doses,
             observations=unobserved_data.observations,
+            observation_mask=np.zeros(unobserved_data.size, dtype=bool),
             sample_names=unobserved_data.sample_names,
             plate_names=new_plate_names,
             control_treatment_name=unobserved_data.control_treatment_name,

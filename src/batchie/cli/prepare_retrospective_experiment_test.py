@@ -3,11 +3,8 @@ import shutil
 import tempfile
 import pytest
 import numpy as np
-import json
 from batchie.cli import prepare_retrospective_experiment
-from batchie.models.sparse_combo import SparseDrugComboResults
 from batchie.data import Experiment
-from batchie.common import SELECTED_PLATES_KEY
 
 
 @pytest.fixture

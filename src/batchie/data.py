@@ -507,6 +507,9 @@ class Experiment(ExperimentBase):
                 [self.treatment_doses, other.treatment_doses]
             ),
             observations=np.concatenate([self.observations, other.observations]),
+            observation_mask=np.concatenate(
+                [self.observation_mask, other.observation_mask]
+            ),
             sample_names=np.concatenate([self.sample_names, other.sample_names]),
             plate_names=np.concatenate([self.plate_names, other.plate_names]),
             control_treatment_name=self.control_treatment_name,
