@@ -236,6 +236,7 @@ class RandomPlateGenerator(RetrospectivePlateGenerator):
             sample_names=to_permute.sample_names,
             plate_names=new_plate_names,
             control_treatment_name=to_permute.control_treatment_name,
+            observation_mask=np.zeros(to_permute.size, dtype=bool),
         )
 
         if non_permuted is not None:

@@ -40,6 +40,12 @@ def get_parser():
         metavar="KEY=VALUE",
         help="Plate generator parameters",
     )
+    parser.add_argument(
+        "--seed",
+        help="Seed to use for PRNG.",
+        type=int,
+        default=0,
+    )
     return parser
 
 
@@ -50,7 +56,7 @@ def get_args():
 
     args.plate_generator_cls = introspection.get_class(
         package_name="batchie",
-        class_name=args.model,
+        class_name=args.plate_generator,
         base_class=RetrospectivePlateGenerator,
     )
 
@@ -65,7 +71,7 @@ def get_args():
             args.plate_generator_param, required_args
         )
 
-    if args.initial_plate_generator_cls is not None:
+    if args.initial_plate_generator is not None:
         args.initial_plate_generator_cls = introspection.get_class(
             package_name="batchie",
             class_name=args.initial_plate_generator,
@@ -100,7 +106,7 @@ def main():
 
     initial_plate_generator: Optional[InitialRetrospectivePlateGenerator] = None
 
-    if args.inital_plate_generator_cls is not None:
+    if args.initial_plate_generator is not None:
         initial_plate_generator: InitialRetrospectivePlateGenerator = (
             args.initial_plate_generator_cls(**args.initial_plate_generator_params)
         )
@@ -112,13 +118,14 @@ def main():
         experiment = mask_experiment(experiment=full_experiment)
 
     experiment = plate_generator.generate_plates(experiment=experiment, rng=rng)
-
     logger.info("Generated {} plates".format(len(experiment.plates)))
 
     if initial_plate_generator is None:
         logger.warning(
             "No initial plate generator was provided. Selecting a random plate to reveal."
         )
+
+        logger.info([plate for plate in experiment.plates if not plate.is_observed])
         random_first_plate = rng.choice(
             [plate for plate in experiment.plates if not plate.is_observed]
         )
@@ -127,7 +134,7 @@ def main():
         experiment = reveal_plates(
             full_experiment=full_experiment,
             masked_experiment=experiment,
-            plate_ids=[random_first_plate.id],
+            plate_ids=[random_first_plate.plate_id],
         )
 
     experiment.save_h5(args.output)
