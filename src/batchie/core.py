@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 import json
 import numpy as np
 from batchie.common import ArrayType
-from batchie.data import ExperimentBase, Plate
+from batchie.data import ExperimentBase, Plate, Experiment
 
 
 class Theta:
@@ -258,3 +258,17 @@ class ExperimentTracker:
         with open(fn, "r") as f:
             data = json.load(f)
         return cls(**data)
+
+
+class InitialRetrospectivePlateGenerator:
+    def generate_and_unmask_initial_plate(
+        self, experiment: Experiment, rng: np.random.BitGenerator
+    ) -> Experiment:
+        raise NotImplementedError
+
+
+class RetrospectivePlateGenerator:
+    def generate_plates(
+        self, experiment: Experiment, rng: np.random.BitGenerator
+    ) -> Experiment:
+        raise NotImplementedError

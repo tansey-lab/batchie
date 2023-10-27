@@ -164,6 +164,7 @@ class ChunkedDistanceMatrix(DistanceMatrix):
         dense = np.zeros((self.size, self.size))
         for i in range(self.current_index):
             dense[self.row_indices[i], self.col_indices[i]] = self.values[i]
+            dense[self.col_indices[i], self.row_indices[i]] = self.values[i]
         return dense
 
     def save(self, filename):
