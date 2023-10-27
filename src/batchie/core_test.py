@@ -130,7 +130,7 @@ def test_to_dense():
     dense = distance_matrix.to_dense()
     assert isinstance(dense, np.ndarray)
     assert dense[1, 0] == 1.0
-    np.testing.assert_array_equal(dense, np.tril(dense))
+    assert dense[0, 1] == 1.0
 
 
 def test_save_load(distance_matrix):
