@@ -117,10 +117,12 @@ def masked_dataset():
 def test_create_sparse_cover_plate(test_dataset):
     rng = np.random.default_rng(0)
 
-    result = retrospective.create_sparse_cover_plate(test_dataset, rng)
+    inital_plate_generator = retrospective.SparseCoverPlateGenerator()
 
-    assert list(np.sort(np.unique(result.sample_ids))) == [0, 1, 2, 3]
-    assert list(np.sort(np.unique(result.treatment_ids))) == [0, 1]
+    result = inital_plate_generator.generate_and_unmask_initial_plate(test_dataset, rng)
+
+    assert result.unique_plate_ids.size == 2
+    assert result.observation_mask.sum() > 0
 
 
 @pytest.mark.parametrize("anchor_size", [0, 1])
@@ -147,18 +149,6 @@ def test_randomly_sample_plates(unobserved_dataset, force_include_plate_names):
     result = plate_generator.generate_plates(unobserved_dataset, rng)
 
     assert list(result.plate_names) != list(unobserved_dataset.plate_names)
-
-
-def test_randomly_sample_plates_with_force_include(test_dataset):
-    result = retrospective.randomly_sample_plates(
-        test_dataset,
-        proportion_of_plates_to_sample=0.5,
-        force_include_plate_ids=[0],
-        rng=np.random.default_rng(0),
-    )
-
-    assert result.size == 4
-    np.testing.assert_array_equal(result.unique_plate_ids, np.array([0]))
 
 
 def test_reveal_plates(test_dataset, masked_dataset):

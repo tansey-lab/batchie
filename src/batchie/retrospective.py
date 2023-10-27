@@ -3,17 +3,22 @@ from typing import Optional
 import numpy as np
 from batchie.common import CONTROL_SENTINEL_VALUE
 from batchie.data import Experiment, Plate
-from batchie.core import BayesianModel, ThetaHolder, RetrospectivePlateGenerator
+from batchie.core import (
+    BayesianModel,
+    ThetaHolder,
+    InitialRetrospectivePlateGenerator,
+    RetrospectivePlateGenerator,
+)
 from batchie.models.main import predict_avg
 import logging
 
 logger = logging.getLogger(__name__)
 
 
-class SparseCoverPlateGenerator(RetrospectivePlateGenerator):
-    def generate_plates(
+class SparseCoverPlateGenerator(InitialRetrospectivePlateGenerator):
+    def generate_and_unmask_initial_plate(
         self, experiment: Experiment, rng: np.random.BitGenerator
-    ) -> Plate:
+    ):
         """
         We want to make sure we have at least one observation for
         each cell line/drug dose combination in the first plate
@@ -23,6 +28,12 @@ class SparseCoverPlateGenerator(RetrospectivePlateGenerator):
         We'll use this to construct the first plate, this initialization causes
         faster convergence of the algorithm.
         """
+        if not experiment.is_observed:
+            raise ValueError(
+                "The experiment used for retrospective "
+                "analysis must be fully observed"
+            )
+
         covered_treatments = set()
         chosen_selection_indices = []
 
@@ -75,7 +86,22 @@ class SparseCoverPlateGenerator(RetrospectivePlateGenerator):
             np.arange(experiment.size), chosen_selection_indices
         )
 
-        return Plate(experiment, final_plate_selection_vector)
+        plate_names = np.array(["initial_plate"] * experiment.size, dtype=str)
+
+        plate_names[~final_plate_selection_vector] = "unobserved_plate"
+
+        observation_vector = experiment.observations.copy()
+        observation_vector[~final_plate_selection_vector] = 0.0
+
+        return Experiment(
+            treatment_names=experiment.treatment_names,
+            treatment_doses=experiment.treatment_doses,
+            observations=observation_vector,
+            sample_names=experiment.sample_names,
+            plate_names=plate_names,
+            control_treatment_name=experiment.control_treatment_name,
+            observation_mask=final_plate_selection_vector,
+        )
 
 
 class PairwisePlateGenerator(RetrospectivePlateGenerator):
