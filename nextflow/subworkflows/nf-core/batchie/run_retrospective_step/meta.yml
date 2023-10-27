@@ -6,7 +6,6 @@ keywords:
 components:
   - batchie/advance_retrospective_experiment
   - batchie/calculate_distance_metric_chunk
-  - batchie/extract_experiment_metadata
   - batchie/select_next_batch
   - batchie/train_model
 

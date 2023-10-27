@@ -1,0 +1,14 @@
+name: retrospective_experiment
+description: A workflow for running all iterations of a retrospective active learning simulation
+keywords:
+  - active_learning
+
+components:
+  - batchie/run_retrospective_step
+  - batchie/extract_experiment_metadata
+  - batchie/prepare_retrospective_experiment
+
+input: []
+output: []
+authors:
+  - "@jeffquinn-msk"
