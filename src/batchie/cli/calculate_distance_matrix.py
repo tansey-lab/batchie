@@ -11,6 +11,9 @@ from batchie.data import Experiment
 from batchie.distance_calculation import (
     calculate_pairwise_distance_matrix_on_predictions,
 )
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def get_parser():
@@ -92,6 +95,11 @@ def main():
     thetas_holder: ThetaHolder = model.get_results_holder(n_samples=1)
 
     thetas = thetas_holder.concat([thetas_holder.load_h5(x) for x in args.thetas])
+
+    logger.info(
+        f"Calculating chunk {args.chunk_index + 1} of {args.n_chunks} "
+        f"over {thetas.n_thetas}x{thetas.n_thetas} pairwise distance matrix"
+    )
 
     distance_metric: DistanceMetric = args.metric_cls(**args.metric_params)
 

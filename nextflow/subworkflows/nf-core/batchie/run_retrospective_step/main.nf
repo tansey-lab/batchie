@@ -1,5 +1,4 @@
 include { CALCULATE_DISTANCE_MATRIX_CHUNK } from '../../../../modules/nf-core/batchie/calculate_distance_matrix_chunk/main'
-include { EXTRACT_EXPERIMENT_METADATA } from '../../../../modules/nf-core/batchie/extract_experiment_metadata/main'
 include { SELECT_NEXT_BATCH } from '../../../../modules/nf-core/batchie/select_next_batch/main'
 include { TRAIN_MODEL } from '../../../../modules/nf-core/batchie/train_model/main'
 include { ADVANCE_RETROSPECTIVE_EXPERIMENT } from '../../../../modules/nf-core/batchie/advance_retrospective_experiment/main'

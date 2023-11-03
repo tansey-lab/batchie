@@ -1,5 +1,8 @@
 import argparse
 import json
+import os.path
+import logging
+
 from batchie import introspection
 from batchie import log_config
 from batchie.cli.argument_parsing import KVAppendAction, cast_dict_to_type
@@ -7,6 +10,9 @@ from batchie.core import BayesianModel, ThetaHolder, ExperimentTracker
 from batchie.data import Experiment
 from batchie.common import SELECTED_PLATES_KEY, N_UNIQUE_SAMPLES, N_UNIQUE_TREATMENTS
 from batchie.retrospective import reveal_plates, calculate_mse
+
+
+logger = logging.getLogger(__name__)
 
 
 def get_parser():
@@ -20,7 +26,9 @@ def get_parser():
     parser.add_argument("--masked-experiment", type=str, required=True)
     parser.add_argument("--batch-selection", type=str, required=True)
     parser.add_argument("--experiment-output", type=str, required=True)
-    parser.add_argument("--experiment-tracker-input", type=str, required=True)
+    parser.add_argument(
+        "--experiment-tracker-input", type=str, nargs="?", const=None, default=None
+    )
     parser.add_argument("--experiment-tracker-output", type=str, required=True)
     parser.add_argument("--thetas", type=str, required=True, nargs="+")
     parser.add_argument("--model", type=str, required=True)
@@ -70,7 +78,11 @@ def main():
 
     unmasked_experiment = Experiment.load_h5(args.unmasked_experiment)
 
-    experiment_tracker = ExperimentTracker.load(args.experiment_tracker_input)
+    if args.experiment_tracker_input and os.path.exists(args.experiment_tracker_input):
+        experiment_tracker = ExperimentTracker.load(args.experiment_tracker_input)
+    else:
+        logger.warning("No experiment tracker provided, will create blank one.")
+        experiment_tracker = ExperimentTracker(plate_ids_selected=[], losses=[], seed=0)
 
     mse = calculate_mse(
         full_experiment=unmasked_experiment,

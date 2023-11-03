@@ -9,7 +9,7 @@ process PREPARE_RETROSPECTIVE_EXPERIMENT {
     tuple val(meta), path(data)
 
     output:
-    tuple val(meta), path("${prefix}/retrospective_experiment.h5"), emit: retrospective_experiment
+    tuple val(meta), path("${prefix}/retrospective_experiment.h5"), emit: experiment
     path  "versions.yml"                , emit: versions
 
 

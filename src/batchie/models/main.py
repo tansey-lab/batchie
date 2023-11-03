@@ -13,7 +13,6 @@ def predict_all(model: BayesianModel, experiment: ExperimentBase, thetas: ThetaH
              predictions for each model / experiment combination
     """
     result = np.zeros((thetas.n_thetas, experiment.size), dtype=FloatingPointType)
-
     for theta_index in range(thetas.n_thetas):
         model.set_model_state(thetas.get_theta(theta_index))
         result[theta_index, :] = model.predict(experiment)

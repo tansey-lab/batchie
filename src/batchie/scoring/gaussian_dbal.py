@@ -80,13 +80,6 @@ def dbal_fast_gauss_scoring_vec(
             )
         )
 
-    if distance_matrix.shape[0] != per_plate_predictions[0].shape[0]:
-        raise ValueError(
-            "dists has unexpected shape, expected {} got {}".format(
-                per_plate_predictions[0].shape[0], distance_matrix.shape[0]
-            )
-        )
-
     if distance_matrix.shape[1] != distance_matrix.shape[0]:
         raise ValueError("dists must be square, got {}".format(distance_matrix.shape))
 
@@ -102,7 +95,7 @@ def dbal_fast_gauss_scoring_vec(
     n_combos = min(n_theta_combinations, max_combos)
     unpacked_indices = rng.choice(n_theta_combinations, size=n_combos, replace=False)
     idx1, idx2, idx3 = zip(
-        *[get_combination_at_sorted_index(ind, n_plates, 3) for ind in unpacked_indices]
+        *[get_combination_at_sorted_index(ind, n_thetas, 3) for ind in unpacked_indices]
     )
     idx1 = np.array(idx1)
     idx2 = np.array(idx2)
@@ -125,24 +118,24 @@ def dbal_fast_gauss_scoring_vec(
     )
     log_norm_factor = 0.5 * max_experiments_per_plate * np.log(1.0 / alpha)
     d12 = np.sum(
-        np.square(padded_predictions[idx1, :, :] - padded_predictions[idx2, :, :]),
+        np.square(padded_predictions[:, idx1, :] - padded_predictions[:, idx2, :]),
         axis=-1,
     )
     d13 = np.sum(
-        np.square(padded_predictions[idx1, :, :] - padded_predictions[idx3, :, :]),
+        np.square(padded_predictions[:, idx1, :] - padded_predictions[:, idx3, :]),
         axis=-1,
     )
     d23 = np.sum(
-        np.square(padded_predictions[idx2, :, :] - padded_predictions[idx3, :, :]),
+        np.square(padded_predictions[:, idx2, :] - padded_predictions[:, idx3, :]),
         axis=-1,
     )
-    ll = -exp_factor[:, np.newaxis] * (
-        variances[idx3, np.newaxis] * d12
-        + variances[idx2, np.newaxis] * d13
-        + variances[idx1, np.newaxis] * d23
+    ll = -exp_factor[np.newaxis, :] * (
+        variances[np.newaxis, idx3] * d12
+        + variances[np.newaxis, idx2] * d13
+        + variances[np.newaxis, idx1] * d23
     )  ## n_triples x m
     scores = logsumexp(
-        log_norm_factor[:, np.newaxis] + ll + log_triple_dists[:, np.newaxis], axis=0
+        log_norm_factor[:, np.newaxis] + ll.T + log_triple_dists[:, np.newaxis], axis=0
     )
 
     return scores
@@ -179,10 +172,6 @@ class GaussianDBALScorer(Scorer):
                 else:
                     plate_subgroup_mask = plate_subgroup_mask | plate.selection_vector
 
-            subgroup_distance_matrix = dense_distance_matrix[plate_subgroup_mask, :][
-                :, plate_subgroup_mask
-            ]
-
             per_plate_predictions = [
                 predict_all(experiment=plate, model=model, thetas=samples)
                 for plate in current_plates
@@ -191,7 +180,7 @@ class GaussianDBALScorer(Scorer):
             vals = dbal_fast_gauss_scoring_vec(
                 per_plate_predictions=per_plate_predictions,
                 variances=variances,
-                distance_matrix=subgroup_distance_matrix,
+                distance_matrix=dense_distance_matrix,
                 max_combos=self.max_triples,
                 rng=rng,
             )
