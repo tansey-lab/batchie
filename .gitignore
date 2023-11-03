@@ -144,3 +144,4 @@ dmypy.json
 output/
 work/
 .nextflow*
+coverage.json
