@@ -1,0 +1,23 @@
+name: run_prospective_step
+description: A subworkflow for running one iteration of a prospective active learning experiment
+keywords:
+  - active_learning
+
+components:
+  - batchie/calculate_distance_metric_chunk
+  - batchie/select_next_batch
+  - batchie/train_model
+
+input:
+  - ch_input:
+      description: |
+        An input channel containing experiment and up-to-date series of batch selections and losses
+        Structure: [  val(meta), path(experiment), val(n_chains), val(n_chunks) ]
+
+output:
+  - ch_output:
+      description: |
+        The selected plates to run next (json file describing the plate selection)
+        Structure: [ val(meta), path(selected_plates) ]
+authors:
+  - "@jeffquinn-msk"
