@@ -1,6 +1,58 @@
 import numpy as np
 import pytest
 from batchie.scoring import gaussian_dbal
+from unittest import mock
+from batchie.core import BayesianModel, Experiment, ThetaHolder
+from batchie.distance_calculation import ChunkedDistanceMatrix
+
+
+@pytest.fixture
+def unobserved_dataset():
+    test_dataset = Experiment(
+        observations=np.array([0.1, 0.2, 0.3, 0.4, 0.1, 0.2, 0.3, 0.4]),
+        observation_mask=np.array(
+            [False, False, False, False, False, False, False, False]
+        ),
+        sample_names=np.array(["a", "b", "c", "d", "a", "b", "c", "d"], dtype=str),
+        plate_names=np.array(["a", "a", "b", "b", "a", "a", "b", "b"], dtype=str),
+        treatment_names=np.array(
+            [
+                ["a", "b"],
+                ["a", "b"],
+                ["a", "b"],
+                ["a", "b"],
+                ["a", "b"],
+                ["a", "b"],
+                ["a", "b"],
+                ["a", "b"],
+            ],
+            dtype=str,
+        ),
+        treatment_doses=np.array(
+            [
+                [2.0, 2.0],
+                [2.0, 2.0],
+                [2.0, 2.0],
+                [2.0, 2.0],
+                [2.0, 2.0],
+                [2.0, 2.0],
+                [2.0, 2.0],
+                [2.0, 2.0],
+            ]
+        ),
+    )
+    return test_dataset
+
+
+@pytest.fixture
+def chunked_distance_matrix():
+    dm = ChunkedDistanceMatrix(4, chunk_size=2)
+
+    for i in range(4):
+        for j in i:
+            dm.add_value(i, j, 1.0)
+
+    return dm
 
 
 def test_iter_combination():
@@ -142,3 +194,26 @@ def test_dbal_fast_gauss_scoring_vec_fails_if_variance_dimension_is_wrong():
             distance_matrix=dists,
             rng=rng,
         )
+
+
+def test_gaussian_dbal_scorer(unobserved_dataset, chunked_distance_matrix):
+    rng = np.random.default_rng(0)
+    scorer = gaussian_dbal.GaussianDBALScorer(max_chunk=2, max_triples=5000)
+
+    assert chunked_distance_matrix.is_complete()
+
+    model = mock.MagicMock(BayesianModel)
+    theta_holder = mock.MagicMock(ThetaHolder)
+
+    theta_holder.get_variance.return_value = 1.0
+    model.predict.return_value = 1.0
+
+    plates = unobserved_dataset.plates
+
+    scorer.score(
+        model=model,
+        plates=plates,
+        distance_matrix=chunked_distance_matrix,
+        samples=theta_holder,
+        rng=rng,
+    )

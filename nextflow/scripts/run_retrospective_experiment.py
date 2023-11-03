@@ -7,6 +7,8 @@ import logging
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
+WORKFLOW_NAME = "RETROSPECTIVE_EXPERIMENT"
+
 
 def get_script_location():
     return os.path.dirname(os.path.realpath(__file__))
@@ -45,7 +47,9 @@ def get_args():
         required=True,
         help="Path to nextflow config file",
     )
-    return parser.parse_args()
+    args, remaining_args = parser.parse_known_args()
+
+    return args, remaining_args
 
 
 def validate_output_dir_and_get_result_files_as_dict(output_dir):
@@ -73,8 +77,14 @@ def validate_output_dir_and_get_result_files_as_dict(output_dir):
 
 
 def run_nextflow_step(
-    output_dir, unmasked_experiment, nextflow_config_file, n_chunks, n_chains
+    output_dir,
+    unmasked_experiment,
+    nextflow_config_file,
+    n_chunks,
+    n_chains,
+    extra_args,
 ):
+    experiment_name, _ = os.path.splitext(os.path.basename(unmasked_experiment))
     # list all directories in output directory
     contents_of_output_directory = glob.glob(output_dir + "/*")
     # filter to directories
@@ -106,6 +116,10 @@ def run_nextflow_step(
                 "nextflow",
                 "run",
                 workflow_path,
+                "-entry",
+                WORKFLOW_NAME,
+                "--experiment_name",
+                experiment_name,
                 "--unmasked_experiment",
                 unmasked_experiment,
                 "--n_chunks",
@@ -117,7 +131,10 @@ def run_nextflow_step(
                 "-c",
                 nextflow_config_file,
             ]
+            + extra_args,
+            cwd=next_output_dir,
         )
+        return True
 
     else:
         latest_result = max(output_dirs, key=lambda x: int(os.path.basename(x)))
@@ -128,7 +145,7 @@ def run_nextflow_step(
 
         if latest_result_files["n_remaining_plates"] == 0:
             logger.info("No remaining plates, exiting")
-            return
+            return False
         else:
             logger.info(f"Running iteration {current_iteration}")
             logger.info(f"{latest_result_files['n_remaining_plates']} remaining plates")
@@ -138,6 +155,10 @@ def run_nextflow_step(
                 "nextflow",
                 "run",
                 workflow_path,
+                "-entry",
+                WORKFLOW_NAME,
+                "--experiment_name",
+                experiment_name,
                 "--experiment_tracker",
                 latest_result_files["experiment_tracker"],
                 "--masked_experiment",
@@ -153,18 +174,26 @@ def run_nextflow_step(
                 "-c",
                 nextflow_config_file,
             ]
+            + extra_args,
+            cwd=next_output_dir,
         )
+        return True
 
 
 def main():
-    args = get_args()
-    run_nextflow_step(
-        output_dir=args.output_dir,
-        unmasked_experiment=args.unmasked_experiment,
-        nextflow_config_file=args.nextflow_config_file,
-        n_chunks=args.n_dist_chunks,
-        n_chains=args.n_chains,
-    )
+    args, remaining_args = get_args()
+    while True:
+        should_run_again = run_nextflow_step(
+            output_dir=os.path.abspath(args.output_dir),
+            unmasked_experiment=os.path.abspath(args.unmasked_experiment),
+            nextflow_config_file=os.path.abspath(args.nextflow_config_file),
+            n_chunks=args.n_dist_chunks,
+            n_chains=args.n_chains,
+            extra_args=remaining_args,
+        )
+
+        if not should_run_again:
+            break
 
 
 if __name__ == "__main__":
