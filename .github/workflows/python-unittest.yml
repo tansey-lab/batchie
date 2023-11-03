@@ -17,8 +17,9 @@ jobs:
           python-version: '3.11'
       - name: Run tests
         run: make python-unittest
-      - name: Update Coverage Badge
-        # GitHub actions: default branch variable
-        # https://stackoverflow.com/questions/64781462/github-actions-default-branch-variable
-        if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
-        uses: we-cli/coverage-badge-action@main
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./coverage.json
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
