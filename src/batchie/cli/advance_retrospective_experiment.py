@@ -78,9 +78,7 @@ def main():
 
     unmasked_experiment = Experiment.load_h5(args.unmasked_experiment)
 
-    if args.experiment_tracker_output and os.path.exists(
-        args.experiment_tracker_output
-    ):
+    if args.experiment_tracker_input and os.path.exists(args.experiment_tracker_input):
         experiment_tracker = ExperimentTracker.load(args.experiment_tracker_input)
     else:
         logger.warning("No experiment tracker provided, will create blank one.")
