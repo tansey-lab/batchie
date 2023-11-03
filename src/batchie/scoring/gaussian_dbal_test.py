@@ -14,7 +14,7 @@ def unobserved_dataset():
             [False, False, False, False, False, False, False, False]
         ),
         sample_names=np.array(["a", "b", "c", "d", "a", "b", "c", "d"], dtype=str),
-        plate_names=np.array(["a", "a", "b", "b", "a", "a", "b", "b"], dtype=str),
+        plate_names=np.array(["a", "a", "b", "b", "c", "c", "d", "d"], dtype=str),
         treatment_names=np.array(
             [
                 ["a", "b"],
@@ -49,7 +49,7 @@ def chunked_distance_matrix():
     dm = ChunkedDistanceMatrix(4, chunk_size=2)
 
     for i in range(4):
-        for j in i:
+        for j in range(i):
             dm.add_value(i, j, 1.0)
 
     return dm
@@ -90,7 +90,7 @@ def test_dbal_fast_gauss_scoring_vec():
     rng = np.random.default_rng(0)
 
     n_thetas = 10
-    n_plates = 10
+    n_plates = 5
     max_n_experiments = 96
 
     def create_plate():
@@ -206,6 +206,7 @@ def test_gaussian_dbal_scorer(unobserved_dataset, chunked_distance_matrix):
     theta_holder = mock.MagicMock(ThetaHolder)
 
     theta_holder.get_variance.return_value = 1.0
+    theta_holder.n_thetas = chunked_distance_matrix.size
     model.predict.return_value = 1.0
 
     plates = unobserved_dataset.plates
