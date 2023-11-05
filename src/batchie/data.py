@@ -11,6 +11,18 @@ logger = logging.getLogger(__name__)
 
 
 def numpy_array_is_0_indexed_integers(arr: ArrayType):
+    """
+    Test numpy array arr contains only integers between 0 and n-1 with no gaps,
+    where n is the number of unique values in arr.
+
+    If the array contains :py:const:`batchie.common.CONTROL_SENTINEL_VALUE`,
+    then we test that the array contains only integers between 0 and n-2, and the
+    sentinel value.
+
+
+    :param arr: numpy array
+    :return: bool
+    """
     # Test numpy array arr contains integers, or something that can be safely cast to int32
     if not np.issubdtype(arr.dtype, int):
         return False
@@ -28,8 +40,16 @@ def encode_treatment_arrays_to_0_indexed_ids(
     treatment_name_arr: ArrayType,
     treatment_dose_arr: ArrayType,
     control_treatment_name: str = "",
-    sentinel_value: int = -1,
 ):
+    """
+    Encode treatment names and doses (which are arrays of string)
+    to 0-indexed integers, where the control treatment is always mapped to
+    :py:const:`batchie.common.CONTROL_SENTINEL_VALUE`
+
+    :param treatment_name_arr: array of treatment names
+    :param treatment_dose_arr: array of treatment doses
+    :param control_treatment_name: The string value of the control treatment
+    """
     is_control = np.array(
         [x == control_treatment_name for x in treatment_name_arr]
     ) | np.array([x <= 0 for x in treatment_dose_arr])
@@ -56,12 +76,19 @@ def encode_treatment_arrays_to_0_indexed_ids(
     df_controls_arr = df_controls.to_numpy()
 
     for row in df_controls_arr:
-        mapping[tuple(row)] = sentinel_value
+        mapping[tuple(row)] = CONTROL_SENTINEL_VALUE
 
     return np.array([mapping[tuple(x)] for x in name_dose_arr])
 
 
 def encode_1d_array_to_0_indexed_ids(arr: ArrayType):
+    """
+    Encode a 1d array of strings to 0-indexed integers.
+
+    :param arr: 1d array of strings
+    :return: integer array containing only values between 0 and n-1,
+    where n is the number of unique values in arr
+    """
     unique_values = np.unique(arr)
 
     mapping = dict(zip(unique_values, np.arange(len(unique_values))))
@@ -74,6 +101,13 @@ def create_single_treatment_effect_map(
     treatment_ids: ArrayType,
     observation: ArrayType,
 ):
+    """
+    Create a map from (sample_id, treatment_id) to single observation (a scalar).
+
+    :param sample_ids: 1d array of sample ids
+    :param treatment_ids: 1d array of treatment ids
+    :param observation: 1d array of observations
+    """
     if treatment_ids.shape[1] < 2:
         raise ValueError(
             "Experiment must have more than one treatment to get single treatment effects"
@@ -115,6 +149,9 @@ def create_single_treatment_effect_array(
     treatment_ids: ArrayType,
     observation: ArrayType,
 ):
+    """
+    Create a map
+    """
     single_treatment_effect_map = create_single_treatment_effect_map(
         sample_ids=sample_ids,
         treatment_ids=treatment_ids,
