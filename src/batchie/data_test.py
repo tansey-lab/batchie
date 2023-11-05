@@ -11,7 +11,6 @@ from batchie.common import CONTROL_SENTINEL_VALUE
 from batchie.data import (
     Experiment,
     Plate,
-    randomly_subsample_dataset,
     encode_treatment_arrays_to_0_indexed_ids,
     filter_dataset_to_treatments_that_appear_in_at_least_one_combo,
 )
@@ -76,8 +75,10 @@ def test_experiment_props():
     assert experiment.treatment_arity == 2
     assert experiment.n_plates == 2
 
-    first_half = experiment.subset(np.array([True, True, False, False]))
-    second_half = experiment.subset(np.array([False, False, True, True]))
+    first_half = experiment.subset(np.array([True, True, False, False])).to_experiment()
+    second_half = experiment.subset(
+        np.array([False, False, True, True])
+    ).to_experiment()
 
     assert first_half.size == 2
     assert second_half.size == 2
@@ -235,25 +236,6 @@ def test_experiment_serialization():
         assert dset_loaded.control_treatment_name == "zzz"
     finally:
         shutil.rmtree(tempdir)
-
-
-def test_randomly_subsample_dataset():
-    test_experiment = Experiment(
-        observations=np.array([0.1, 0.2, 0.3, 0.4]),
-        sample_names=np.array(["a", "b", "c", "d"], dtype=str),
-        plate_names=np.array(["a", "a", "b", "b"], dtype=str),
-        treatment_names=np.array(
-            [["a", "b"], ["a", "b"], ["a", "b"], ["a", "b"]], dtype=str
-        ),
-        treatment_doses=np.array([[2.0, 2.0], [1.0, 2.0], [2.0, 1.0], [2.0, 0]]),
-    )
-
-    to_keep, to_drop = randomly_subsample_dataset(
-        dataset=test_experiment, sample_fraction=0.75
-    )
-
-    assert to_keep.size == 3
-    assert to_drop.size == 1
 
 
 def test_filter_dataset_to_treatments_that_appear_in_at_least_one_combo():

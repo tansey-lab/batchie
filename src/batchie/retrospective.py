@@ -206,7 +206,7 @@ class RandomPlateGenerator(RetrospectivePlateGenerator):
         self.force_include_plate_names = force_include_plate_names
 
     def generate_plates(self, experiment: Experiment, rng: np.random.BitGenerator):
-        unobserved_experiment = experiment.subset_unobserved()
+        unobserved_experiment = experiment.subset_unobserved().to_experiment()
 
         if unobserved_experiment is None:
             logger.warning("No unobserved data found, returning original experiment")
@@ -219,11 +219,11 @@ class RandomPlateGenerator(RetrospectivePlateGenerator):
         else:
             selection_vector = np.ones(unobserved_experiment.size, dtype=bool)
 
-        unobserved_experiment.subset(selection_vector)
-
         if np.any(~selection_vector):
-            to_permute = unobserved_experiment.subset(selection_vector)
-            non_permuted = unobserved_experiment.subset(~selection_vector)
+            to_permute = unobserved_experiment.subset(selection_vector).to_experiment()
+            non_permuted = unobserved_experiment.subset(
+                ~selection_vector
+            ).to_experiment()
         else:
             to_permute = unobserved_experiment.subset(selection_vector)
             non_permuted = None
