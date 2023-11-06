@@ -1,4 +1,4 @@
-process ADVANCE_RETROSPECTIVE_EXPERIMENT {
+process ADVANCE_RETROSPECTIVE_SIMULATION {
     tag "$meta.id"
     label 'process_single'
     container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
@@ -6,11 +6,11 @@ process ADVANCE_RETROSPECTIVE_EXPERIMENT {
         'docker.io/jeffquinnmsk/batchie:latest' }"
 
     input:
-    tuple val(meta), path(data_masked), path(data_unmasked), path(thetas), path(batch_selection), path(experiment_tracker)
+    tuple val(meta), path(data_masked), path(data_unmasked), path(thetas), path(batch_selection), path(simulation_tracker)
 
     output:
-    tuple val(meta), path("${prefix}/advanced_experiment.h5"), emit: advanced_experiment
-    tuple val(meta), path("${prefix}/experiment_tracker_output.json"), emit: experiment_tracker
+    tuple val(meta), path("${prefix}/advanced_screen.h5"), emit: advanced_screen
+    tuple val(meta), path("${prefix}/simulation_tracker_output.json"), emit: simulation_tracker
     path  "versions.yml"                , emit: versions
 
 
@@ -22,14 +22,14 @@ process ADVANCE_RETROSPECTIVE_EXPERIMENT {
     def args = task.ext.args ?: ""
     """
     mkdir -p "${prefix}"
-    advance_retrospective_experiment \
+    advance_retrospective_simulation \
         --thetas ${thetas} \
-        --masked-experiment ${data_masked} \
-        --unmasked-experiment ${data_unmasked} \
+        --masked-screen ${data_masked} \
+        --unmasked-screen ${data_unmasked} \
         --batch-selection ${batch_selection} \
-        --experiment-tracker-output ${prefix}/experiment_tracker_output.json \
-        --experiment-tracker-input ${experiment_tracker} \
-        --experiment-output ${prefix}/advanced_experiment.h5 \
+        --simulation-tracker-output ${prefix}/simulation_tracker_output.json \
+        --simulation-tracker-input ${simulation_tracker} \
+        --screen-output ${prefix}/advanced_screen.h5 \
         ${args}
 
     cat <<-END_VERSIONS > versions.yml

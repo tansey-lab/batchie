@@ -1,5 +1,0 @@
-- name: advance_retrospective_experiment
-  command: nextflow run ./nextflow/tests/modules/nf-core/batchie/advance_retrospective_experiment -entry advance_retrospective_experiment -c ./nextflow/tests/modules/nf-core/batchie/advance_retrospective_experiment/nextflow.config -c ./nextflow/tests/config/nextflow.config
-  tags:
-    - advance_retrospective_experiment
-  files: []

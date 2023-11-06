@@ -16,7 +16,7 @@ from batchie.core import (
     PlatePolicy,
 )
 from batchie.distance_calculation import ChunkedDistanceMatrix
-from batchie.data import Experiment
+from batchie.data import Screen
 from batchie.scoring.main import select_next_batch
 from batchie.common import N_UNIQUE_SAMPLES, N_UNIQUE_TREATMENTS, SELECTED_PLATES_KEY
 
@@ -24,12 +24,39 @@ from batchie.common import N_UNIQUE_SAMPLES, N_UNIQUE_TREATMENTS, SELECTED_PLATE
 def get_parser():
     parser = argparse.ArgumentParser(description="calculate_distance_matrix.py")
     log_config.add_logging_args(parser)
-    parser.add_argument("--data", type=str, required=True)
-    parser.add_argument("--thetas", type=str, required=True, nargs="+")
-    parser.add_argument("--distance-matrix", type=str, required=True, nargs="+")
-    parser.add_argument("--batch-size", type=int, default=4)
+    parser.add_argument(
+        "--data",
+        help="A batchie Screen object in hdf5 format.",
+        type=str,
+        required=True,
+    )
+    parser.add_argument(
+        "--thetas",
+        help="A batchie ThetaHolder object in hdf5 format.",
+        type=str,
+        required=True,
+        nargs="+",
+    )
+    parser.add_argument(
+        "--distance-matrix",
+        help="A batchie ChunkedDistanceMatrix object in hdf5 format.",
+        type=str,
+        required=True,
+        nargs="+",
+    )
+    parser.add_argument(
+        "--batch-size",
+        help="Number of plates to select in this batch.",
+        type=int,
+        default=4,
+    )
 
-    parser.add_argument("--model", type=str, required=True)
+    parser.add_argument(
+        "--model",
+        help="Fully qualified name of the model class to use.",
+        type=str,
+        required=True,
+    )
     parser.add_argument(
         "--model-param",
         nargs=1,
@@ -38,7 +65,12 @@ def get_parser():
         help="Model parameters",
     )
 
-    parser.add_argument("--scorer", type=str, required=True)
+    parser.add_argument(
+        "--scorer",
+        help="Fully qualified name of the scorer class to use.",
+        type=str,
+        required=True,
+    )
     parser.add_argument(
         "--scorer-param",
         nargs=1,
@@ -47,7 +79,11 @@ def get_parser():
         help="Scorer parameters",
     )
 
-    parser.add_argument("--policy", type=str)
+    parser.add_argument(
+        "--policy",
+        help="Fully qualified name of the PlatePolicy class to use.",
+        type=str,
+    )
     parser.add_argument(
         "--policy-param",
         nargs=1,
@@ -56,7 +92,12 @@ def get_parser():
         help="Policy parameters",
     )
 
-    parser.add_argument("--output", type=str, required=True)
+    parser.add_argument(
+        "--output",
+        help="Location of output json file which will contain the plate ids selected.",
+        type=str,
+        required=True,
+    )
     parser.add_argument(
         "--seed",
         help="Seed to use for PRNG.",
@@ -121,10 +162,10 @@ def main():
     args = get_args()
     log_config.configure_logging(args)
 
-    experiment = Experiment.load_h5(args.data)
+    screen = Screen.load_h5(args.data)
 
-    args.model_params[N_UNIQUE_SAMPLES] = experiment.n_unique_samples
-    args.model_params[N_UNIQUE_TREATMENTS] = experiment.n_unique_treatments
+    args.model_params[N_UNIQUE_SAMPLES] = screen.n_unique_samples
+    args.model_params[N_UNIQUE_TREATMENTS] = screen.n_unique_treatments
 
     model: BayesianModel = args.model_cls(**args.model_params)
     scorer: Scorer = args.scorer_cls(**args.scorer_params)
@@ -143,7 +184,7 @@ def main():
     next_batch = select_next_batch(
         model=model,
         scorer=scorer,
-        experiment_space=experiment,
+        screen=screen,
         distance_matrix=distance_matrix,
         policy=policy,
         samples=thetas,

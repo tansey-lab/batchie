@@ -7,8 +7,8 @@ from batchie.cli.argument_parsing import (
     get_prng_from_seed_argument,
 )
 from batchie.core import InitialRetrospectivePlateGenerator, RetrospectivePlateGenerator
-from batchie.data import Experiment
-from batchie.retrospective import reveal_plates, mask_experiment
+from batchie.data import Screen
+from batchie.retrospective import reveal_plates, mask_screen
 from typing import Optional
 import logging
 
@@ -17,14 +17,26 @@ logger = logging.getLogger(__name__)
 
 def get_parser():
     parser = argparse.ArgumentParser(
-        description="This is a utility for revealing plates in a retrospective experiment,"
+        description="This is a utility for revealing plates in a retrospective simulation,"
         "calculating the prediction error on the un-revealed plates thus far,"
         "and saving the results."
     )
     log_config.add_logging_args(parser)
-    parser.add_argument("--experiment", type=str, required=True)
-    parser.add_argument("--output", type=str, required=True)
-    parser.add_argument("--initial-plate-generator", type=str, default=None)
+    parser.add_argument(
+        "--data", help="A batchie Screen in hdf5 format.", type=str, required=True
+    )
+    parser.add_argument(
+        "--output",
+        help="Output batchie Screen in hdf5 format.",
+        type=str,
+        required=True,
+    )
+    parser.add_argument(
+        "--initial-plate-generator",
+        help="Fully qualified name of the InitialRetrospectivePlateGenerator class to use.",
+        type=str,
+        default=None,
+    )
     parser.add_argument(
         "--initial-plate-generator-param",
         nargs=1,
@@ -32,7 +44,12 @@ def get_parser():
         metavar="KEY=VALUE",
         help="Initial plate generator parameters",
     )
-    parser.add_argument("--plate-generator", type=str, required=True)
+    parser.add_argument(
+        "--plate-generator",
+        help="Fully qualified name of the RetrospectivePlateGenerator class to use.",
+        type=str,
+        required=True,
+    )
     parser.add_argument(
         "--plate-generator-param",
         nargs=1,
@@ -96,7 +113,7 @@ def main():
     args = get_args()
     log_config.configure_logging(args)
 
-    full_experiment = Experiment.load_h5(args.experiment)
+    full_experiment = Screen.load_h5(args.data)
 
     rng = get_prng_from_seed_argument(args)
 
@@ -112,12 +129,12 @@ def main():
         )
 
         experiment = initial_plate_generator.generate_and_unmask_initial_plate(
-            experiment=full_experiment, rng=rng
+            screen=full_experiment, rng=rng
         )
     else:
-        experiment = mask_experiment(experiment=full_experiment)
+        experiment = mask_screen(screen=full_experiment)
 
-    experiment = plate_generator.generate_plates(experiment=experiment, rng=rng)
+    experiment = plate_generator.generate_plates(screen=experiment, rng=rng)
     logger.info("Generated {} plates".format(len(experiment.plates)))
 
     if initial_plate_generator is None:
@@ -132,8 +149,8 @@ def main():
 
         logger.warning("Will reveal plate {}".format(random_first_plate))
         experiment = reveal_plates(
-            full_experiment=full_experiment,
-            masked_experiment=experiment,
+            observed_screen=full_experiment,
+            masked_screen=experiment,
             plate_ids=[random_first_plate.plate_id],
         )
 

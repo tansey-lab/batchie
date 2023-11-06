@@ -2,13 +2,13 @@ import numpy as np
 import pytest
 from batchie.scoring import gaussian_dbal
 from unittest import mock
-from batchie.core import BayesianModel, Experiment, ThetaHolder
+from batchie.core import BayesianModel, Screen, ThetaHolder
 from batchie.distance_calculation import ChunkedDistanceMatrix
 
 
 @pytest.fixture
 def unobserved_dataset():
-    test_dataset = Experiment(
+    test_dataset = Screen(
         observations=np.array([0.1, 0.2, 0.3, 0.4, 0.1, 0.2, 0.3, 0.4]),
         observation_mask=np.array(
             [False, False, False, False, False, False, False, False]

@@ -5,6 +5,10 @@ from scipy.special import expit
 
 
 class MSEDistance(DistanceMetric):
+    """
+    Mean squared error distance metric
+    """
+
     def __init__(self, sigmoid: bool = True):
         self.sigmoid = sigmoid
 

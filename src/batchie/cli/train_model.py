@@ -6,13 +6,22 @@ from batchie import sampling
 from batchie.cli.argument_parsing import KVAppendAction, cast_dict_to_type
 from batchie.common import N_UNIQUE_SAMPLES, N_UNIQUE_TREATMENTS
 from batchie.core import BayesianModel, ThetaHolder
-from batchie.data import Experiment
+from batchie.data import Screen
 
 
 def get_parser():
-    parser = argparse.ArgumentParser(description="train_model.py")
+    parser = argparse.ArgumentParser(
+        description="Train the provided model by iteratively calling its #step method,"
+        "conditioned on the provided data. Collect the model parameters and save"
+        "to a file."
+    )
     log_config.add_logging_args(parser)
-    parser.add_argument("--data", type=str, required=True)
+    parser.add_argument(
+        "--data",
+        help="A batchie Screen object in hdf5 format.",
+        type=str,
+        required=True,
+    )
     parser.add_argument("--model", type=str, required=True)
     parser.add_argument(
         "--model-param",
@@ -93,7 +102,7 @@ def main():
     args = get_args()
     log_config.configure_logging(args)
 
-    data = Experiment.load_h5(args.data)
+    data = Screen.load_h5(args.data)
 
     args.model_params[N_UNIQUE_SAMPLES] = data.n_unique_samples
     args.model_params[N_UNIQUE_TREATMENTS] = data.n_unique_treatments

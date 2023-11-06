@@ -2,7 +2,7 @@ from typing import Optional
 
 import numpy as np
 from batchie.common import CONTROL_SENTINEL_VALUE, FloatingPointType
-from batchie.data import Experiment, Plate
+from batchie.data import Screen, Plate
 from batchie.core import (
     BayesianModel,
     ThetaHolder,
@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 class SparseCoverPlateGenerator(InitialRetrospectivePlateGenerator):
     def generate_and_unmask_initial_plate(
-        self, experiment: Experiment, rng: np.random.BitGenerator
+        self, screen: Screen, rng: np.random.BitGenerator
     ):
         """
         We want to make sure we have at least one observation for
@@ -28,7 +28,7 @@ class SparseCoverPlateGenerator(InitialRetrospectivePlateGenerator):
         We'll use this to construct the first plate, this initialization causes
         faster convergence of the algorithm.
         """
-        if not experiment.is_observed:
+        if not screen.is_observed:
             raise ValueError(
                 "The experiment used for retrospective "
                 "analysis must be fully observed"
@@ -37,13 +37,13 @@ class SparseCoverPlateGenerator(InitialRetrospectivePlateGenerator):
         covered_treatments = set()
         chosen_selection_indices = []
 
-        for sample_id in experiment.unique_sample_ids:
+        for sample_id in screen.unique_sample_ids:
             experiments_with_at_least_one_treatment_not_in_covered_treatments = np.any(
-                ~np.isin(experiment.treatment_ids, list(covered_treatments)), axis=1
+                ~np.isin(screen.treatment_ids, list(covered_treatments)), axis=1
             )
 
             selection_vector = (
-                experiment.sample_ids == sample_id
+                screen.sample_ids == sample_id
             ) & experiments_with_at_least_one_treatment_not_in_covered_treatments
             if selection_vector.sum() > 0:
                 selection_indices = np.arange(selection_vector.size)[selection_vector]
@@ -51,24 +51,24 @@ class SparseCoverPlateGenerator(InitialRetrospectivePlateGenerator):
                 chosen_selection_indices.append(chosen_selection_index)
 
                 covered_treatments.update(
-                    set(experiment.treatment_ids[chosen_selection_indices].flatten())
+                    set(screen.treatment_ids[chosen_selection_indices].flatten())
                 )
             else:  ## randomly choose some index corresponding to c
-                selection_vector = experiment.sample_ids == sample_id
+                selection_vector = screen.sample_ids == sample_id
                 selection_indices = np.arange(selection_vector.size)[selection_vector]
                 chosen_selection_index = rng.choice(selection_indices, size=1)
                 chosen_selection_indices.append(chosen_selection_index)
                 covered_treatments.update(
-                    set(experiment.treatment_ids[chosen_selection_indices].flatten())
+                    set(screen.treatment_ids[chosen_selection_indices].flatten())
                 )
 
         remaining_treatments = np.setdiff1d(
-            experiment.treatment_ids, list(covered_treatments)
+            screen.treatment_ids, list(covered_treatments)
         )
 
         while len(remaining_treatments) > 0:
             experiments_with_at_least_one_treatment_in_remaining_treatments = np.any(
-                np.isin(experiment.treatment_ids, list(remaining_treatments)), axis=1
+                np.isin(screen.treatment_ids, list(remaining_treatments)), axis=1
             )
             selection_indices = np.arange(selection_vector.size)[
                 experiments_with_at_least_one_treatment_in_remaining_treatments
@@ -76,30 +76,30 @@ class SparseCoverPlateGenerator(InitialRetrospectivePlateGenerator):
             chosen_selection_index = rng.choice(selection_indices, 1)
             chosen_selection_indices.append(chosen_selection_index)
             covered_treatments.update(
-                set(experiment.treatment_ids[chosen_selection_indices].flatten())
+                set(screen.treatment_ids[chosen_selection_indices].flatten())
             )
             remaining_treatments = np.setdiff1d(
-                experiment.treatment_ids, list(covered_treatments)
+                screen.treatment_ids, list(covered_treatments)
             )
 
         final_plate_selection_vector = np.isin(
-            np.arange(experiment.size), chosen_selection_indices
+            np.arange(screen.size), chosen_selection_indices
         )
 
-        plate_names = np.array(["initial_plate"] * experiment.size, dtype=str)
+        plate_names = np.array(["initial_plate"] * screen.size, dtype=str)
 
         plate_names[~final_plate_selection_vector] = "unobserved_plate"
 
-        observation_vector = experiment.observations.copy()
+        observation_vector = screen.observations.copy()
         observation_vector[~final_plate_selection_vector] = 0.0
 
-        return Experiment(
-            treatment_names=experiment.treatment_names,
-            treatment_doses=experiment.treatment_doses,
+        return Screen(
+            treatment_names=screen.treatment_names,
+            treatment_doses=screen.treatment_doses,
             observations=observation_vector,
-            sample_names=experiment.sample_names,
+            sample_names=screen.sample_names,
             plate_names=plate_names,
-            control_treatment_name=experiment.control_treatment_name,
+            control_treatment_name=screen.control_treatment_name,
             observation_mask=final_plate_selection_vector,
         )
 
@@ -109,9 +109,7 @@ class PairwisePlateGenerator(RetrospectivePlateGenerator):
         self.anchor_size = anchor_size
         self.subset_size = subset_size
 
-    def generate_plates(
-        self, experiment: Experiment, rng: np.random.BitGenerator
-    ) -> Experiment:
+    def generate_plates(self, screen: Screen, rng: np.random.BitGenerator) -> Screen:
         """
         Break up your drug doses into groups of size subset_size
 
@@ -123,11 +121,11 @@ class PairwisePlateGenerator(RetrospectivePlateGenerator):
         <anchor_size> anchor drugs in each group
         """
 
-        unobserved_data = experiment.subset_unobserved().to_experiment()
+        unobserved_data = screen.subset_unobserved().to_screen()
 
         if not unobserved_data:
             logger.warning("No unobserved data found, returning original experiment")
-            return experiment
+            return screen
 
         combo_mask = ~np.any(
             (unobserved_data.treatment_ids == CONTROL_SENTINEL_VALUE), axis=1
@@ -181,7 +179,7 @@ class PairwisePlateGenerator(RetrospectivePlateGenerator):
             mask = (grouping_tuples == unique_grouping_tuple).all(axis=1)
             new_plate_names[mask] = f"generated_plate_{idx}"
 
-        unobserved_with_generated_plates = Experiment(
+        unobserved_with_generated_plates = Screen(
             treatment_names=unobserved_data.treatment_names,
             treatment_doses=unobserved_data.treatment_doses,
             observations=unobserved_data.observations,
@@ -191,12 +189,10 @@ class PairwisePlateGenerator(RetrospectivePlateGenerator):
             control_treatment_name=unobserved_data.control_treatment_name,
         )
 
-        observed_subset = experiment.subset_observed()
+        observed_subset = screen.subset_observed()
 
         if observed_subset:
-            return experiment.subset_observed().combine(
-                unobserved_with_generated_plates
-            )
+            return screen.subset_observed().combine(unobserved_with_generated_plates)
         else:
             return unobserved_with_generated_plates
 
@@ -205,12 +201,12 @@ class RandomPlateGenerator(RetrospectivePlateGenerator):
     def __init__(self, force_include_plate_names: Optional[list[str]] = None):
         self.force_include_plate_names = force_include_plate_names
 
-    def generate_plates(self, experiment: Experiment, rng: np.random.BitGenerator):
-        unobserved_experiment = experiment.subset_unobserved().to_experiment()
+    def generate_plates(self, screen: Screen, rng: np.random.BitGenerator):
+        unobserved_experiment = screen.subset_unobserved().to_screen()
 
         if unobserved_experiment is None:
             logger.warning("No unobserved data found, returning original experiment")
-            return experiment
+            return screen
 
         if self.force_include_plate_names:
             selection_vector = ~np.isin(
@@ -220,17 +216,15 @@ class RandomPlateGenerator(RetrospectivePlateGenerator):
             selection_vector = np.ones(unobserved_experiment.size, dtype=bool)
 
         if np.any(~selection_vector):
-            to_permute = unobserved_experiment.subset(selection_vector).to_experiment()
-            non_permuted = unobserved_experiment.subset(
-                ~selection_vector
-            ).to_experiment()
+            to_permute = unobserved_experiment.subset(selection_vector).to_screen()
+            non_permuted = unobserved_experiment.subset(~selection_vector).to_screen()
         else:
-            to_permute = unobserved_experiment.subset(selection_vector).to_experiment()
+            to_permute = unobserved_experiment.subset(selection_vector).to_screen()
             non_permuted = None
 
         new_plate_names = rng.permutation(to_permute.plate_names)
 
-        permuted = Experiment(
+        permuted = Screen(
             treatment_names=to_permute.treatment_names,
             treatment_doses=to_permute.treatment_doses,
             observations=to_permute.observations,
@@ -245,69 +239,69 @@ class RandomPlateGenerator(RetrospectivePlateGenerator):
         else:
             new_unobserved = permuted
 
-        if experiment.subset_observed():
-            return experiment.subset_observed().to_experiment().combine(new_unobserved)
+        if screen.subset_observed():
+            return screen.subset_observed().to_screen().combine(new_unobserved)
         else:
             return new_unobserved
 
 
-def mask_experiment(experiment: Experiment) -> Experiment:
-    return Experiment(
-        treatment_names=experiment.treatment_names,
-        treatment_doses=experiment.treatment_doses,
-        observations=np.zeros(experiment.size, dtype=FloatingPointType),
-        sample_names=experiment.sample_names,
-        plate_names=experiment.plate_names,
-        control_treatment_name=experiment.control_treatment_name,
-        observation_mask=np.zeros(experiment.size, dtype=bool),
+def mask_screen(screen: Screen) -> Screen:
+    return Screen(
+        treatment_names=screen.treatment_names,
+        treatment_doses=screen.treatment_doses,
+        observations=np.zeros(screen.size, dtype=FloatingPointType),
+        sample_names=screen.sample_names,
+        plate_names=screen.plate_names,
+        control_treatment_name=screen.control_treatment_name,
+        observation_mask=np.zeros(screen.size, dtype=bool),
     )
 
 
 def reveal_plates(
-    full_experiment: Experiment,
-    masked_experiment: Experiment,
+    observed_screen: Screen,
+    masked_screen: Screen,
     plate_ids: list[int],
-) -> Experiment:
+) -> Screen:
     """
-    Utility function to reveal observations in the masked experiment from the full experiment.
+    Utility function to reveal observations in the masked screen from the observed screen.
 
-    :param full_experiment: A :py:class:`Experiment` that is fully observed
-    :param masked_experiment: The same :py:class:`Experiment` that is partially observed
+    :param observed_screen: A :py:class:`batchie.data.Screen` that is fully observed
+    :param masked_screen: The same :py:class:`batchie.data.Screen` that is partially observed
     :param plate_ids: The plate ids to reveal
     """
-    selection_mask = np.isin(masked_experiment.plate_ids, plate_ids)
+    selection_mask = np.isin(masked_screen.plate_ids, plate_ids)
 
-    masked_experiment.set_observed(
+    masked_screen.set_observed(
         selection_mask,
-        full_experiment.observations[selection_mask],
+        observed_screen.observations[selection_mask],
     )
 
-    return masked_experiment
+    return masked_screen
 
 
 def calculate_mse(
-    full_experiment: Experiment,
-    masked_experiment: Experiment,
+    observed_screen: Screen,
+    masked_screen: Screen,
     model: BayesianModel,
     thetas: ThetaHolder,
 ) -> float:
     """
     Calculate the mean squared error between the masked observations and the unmasked observations
 
-    :param full_experiment: A :py:class:`Experiment` that is fully observed
-    :param masked_experiment: The same :py:class:`Experiment` that is partially observed
+    :param observed_screen: A :py:class:`Screen` that is fully observed
+    :param masked_screen: The same :py:class:`Screen` that is partially observed
     :param model: The model to use for prediction
     :param thetas: The set of model parameters to use for prediction
     :return: The average mean squared error between predicted and observed values
     """
     preds = predict_avg(
         model=model,
-        experiment=masked_experiment,
+        screen=masked_screen,
         thetas=thetas,
     )
 
-    masked_obs = full_experiment.observations[~masked_experiment.observation_mask]
+    masked_obs = observed_screen.observations[~masked_screen.observation_mask]
 
-    prediction_of_masked_obs = preds[~masked_experiment.observation_mask]
+    prediction_of_masked_obs = preds[~masked_screen.observation_mask]
 
     return np.mean((masked_obs - prediction_of_masked_obs) ** 2)

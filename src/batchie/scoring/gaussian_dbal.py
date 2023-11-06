@@ -20,6 +20,11 @@ def generate_combination_at_sorted_index(index, n, k):
     Sort all the tuples is ascending order, and return the tuple that would be found at `index`.
 
     Do this without materializing the actual list of combinations.
+
+    :param index: The index of the combination to return
+    :param n: The number of items to choose from
+    :param k: The number of items to choose
+    :return: A tuple of length k representing the combination
     """
     n_ck = 1
     for n_minus_i, i_plus_1 in zip(range(n, n - k, -1), range(1, k + 1)):
@@ -49,6 +54,9 @@ def zero_pad_ragged_arrays_to_dense_array(arrays: list[ArrayType]):
     each of which have different sizes, return a dense array of N + 1 dimensions,
     of size (len(array), maximum_of_dimension_0, ... maximum_of_dimension_N)
     where all the arrays are zero-padded to the maximum size.
+
+    :param arrays: A list of arrays
+    :return: A dense array of the arrays
     """
     max_sizes = np.max([np.array(array.shape) for array in arrays], axis=0)
     result = np.zeros((len(arrays), *max_sizes), dtype=arrays[0].dtype)
@@ -63,8 +71,22 @@ def dbal_fast_gauss_scoring_vec(
     distance_matrix: ArrayType,
     rng: np.random.Generator,
     max_combos: int = 5000,
-    dfactor: float = 1.0,
+    distance_factor: float = 1.0,
 ):
+    r"""
+    Compute the Monte Carlo approximation of the DBAL ideal score $\widehat{s}_n(P)$
+    in a vectorized way for each of the given plates.
+
+    $$\widehat{s}_n(P) = \frac{1}{{m \choose 3}} \sum_{i < j < k} d(\theta_i, \theta_j) L_{\theta_i}(\theta_j, \theta_k ; P ) e^{2H_{\theta_i}(P)}$$
+
+    :param per_plate_predictions: a list of arrays (one for each plate) of shape (n_thetas, n_experiments)
+    :param variances: an array of shape (n_thetas,) of variances for each model parameterization
+    :param distance_matrix: a square array of shape (n_thetas, n_thetas) of distances between model parameterizations
+    :param rng: PRNG
+    :param max_combos: the maximum number of theta triplets to sample
+    :param distance_factor: a multiplicative factor for the distance matrix
+    :return: an array of shape (n_plates,) of approximated scores for each plate in per_plate_predictions
+    """
     if not len(per_plate_predictions):
         raise ValueError("per_plate_predictions must be non-empty")
 
@@ -102,7 +124,7 @@ def dbal_fast_gauss_scoring_vec(
     idx3 = np.array(idx3)
 
     with np.errstate(divide="ignore"):
-        log_triple_dists = dfactor * np.log(
+        log_triple_dists = distance_factor * np.log(
             distance_matrix[idx1, idx2]
             + distance_matrix[idx2, idx3]
             + distance_matrix[idx1, idx3]
@@ -173,7 +195,7 @@ class GaussianDBALScorer(Scorer):
                     plate_subgroup_mask = plate_subgroup_mask | plate.selection_vector
 
             per_plate_predictions = [
-                predict_all(experiment=plate, model=model, thetas=samples)
+                predict_all(screen=plate, model=model, thetas=samples)
                 for plate in current_plates
             ]
 

@@ -9,7 +9,7 @@ from batchie.core import (
     ThetaHolder,
 )
 from batchie.distance_calculation import ChunkedDistanceMatrix
-from batchie.data import Experiment, Plate
+from batchie.data import Screen, Plate
 
 
 logger = logging.getLogger(__name__)
@@ -19,23 +19,31 @@ def select_next_batch(
     model: BayesianModel,
     scorer: Scorer,
     samples: ThetaHolder,
-    experiment_space: Experiment,
+    screen: Screen,
     distance_matrix: ChunkedDistanceMatrix,
     policy: Optional[PlatePolicy],
     batch_size: int = 1,
     rng: Optional[np.random.Generator] = None,
 ) -> list[Plate]:
     """
-    Select the next batch of plates to observe, these are the :py:class:`Plate` objects t
+    Select the next batch of :py:class:`batchie.data.Plate`s to observe
+
+    :param model: The model to use for prediction
+    :param scorer: The scorer to use for plate scoring
+    :param samples: The set of model parameters to use for prediction
+    :param screen: The screen which defines the set of plates to choose from
+    :param distance_matrix: The distance matrix between model parameterizations
+    :param policy: The policy to use for plate selection
+    :param batch_size: The number of plates to select
+    :param rng: PRNG to use for sampling
+    :return: A list of plates to observe
     """
     if rng is None:
         rng = np.random.default_rng()
 
-    observed_plates = [plate for plate in experiment_space.plates if plate.is_observed]
+    observed_plates = [plate for plate in screen.plates if plate.is_observed]
 
-    unobserved_plates = [
-        plate for plate in experiment_space.plates if not plate.is_observed
-    ]
+    unobserved_plates = [plate for plate in screen.plates if not plate.is_observed]
 
     selected_plates = []
 

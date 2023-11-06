@@ -10,12 +10,12 @@ from batchie.core import (
 )
 from batchie.distance_calculation import ChunkedDistanceMatrix
 from batchie.scoring import main
-from batchie.data import Experiment
+from batchie.data import Screen
 
 
 @pytest.fixture()
 def test_experiment():
-    return Experiment(
+    return Screen(
         observations=np.array([0.1, 0.2, 0, 0, 0, 0]),
         observation_mask=np.array([True, True, False, False, False, False]),
         sample_names=np.array(["a", "b", "c", "d", "e", "f"], dtype=str),
@@ -43,7 +43,7 @@ def test_select_next_batch_with_policy(test_experiment):
         model=mock.MagicMock(BayesianModel),
         scorer=scorer,
         samples=mock.MagicMock(ThetaHolder),
-        experiment_space=test_experiment,
+        screen=test_experiment,
         distance_matrix=mock.MagicMock(ChunkedDistanceMatrix),
         policy=policy,
     )
@@ -59,7 +59,7 @@ def test_select_next_batch_without_policy(test_experiment):
         model=mock.MagicMock(BayesianModel),
         scorer=scorer,
         samples=mock.MagicMock(ThetaHolder),
-        experiment_space=test_experiment,
+        screen=test_experiment,
         distance_matrix=mock.MagicMock(ChunkedDistanceMatrix),
         policy=None,
     )

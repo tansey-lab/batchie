@@ -1,4 +1,4 @@
-name: extract_experiment_metadata
+name: extract_screen_metadata
 description: Extract experiment metadata into nextflow vars
 keywords:
   - active_learning
@@ -23,10 +23,10 @@ input:
         https://batchie.readthedocs.io/en/latest/data_format.html#experiment-format
 
 output:
-  - experiment_metadata:
+  - screen_metadata:
       type: file
-      description: json file containing the experiment metadata
-      pattern: "experiment_metadata.json"
+      description: json file containing the screen metadata
+      pattern: "screen_metadata.json"
   - versions:
       type: file
       description: File containing software versions

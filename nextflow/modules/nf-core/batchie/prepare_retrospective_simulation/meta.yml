@@ -1,4 +1,4 @@
-name: prepare_retrospective_experiment
+name: prepare_retrospective_simulation
 description: Prepare a fully observed experiment for retrospective active learning
 keywords:
   - active_learning
@@ -23,11 +23,11 @@ input:
         https://batchie.readthedocs.io/en/latest/data_format.html#experiment-format
 
 output:
-  - retrospective_experiment:
+  - retrospective_simulation:
       type: file
       description: The experiment file, but with the initial plate set to observed,
         and the remaining generated plates set to unobserved
-      pattern: "retrospective_experiment.h5"
+      pattern: "retrospective_simulation.h5"
   - versions:
       type: file
       description: File containing software versions

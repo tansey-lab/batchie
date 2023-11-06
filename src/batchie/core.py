@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 import json
 import numpy as np
 from batchie.common import ArrayType, FloatingPointType
-from batchie.data import ExperimentBase, Plate, Experiment
+from batchie.data import ScreenBase, Plate, Screen
 
 
 class Theta:
@@ -186,7 +186,7 @@ class BayesianModel(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def predict(self, data: ExperimentBase) -> ArrayType:
+    def predict(self, data: ScreenBase) -> ArrayType:
         """
         Predict the outcome of an :py:class:`batchie.data.ExperimentBase`.
 
@@ -233,7 +233,7 @@ class BayesianModel(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def add_observations(self, data: ExperimentBase):
+    def add_observations(self, data: ScreenBase):
         """
         Add observations to the model.
 
@@ -364,7 +364,7 @@ class Scorer:
 
 class PlatePolicy:
     """
-    Given a :py:class:`batchie.data.Experiment`, which is a set of potential :py:class:`batchie.data.Plate`s,
+    Given a :py:class:`batchie.data.Screen`, which is a set of potential :py:class:`batchie.data.Plate`s,
     implementations of this class will determine which set of :py:class:`batchie.data.Plate`s is eligible
     for the next round.
     """
@@ -378,7 +378,7 @@ class PlatePolicy:
         raise NotImplementedError
 
 
-class ExperimentTracker:
+class SimulationTracker:
     """
     This class tracks the state of a retrospective active learning simulation.
     It will record the plates that were revealed at each step and the total loss of the predictor
@@ -427,14 +427,14 @@ class InitialRetrospectivePlateGenerator:
     """
 
     def generate_and_unmask_initial_plate(
-        self, experiment: Experiment, rng: np.random.BitGenerator
-    ) -> Experiment:
+        self, screen: Screen, rng: np.random.BitGenerator
+    ) -> Screen:
         """
         Generate and unmask the initial plate.
 
-        :param experiment: A fully observed :py:class:`batchie.data.Experiment`
+        :param screen: A fully observed :py:class:`batchie.data.Screen`
         :param rng: The PRNG to use.
-        :return: The same :py:class:`batchie.data.Experiment` with the initial plate observed, and all other plates
+        :return: The same :py:class:`batchie.data.Screen` with the initial plate observed, and all other plates
         masked.
         """
         raise NotImplementedError
@@ -447,13 +447,11 @@ class RetrospectivePlateGenerator:
     observations in the retrospective dataset.
     """
 
-    def generate_plates(
-        self, experiment: Experiment, rng: np.random.BitGenerator
-    ) -> Experiment:
+    def generate_plates(self, screen: Screen, rng: np.random.BitGenerator) -> Screen:
         """
-        Generate plates from the remaining unobserved experiments.
+        Generate plates from the remaining unobserved experiments in the input screen.
 
-        :param experiment: A partially observed :py:class:`batchie.data.Experiment`
+        :param screen: A partially observed :py:class:`batchie.data.Screen`
         :param rng: The PRNG to use.
         """
         raise NotImplementedError

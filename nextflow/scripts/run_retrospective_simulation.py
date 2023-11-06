@@ -7,7 +7,7 @@ import logging
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
-WORKFLOW_NAME = "RETROSPECTIVE_EXPERIMENT"
+WORKFLOW_NAME = "RETROSPECTIVE_SIMULATION"
 
 
 def get_script_location():
@@ -21,7 +21,7 @@ def get_nextflow_dir():
 def get_args():
     parser = argparse.ArgumentParser(description="Run retrospective experiment")
     parser.add_argument(
-        "--unmasked-experiment",
+        "--unmasked-screen",
         type=str,
         required=True,
         help="Path to unmasked experiment",
@@ -99,7 +99,7 @@ def run_nextflow_step(
         "workflows",
         "nf-core",
         "batchie",
-        "retrospective_experiment",
+        "retrospective_simulation",
         "main.nf",
     )
 

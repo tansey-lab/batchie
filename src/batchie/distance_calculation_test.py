@@ -4,13 +4,13 @@ import numpy as np
 import pytest
 from batchie import distance_calculation
 from batchie.core import BayesianModel, DistanceMetric, ThetaHolder
-from batchie.data import Experiment
+from batchie.data import Screen
 from batchie.distance_calculation import ChunkedDistanceMatrix
 
 
 @pytest.fixture
 def test_dataset():
-    test_dataset = Experiment(
+    test_dataset = Screen(
         observations=np.array([0.1, 0.2, 0.3, 0.4, 0.1, 0.2]),
         sample_names=np.array(["a", "a", "a", "b", "b", "b"], dtype=str),
         plate_names=np.array(["1"] * 6, dtype=str),

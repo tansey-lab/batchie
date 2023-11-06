@@ -7,7 +7,7 @@ from batchie.core import (
     ThetaHolder,
     BayesianModel,
 )
-from batchie.data import Experiment
+from batchie.data import Screen
 from itertools import islice
 import collections
 
@@ -221,7 +221,7 @@ def calculate_pairwise_distance_matrix_on_predictions(
     model: BayesianModel,
     thetas: ThetaHolder,
     distance_metric: DistanceMetric,
-    data: Experiment,
+    data: Screen,
     chunk_index: int,
     n_chunks: int,
 ) -> ChunkedDistanceMatrix:

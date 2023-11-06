@@ -1,4 +1,4 @@
-process EXTRACT_EXPERIMENT_METADATA {
+process EXTRACT_SCREEN_METADATA {
     tag "$meta.id"
     label 'process_single'
     container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
@@ -9,7 +9,7 @@ process EXTRACT_EXPERIMENT_METADATA {
     tuple val(meta), path(data)
 
     output:
-    tuple val(meta), path("${prefix}/experiment_metadata.json"), emit: distance_matrix_chunk
+    tuple val(meta), path("${prefix}/screen_metadata.json"), emit: screen_metadata
     tuple val(meta), env(n_unique_samples), emit: n_unique_samples
     tuple val(meta), env(n_unique_treatments), emit: n_unique_treatments
     tuple val(meta), env(n_observed_plates), emit: n_observed_plates
@@ -26,16 +26,16 @@ process EXTRACT_EXPERIMENT_METADATA {
     def args = task.ext.args ?: ""
     """
     mkdir -p "${prefix}"
-    extract_experiment_metadata --experiment ${data} \
-        --output ${prefix}/experiment_metadata.json \
+    extract_screen_metadata --screen ${data} \
+        --output ${prefix}/screen_metadata.json \
         ${args}
 
-    n_unique_samples=\$(jq -r '.n_unique_samples' ${prefix}/experiment_metadata.json)
-    n_unique_treatments=\$(jq -r '.n_unique_treatments' ${prefix}/experiment_metadata.json)
-    n_observed_plates=\$(jq -r '.n_observed_plates' ${prefix}/experiment_metadata.json)
-    n_unobserved_plates=\$(jq -r '.n_unobserved_plates' ${prefix}/experiment_metadata.json)
-    n_plates=\$(jq -r '.n_plates' ${prefix}/experiment_metadata.json)
-    size=\$(jq -r '.size' ${prefix}/experiment_metadata.json)
+    n_unique_samples=\$(jq -r '.n_unique_samples' ${prefix}/screen_metadata.json)
+    n_unique_treatments=\$(jq -r '.n_unique_treatments' ${prefix}/screen_metadata.json)
+    n_observed_plates=\$(jq -r '.n_observed_plates' ${prefix}/screen_metadata.json)
+    n_unobserved_plates=\$(jq -r '.n_unobserved_plates' ${prefix}/screen_metadata.json)
+    n_plates=\$(jq -r '.n_plates' ${prefix}/screen_metadata.json)
+    size=\$(jq -r '.size' ${prefix}/screen_metadata.json)
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":

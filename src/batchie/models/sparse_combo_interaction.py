@@ -10,7 +10,7 @@ from batchie import synergy
 from batchie.common import ArrayType, copy_array_with_control_treatments_set_to_zero
 from batchie.common import CONTROL_SENTINEL_VALUE
 from batchie.core import Theta, ThetaHolder
-from batchie.data import ExperimentBase
+from batchie.data import ScreenBase
 from batchie.fast_mvn import sample_mvn_from_precision
 from batchie.models.sparse_combo import SparseDrugCombo
 from scipy.special import logit
@@ -193,7 +193,7 @@ class SparseDrugComboInteraction(SparseDrugCombo):
         self.precision = model_state.precision
         self._reconstruct_Mu()
 
-    def add_observations(self, data: ExperimentBase):
+    def add_observations(self, data: ScreenBase):
         if data.treatment_arity != 2:
             raise ValueError(
                 "SparseDrugComboInteraction only works with two-treatments combination datasets, "
@@ -221,7 +221,7 @@ class SparseDrugComboInteraction(SparseDrugCombo):
             [self.treatment_2, data.treatment_ids[combo_mask, 1]]
         )
 
-    def predict(self, data: ExperimentBase):
+    def predict(self, data: ScreenBase):
         if not data.treatment_arity == 2:
             raise ValueError(
                 "SparseDrugComboInteraction only supports data sets with combinations of 2 treatments"

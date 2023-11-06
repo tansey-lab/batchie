@@ -1,14 +1,21 @@
 import argparse
 import json
 from batchie import log_config
-from batchie.data import Experiment
+from batchie.data import Screen
 
 
 def get_parser():
-    parser = argparse.ArgumentParser(description="extract_experiment_metadata.py")
+    parser = argparse.ArgumentParser(description="extract_screen_metadata.py")
     log_config.add_logging_args(parser)
-    parser.add_argument("--experiment", type=str, required=True)
-    parser.add_argument("--output", type=str, required=True)
+    parser.add_argument(
+        "--screen", help="A batchie Screen in hdf5 format.", type=str, required=True
+    )
+    parser.add_argument(
+        "--output",
+        help="Output json file to save metadata to.",
+        type=str,
+        required=True,
+    )
     return parser
 
 
@@ -24,7 +31,7 @@ def main():
     args = get_args()
     log_config.configure_logging(args)
 
-    experiment = Experiment.load_h5(args.experiment)
+    experiment = Screen.load_h5(args.screen)
 
     n_observed_plates = 0
     n_unobserved_plates = 0

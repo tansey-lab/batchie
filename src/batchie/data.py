@@ -179,16 +179,16 @@ def create_single_treatment_effect_array(
     return result
 
 
-class ExperimentBase(ABC):
+class ScreenBase(ABC):
     """
     Base class for the principal data structure in batchie.
 
-    An :py:class:`batchie.data.Experiment` is a collection of experimental conditions,
+    An :py:class:`batchie.data.Screen` is a collection of experimental conditions,
     and optionally observations for those of those conditions.
     The conditions are defined by a set of treatment names and doses, and a set of sample names.
     Observations are scalar floating point numbers, with one scalar per condition.
 
-    :py:class:`batchie.data.Experiment` class also defines the concept of a plate, which is a grouping
+    :py:class:`batchie.data.Screen` class also defines the concept of a plate, which is a grouping
     of experimental conditions. The terminology plate comes from the world of high throughput biological
     screening, where plastic plates with 96, 384, or 1536 individual wells are used to hold distinct
     biochemical reactions. In batchie, this concept is abstracted to the concept of a plate being
@@ -248,7 +248,7 @@ class ExperimentBase(ABC):
     @property
     def unique_plate_ids(self):
         """
-        Return the unique plate ids in the experiment.
+        Return the unique plate ids in the screen.
 
         :return: 1d array of unique plate ids
         """
@@ -257,7 +257,7 @@ class ExperimentBase(ABC):
     @property
     def unique_sample_ids(self):
         """
-        Return the unique sample ids in the experiment.
+        Return the unique sample ids in the screen.
 
         :return: 1d array of unique sample ids
         """
@@ -266,7 +266,7 @@ class ExperimentBase(ABC):
     @property
     def unique_treatments(self):
         """
-        Return the unique treatments in the experiment (excludes "control"
+        Return the unique treatments in the screen (excludes "control"
         treatments).
 
         :return: 2d array of unique treatments
@@ -276,7 +276,7 @@ class ExperimentBase(ABC):
     @property
     def n_unique_samples(self):
         """
-        Return the number of unique samples in the experiment.
+        Return the number of unique samples in the screen.
 
         :return: int, number of unique samples
         """
@@ -285,7 +285,7 @@ class ExperimentBase(ABC):
     @property
     def n_unique_treatments(self):
         """
-        Return the number of unique treatments in the experiment.
+        Return the number of unique treatments in the screen.
 
         :return: int, number of unique treatments
         """
@@ -294,16 +294,16 @@ class ExperimentBase(ABC):
     @property
     def treatment_arity(self):
         """
-        Return the number of treatments per experimental condition.
+        Return the number of treatments per experiment.
 
-        :return: int, number of treatments per experimental condition
+        :return: int, number of treatments per experiment
         """
         return self.treatment_ids.shape[1]
 
     @property
     def n_plates(self):
         """
-        Return the number of plates in the experiment.
+        Return the number of plates in the screen.
 
         :return: int, number of plates
         """
@@ -314,21 +314,21 @@ class ExperimentBase(ABC):
         raise NotImplementedError
 
 
-class ExperimentSubset(ExperimentBase):
+class ScreenSubset(ScreenBase):
     """
-    A subset of an :py:class:`batchie.data.Experiment` defined by a boolean selection vector.
+    A subset of an :py:class:`batchie.data.Screen` defined by a boolean selection vector.
 
     This class is not meant to be instantiated directly, but rather is returned by the
-    :py:meth:`batchie.data.Experiment.subset` method.
+    :py:meth:`batchie.data.Screen.subset` method.
     """
 
-    def __init__(self, experiment: "Experiment", selection_vector: ArrayType):
-        self.dataset = experiment
+    def __init__(self, screen: "Screen", selection_vector: ArrayType):
+        self.screen = screen
 
         if not np.issubdtype(selection_vector.dtype, bool):
             raise ValueError("selection_vector must be bool")
 
-        if selection_vector.shape[0] != experiment.size:
+        if selection_vector.shape[0] != screen.size:
             raise ValueError(
                 "selection_vector must have same number of rows as dataset"
             )
@@ -337,100 +337,100 @@ class ExperimentSubset(ExperimentBase):
 
     @property
     def plate_ids(self):
-        return self.dataset.plate_ids[self.selection_vector]
+        return self.screen.plate_ids[self.selection_vector]
 
     @property
     def sample_ids(self):
-        return self.dataset.sample_ids[self.selection_vector]
+        return self.screen.sample_ids[self.selection_vector]
 
     @property
     def treatment_ids(self):
-        return self.dataset.treatment_ids[self.selection_vector]
+        return self.screen.treatment_ids[self.selection_vector]
 
     @property
     def observations(self):
-        return self.dataset.observations[self.selection_vector]
+        return self.screen.observations[self.selection_vector]
 
     @property
     def single_treatment_effects(self) -> Optional[ArrayType]:
-        if self.dataset.single_treatment_effects is None:
+        if self.screen.single_treatment_effects is None:
             return None
-        return self.dataset.single_treatment_effects[self.selection_vector]
+        return self.screen.single_treatment_effects[self.selection_vector]
 
     @property
     def observation_mask(self):
-        return self.dataset.observation_mask[self.selection_vector]
+        return self.screen.observation_mask[self.selection_vector]
 
     def invert(self):
         """
         Return the inverse of this subset,
-        i.e. the subset of the experiment that is not contained in this subset.
+        i.e. the subset of the screen that is not contained in this subset.
 
-        :return: :py:class:`batchie.data.ExperimentSubset`
+        :return: :py:class:`batchie.data.ScreenSubset`
         """
-        return Plate(self.dataset, ~self.selection_vector)
+        return Plate(self.screen, ~self.selection_vector)
 
     def combine(self, other):
         """
-        Union this subset with another subset of the same experiment.
+        Union this subset with another subset of the same screen.
 
-        :param other: :py:class:`batchie.data.ExperimentSubset`
-        :return: Unioned :py:class:`batchie.data.ExperimentSubset`
+        :param other: :py:class:`batchie.data.ScreenSubset`
+        :return: Unioned :py:class:`batchie.data.ScreenSubset`
         """
-        if other.dataset is not self.dataset:
+        if other.screen is not self.screen:
             raise ValueError("Cannot combine two subsets of different datasets")
-        return Plate(self.dataset, self.selection_vector | other.selection_vector)
+        return Plate(self.screen, self.selection_vector | other.selection_vector)
 
     @classmethod
-    def concat(cls, experiment_subsets: list):
+    def concat(cls, screen_subsets: list):
         """
-        Concatenate a list of experiment subsets into a single experiment subset.
+        Concatenate a list of :py:class:`batchie.data.ScreenSubset`s into a single :py:class:`batchie.data.ScreenSubset`.
 
-        :param experiment_subsets: list of :py:class:`batchie.data.ExperimentSubset`
-        :return: Unioned :py:class:`batchie.data.ExperimentSubset`
+        :param screen_subsets: list of :py:class:`batchie.data.ScreenSubset`
+        :return: Unioned :py:class:`batchie.data.ScreenSubset`
         """
         selection_vector = None
 
-        if len(experiment_subsets) == 1:
-            return experiment_subsets[0]
-        elif len(experiment_subsets) == 0:
-            raise ValueError("Cannot concat empty list of experiment subsets")
+        if len(screen_subsets) == 1:
+            return screen_subsets[0]
+        elif len(screen_subsets) == 0:
+            raise ValueError("Cannot concat empty list")
 
-        for experiment_subset in experiment_subsets:
-            if experiment_subset.dataset is not experiment_subsets[0].dataset:
-                raise ValueError("Cannot concat subsets of different datasets")
+        for screen_subset in screen_subsets:
+            if screen_subset.screen is not screen_subsets[0].screen:
+                raise ValueError("Cannot concat subsets of different screens")
 
             if selection_vector is None:
-                selection_vector = experiment_subset.selection_vector
+                selection_vector = screen_subset.selection_vector
             else:
-                selection_vector = selection_vector | experiment_subset.selection_vector
+                selection_vector = selection_vector | screen_subset.selection_vector
 
-        return Plate(experiment_subsets[0].dataset, selection_vector)
+        return Plate(screen_subsets[0].screen, selection_vector)
 
-    def to_experiment(self):
+    def to_screen(self):
         """
-        Promote this subset to an :py:class:`batchie.data.Experiment`.
+        Promote this subset to an :py:class:`batchie.data.Screen`.
 
-        :return: :py:class:`batchie.data.Experiment`
+        :return: :py:class:`batchie.data.Screen`
         """
-        return Experiment(
-            treatment_names=self.dataset.treatment_names[self.selection_vector].copy(),
-            treatment_doses=self.dataset.treatment_doses[self.selection_vector].copy(),
-            observations=self.dataset.observations[self.selection_vector].copy(),
-            sample_names=self.dataset.sample_names[self.selection_vector].copy(),
-            plate_names=self.dataset.plate_names[self.selection_vector].copy(),
-            control_treatment_name=self.dataset.control_treatment_name,
+        return Screen(
+            treatment_names=self.screen.treatment_names[self.selection_vector].copy(),
+            treatment_doses=self.screen.treatment_doses[self.selection_vector].copy(),
+            observations=self.screen.observations[self.selection_vector].copy(),
+            sample_names=self.screen.sample_names[self.selection_vector].copy(),
+            plate_names=self.screen.plate_names[self.selection_vector].copy(),
+            control_treatment_name=self.screen.control_treatment_name,
         )
 
 
-class Plate(ExperimentSubset):
+class Plate(ScreenSubset):
     """
-    A subset of an :py:class:`batchie.data.Experiment` defined by a boolean selection vector
+    A subset of an :py:class:`batchie.data.Screen` defined by a boolean selection vector
 
     This class is not meant to be instantiated directly, but rather is returned by the
-    :py:meth:`batchie.data.Experiment.get_plate` method.
+    :py:class:`batchie.data.Screen.get_plate` method.
 
-    The difference between a :py:class:`batchie.data.Plate` and an :py:class:`batchie.data.ExperimentSubset`
+    The difference between a :py:class:`batchie.data.Plate` and an :py:class:`batchie.data.ScreenSubset`
     is that a :py:class:`batchie.data.Plate` is guaranteed to contain only one unique plate id.
     """
 
@@ -456,20 +456,20 @@ class Plate(ExperimentSubset):
 
         :return: str, plate name
         """
-        return self.dataset.plate_names[self.selection_vector][0]
+        return self.screen.plate_names[self.selection_vector][0]
 
 
-class Experiment(ExperimentBase):
+class Screen(ScreenBase):
     """
     The principal data structure in batchie.
 
-    An :py:class:`batchie.data.Experiment` is a collection of experimental conditions that represents
-    the entire search space of a high throughput experiment. Some parts of the search space may be
-    observed, and some parts may not be observed. Anything not enumerated as an experimental
-    condition in this top level class will be "invisible" to batchie.
+    An :py:class:`batchie.data.Screen` is a collection of experiments.
+    Some of the experiments may be observed and some may not be observed.
+    Anything not enumerated as an experimental condition in this top level
+    class will be "invisible" to batchie.
 
-    An :py:class:`batchie.data.Experiment` can be subset into :py:class:`batchie.data.Plate`s
-    or :py:class:`batchie.data.ExperimentSubset` of multiple plates. :py:class:`batchie.data.Experiment`
+    An :py:class:`batchie.data.Screen` can be subset into :py:class:`batchie.data.Plate`s
+    or :py:class:`batchie.data.ScreenSubset` of multiple plates. :py:class:`batchie.data.Screen`
     is the only data class that can be subdivided.
     """
 
@@ -589,10 +589,10 @@ class Experiment(ExperimentBase):
     @property
     def plate_ids(self):
         """
-        Return the array of plate ids in the experiment.
+        Return the array of plate ids in the screen.
 
         Plate ids are always 0 indexed integers from
-        0 to :py:meth:`batchie.data.ExperimentBase.n_unique_plates` - 1 with no gaps.
+        0 to :py:class:`batchie.data.ScreenBase.n_unique_plates` - 1 with no gaps.
 
         :return: 1d array of plate ids
         """
@@ -601,10 +601,10 @@ class Experiment(ExperimentBase):
     @property
     def sample_ids(self):
         """
-        Return the array of sample ids in the experiment.
+        Return the array of sample ids in the screen.
 
         Sample ids are always 0 indexed integers from
-        0 to :py:meth:`batchie.data.ExperimentBase.n_unique_samples` - 1 with no gaps.
+        0 to :py:class:`batchie.data.ScreenBase.n_unique_samples` - 1 with no gaps.
 
         :return: 1d array of sample ids
         """
@@ -613,10 +613,10 @@ class Experiment(ExperimentBase):
     @property
     def treatment_ids(self):
         """
-        Return the array of treatment ids in the experiment.
+        Return the array of treatment ids in the screen.
 
         Treatment ids are always 0 indexed integers from
-        0 to :py:meth:`batchie.data.ExperimentBase.n_unique_treatments` - 1 with no gaps.
+        0 to :py:class:`batchie.data.ScreenBase.n_unique_treatments` - 1 with no gaps.
 
         :return: 2d array of treatment ids
         """
@@ -625,10 +625,10 @@ class Experiment(ExperimentBase):
     @property
     def observations(self):
         """
-        Return the array of observations in the experiment.
+        Return the array of observations in the screen.
 
         We do not use any NaN values in our arrays, the observation value
-        for a condition set where :py:meth:`batchie.data.Experiment.observation_mask` is False
+        for a condition set where :py:class:`batchie.data.Screen.observation_mask` is False
         is undefined. Its up to the user to decide how to handle this.
 
         :return: 1d array of observations
@@ -638,7 +638,7 @@ class Experiment(ExperimentBase):
     @property
     def single_treatment_effects(self) -> Optional[ArrayType]:
         """
-        Return the array of single treatment effects in the experiment.
+        Return the array of single treatment effects in the screen.
 
         :return: 2d array of single treatment effects
         """
@@ -655,7 +655,7 @@ class Experiment(ExperimentBase):
     @property
     def observation_mask(self):
         """
-        Return the array of observation masks in the experiment.
+        Return the array of observation masks in the screen.
         If the array is true, it means the condition is observed,
         if false it is unobserved.
 
@@ -684,18 +684,18 @@ class Experiment(ExperimentBase):
     @property
     def plates(self):
         """
-        Return a list of all :py:class:`batchie.data.Plate`s in the experiment.
+        Return a list of all :py:class:`batchie.data.Plate`s in the screen.
 
         :return: list of :py:class:`batchie.data.Plate`s
         """
         return [self.get_plate(x) for x in self.unique_plate_ids]
 
-    def subset(self, selection_vector: ArrayType) -> ExperimentSubset:
+    def subset(self, selection_vector: ArrayType) -> ScreenSubset:
         """
-        Return a :py:class:`batchie.data.ExperimentSubset` defined by a boolean selection vector.
+        Return a :py:class:`batchie.data.ScreenSubset` defined by a boolean selection vector.
 
         :param selection_vector: 1d array of bools
-        :return: :py:class:`batchie.data.ExperimentSubset`
+        :return: :py:class:`batchie.data.ScreenSubset`
         """
         if not np.issubdtype(selection_vector.dtype, bool):
             raise ValueError("selection_vector must be bool")
@@ -703,51 +703,51 @@ class Experiment(ExperimentBase):
         if not selection_vector.size == self.size:
             raise ValueError("selection_vector must have same length as dataset")
 
-        return ExperimentSubset(
+        return ScreenSubset(
             self,
             selection_vector,
         )
 
-    def subset_unobserved(self) -> Optional[ExperimentSubset]:
+    def subset_unobserved(self) -> Optional[ScreenSubset]:
         """
-        Return a :py:class:`batchie.data.ExperimentSubset` containing all
+        Return a :py:class:`batchie.data.ScreenSubset` containing all
         conditions that are not observed. Returns none if
-        :py:meth:`batchie.data.Experiment.is_observed` is True.
+        :py:class:`batchie.data.Screen.is_observed` is True.
 
-        :return: :py:class:`batchie.data.ExperimentSubset`
+        :return: :py:class:`batchie.data.ScreenSubset`
         """
         if np.any(~self.observation_mask):
             return self.subset(~self.observation_mask)
 
-    def subset_observed(self) -> Optional[ExperimentSubset]:
+    def subset_observed(self) -> Optional[ScreenSubset]:
         """
-        Return a :py:class:`batchie.data.ExperimentSubset` containing all
+        Return a :py:class:`batchie.data.ScreenSubset` containing all
         conditions that are observed. Returns none if
         all conditions are unobserved.
 
-        :return: :py:class:`batchie.data.ExperimentSubset`
+        :return: :py:class:`batchie.data.ScreenSubset`
         """
         if np.any(self.observation_mask):
             return self.subset(self.observation_mask)
 
     def combine(self, other):
         """
-        Union this experiment with another experiment.
+        Union this screen with another screen.
 
         Warning: treatment, sample, and plate ids are not guaranteed to be
-        the same in the resulting new experiment instance.
+        the same in the resulting new screen instance.
 
-        :param other: :py:class:`batchie.data.Experiment`
-        :return: Unioned :py:class:`batchie.data.Experiment`
+        :param other: :py:class:`batchie.data.Screen`
+        :return: Unioned :py:class:`batchie.data.Screen`
         """
-        if not isinstance(other, Experiment):
-            raise ValueError("other must be an Experiment")
+        if not isinstance(other, Screen):
+            raise ValueError("other must be a Screen instance")
         if other.control_treatment_name != self.control_treatment_name:
             raise ValueError(
-                "Cannot combine experiments with different control treatment names"
+                "Cannot combine screens with different control treatment names"
             )
 
-        return Experiment(
+        return Screen(
             treatment_names=np.concatenate(
                 [self.treatment_names, other.treatment_names]
             ),
@@ -765,7 +765,7 @@ class Experiment(ExperimentBase):
 
     def save_h5(self, fn):
         """
-        Save experiment to h5 archive.
+        Save screen to h5 archive.
 
         :param fn: str, path to h5 archive
         """
@@ -786,12 +786,12 @@ class Experiment(ExperimentBase):
     @staticmethod
     def load_h5(path):
         """
-        Load experiment from h5 archive.
+        Load screen from h5 archive.
 
         :param path: str, path to h5 archive
         """
         with h5py.File(path, "r") as f:
-            return Experiment(
+            return Screen(
                 treatment_names=np.char.decode(f["treatment_names"][:], "utf-8"),
                 treatment_doses=f["treatment_doses"][:],
                 observations=f["observations"][:],
@@ -803,14 +803,14 @@ class Experiment(ExperimentBase):
 
 
 def filter_dataset_to_treatments_that_appear_in_at_least_one_combo(
-    dataset: Experiment,
-) -> Experiment:
+    dataset: Screen,
+) -> Screen:
     """
-    Utility function to filter down an :py:class:`batchie.data.Experiment` to only
+    Utility function to filter down an :py:class:`batchie.data.Screen` to only
     the treatments that appear in at least one combo.
 
-    :param dataset: an :py:class:`batchie.data.Experiment`
-    :return: A filtered :py:class:`batchie.data.Experiment`
+    :param dataset: an :py:class:`batchie.data.Screen`
+    :return: A filtered :py:class:`batchie.data.Screen`
     """
     if dataset.treatment_arity < 2:
         raise ValueError("Dataset must have at least 2 treatments")
@@ -835,11 +835,11 @@ def filter_dataset_to_treatments_that_appear_in_at_least_one_combo(
         )
     )
 
-    experiment_selection_vector = np.all(
+    screen_selection_vector = np.all(
         np.in1d(treatment_ids, treatments_to_select_plus_controls).reshape(
             treatment_ids.shape
         ),
         axis=1,
     )
 
-    return dataset.subset(experiment_selection_vector)
+    return dataset.subset(screen_selection_vector).to_screen()
