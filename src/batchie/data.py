@@ -11,6 +11,18 @@ logger = logging.getLogger(__name__)
 
 
 def numpy_array_is_0_indexed_integers(arr: ArrayType):
+    """
+    Test numpy array arr contains only integers between 0 and n-1 with no gaps,
+    where n is the number of unique values in arr.
+
+    If the array contains :py:const:`batchie.common.CONTROL_SENTINEL_VALUE`,
+    then we test that the array contains only integers between 0 and n-2, and the
+    sentinel value.
+
+
+    :param arr: numpy array
+    :return: bool
+    """
     # Test numpy array arr contains integers, or something that can be safely cast to int32
     if not np.issubdtype(arr.dtype, int):
         return False
@@ -28,8 +40,16 @@ def encode_treatment_arrays_to_0_indexed_ids(
     treatment_name_arr: ArrayType,
     treatment_dose_arr: ArrayType,
     control_treatment_name: str = "",
-    sentinel_value: int = -1,
 ):
+    """
+    Encode treatment names and doses (which are arrays of string)
+    to 0-indexed integers, where the control treatment is always mapped to
+    :py:const:`batchie.common.CONTROL_SENTINEL_VALUE`
+
+    :param treatment_name_arr: array of treatment names
+    :param treatment_dose_arr: array of treatment doses
+    :param control_treatment_name: The string value of the control treatment
+    """
     is_control = np.array(
         [x == control_treatment_name for x in treatment_name_arr]
     ) | np.array([x <= 0 for x in treatment_dose_arr])
@@ -56,12 +76,19 @@ def encode_treatment_arrays_to_0_indexed_ids(
     df_controls_arr = df_controls.to_numpy()
 
     for row in df_controls_arr:
-        mapping[tuple(row)] = sentinel_value
+        mapping[tuple(row)] = CONTROL_SENTINEL_VALUE
 
     return np.array([mapping[tuple(x)] for x in name_dose_arr])
 
 
 def encode_1d_array_to_0_indexed_ids(arr: ArrayType):
+    """
+    Encode a 1d array of strings to 0-indexed integers.
+
+    :param arr: 1d array of strings
+    :return: integer array containing only values between 0 and n-1,
+    where n is the number of unique values in arr
+    """
     unique_values = np.unique(arr)
 
     mapping = dict(zip(unique_values, np.arange(len(unique_values))))
@@ -74,6 +101,13 @@ def create_single_treatment_effect_map(
     treatment_ids: ArrayType,
     observation: ArrayType,
 ):
+    """
+    Create a map from (sample_id, treatment_id) to single observation (a scalar).
+
+    :param sample_ids: 1d array of sample ids
+    :param treatment_ids: 1d array of treatment ids
+    :param observation: 1d array of observations
+    """
     if treatment_ids.shape[1] < 2:
         raise ValueError(
             "Experiment must have more than one treatment to get single treatment effects"
@@ -115,6 +149,14 @@ def create_single_treatment_effect_array(
     treatment_ids: ArrayType,
     observation: ArrayType,
 ):
+    """
+    Create a n_observation x n_treatment array where each entry is the single treatment effect
+    for the corresponding sample and treatment ids in the input arrays.
+
+    :param sample_ids: 1d array of sample ids
+    :param treatment_ids: 2d array of treatment ids
+    :param observation: 1d array of observations
+    """
     single_treatment_effect_map = create_single_treatment_effect_map(
         sample_ids=sample_ids,
         treatment_ids=treatment_ids,
@@ -138,6 +180,22 @@ def create_single_treatment_effect_array(
 
 
 class ExperimentBase(ABC):
+    """
+    Base class for the principal data structure in batchie.
+
+    An :py:class:`batchie.data.Experiment` is a collection of experimental conditions,
+    and optionally observations for those of those conditions.
+    The conditions are defined by a set of treatment names and doses, and a set of sample names.
+    Observations are scalar floating point numbers, with one scalar per condition.
+
+    :py:class:`batchie.data.Experiment` class also defines the concept of a plate, which is a grouping
+    of experimental conditions. The terminology plate comes from the world of high throughput biological
+    screening, where plastic plates with 96, 384, or 1536 individual wells are used to hold distinct
+    biochemical reactions. In batchie, this concept is abstracted to the concept of a plate being
+    the discrete unit of experimental conditions that can be observed at one time.
+    We also abstract away the concept of the plate having to be a fixed size each time.
+    """
+
     @property
     @abstractmethod
     def plate_ids(self):
@@ -170,38 +228,85 @@ class ExperimentBase(ABC):
 
     @property
     def is_observed(self) -> bool:
+        """
+        Return True if all observations are available, False otherwise
+
+        :return: bool
+        """
         return np.all(self.observation_mask)
 
     @property
     def size(self):
+        """
+        Return the number of experimental conditions contained
+        in the experiment.
+
+        :return: int, number of experimental conditions
+        """
         return self.treatment_ids.shape[0]
 
     @property
     def unique_plate_ids(self):
+        """
+        Return the unique plate ids in the experiment.
+
+        :return: 1d array of unique plate ids
+        """
         return np.unique(self.plate_ids)
 
     @property
     def unique_sample_ids(self):
+        """
+        Return the unique sample ids in the experiment.
+
+        :return: 1d array of unique sample ids
+        """
         return np.unique(self.sample_ids)
 
     @property
     def unique_treatments(self):
+        """
+        Return the unique treatments in the experiment (excludes "control"
+        treatments).
+
+        :return: 2d array of unique treatments
+        """
         return np.setdiff1d(np.unique(self.treatment_ids), [CONTROL_SENTINEL_VALUE])
 
     @property
     def n_unique_samples(self):
+        """
+        Return the number of unique samples in the experiment.
+
+        :return: int, number of unique samples
+        """
         return len(self.unique_sample_ids)
 
     @property
     def n_unique_treatments(self):
+        """
+        Return the number of unique treatments in the experiment.
+
+        :return: int, number of unique treatments
+        """
         return len(self.unique_treatments)
 
     @property
     def treatment_arity(self):
+        """
+        Return the number of treatments per experimental condition.
+
+        :return: int, number of treatments per experimental condition
+        """
         return self.treatment_ids.shape[1]
 
     @property
     def n_plates(self):
+        """
+        Return the number of plates in the experiment.
+
+        :return: int, number of plates
+        """
         return self.unique_plate_ids.shape[0]
 
     @abstractmethod
@@ -210,6 +315,13 @@ class ExperimentBase(ABC):
 
 
 class ExperimentSubset(ExperimentBase):
+    """
+    A subset of an :py:class:`batchie.data.Experiment` defined by a boolean selection vector.
+
+    This class is not meant to be instantiated directly, but rather is returned by the
+    :py:meth:`batchie.data.Experiment.subset` method.
+    """
+
     def __init__(self, experiment: "Experiment", selection_vector: ArrayType):
         self.dataset = experiment
 
@@ -250,15 +362,33 @@ class ExperimentSubset(ExperimentBase):
         return self.dataset.observation_mask[self.selection_vector]
 
     def invert(self):
+        """
+        Return the inverse of this subset,
+        i.e. the subset of the experiment that is not contained in this subset.
+
+        :return: :py:class:`batchie.data.ExperimentSubset`
+        """
         return Plate(self.dataset, ~self.selection_vector)
 
     def combine(self, other):
+        """
+        Union this subset with another subset of the same experiment.
+
+        :param other: :py:class:`batchie.data.ExperimentSubset`
+        :return: Unioned :py:class:`batchie.data.ExperimentSubset`
+        """
         if other.dataset is not self.dataset:
             raise ValueError("Cannot combine two subsets of different datasets")
         return Plate(self.dataset, self.selection_vector | other.selection_vector)
 
     @classmethod
     def concat(cls, experiment_subsets: list):
+        """
+        Concatenate a list of experiment subsets into a single experiment subset.
+
+        :param experiment_subsets: list of :py:class:`batchie.data.ExperimentSubset`
+        :return: Unioned :py:class:`batchie.data.ExperimentSubset`
+        """
         selection_vector = None
 
         if len(experiment_subsets) == 1:
@@ -277,7 +407,12 @@ class ExperimentSubset(ExperimentBase):
 
         return Plate(experiment_subsets[0].dataset, selection_vector)
 
-    def to_dataset(self):
+    def to_experiment(self):
+        """
+        Promote this subset to an :py:class:`batchie.data.Experiment`.
+
+        :return: :py:class:`batchie.data.Experiment`
+        """
         return Experiment(
             treatment_names=self.dataset.treatment_names[self.selection_vector].copy(),
             treatment_doses=self.dataset.treatment_doses[self.selection_vector].copy(),
@@ -289,8 +424,23 @@ class ExperimentSubset(ExperimentBase):
 
 
 class Plate(ExperimentSubset):
+    """
+    A subset of an :py:class:`batchie.data.Experiment` defined by a boolean selection vector
+
+    This class is not meant to be instantiated directly, but rather is returned by the
+    :py:meth:`batchie.data.Experiment.get_plate` method.
+
+    The difference between a :py:class:`batchie.data.Plate` and an :py:class:`batchie.data.ExperimentSubset`
+    is that a :py:class:`batchie.data.Plate` is guaranteed to contain only one unique plate id.
+    """
+
     @property
     def plate_id(self):
+        """
+        Return the plate id of this plate.
+
+        :return: int, plate id
+        """
         unique_plate_ids = self.unique_plate_ids
         if len(unique_plate_ids) != 1:
             raise ValueError(
@@ -301,10 +451,28 @@ class Plate(ExperimentSubset):
 
     @property
     def plate_name(self):
+        """
+        Return the original plate name of this plate.
+
+        :return: str, plate name
+        """
         return self.dataset.plate_names[self.selection_vector][0]
 
 
 class Experiment(ExperimentBase):
+    """
+    The principal data structure in batchie.
+
+    An :py:class:`batchie.data.Experiment` is a collection of experimental conditions that represents
+    the entire search space of a high throughput experiment. Some parts of the search space may be
+    observed, and some parts may not be observed. Anything not enumerated as an experimental
+    condition in this top level class will be "invisible" to batchie.
+
+    An :py:class:`batchie.data.Experiment` can be subset into :py:class:`batchie.data.Plate`s
+    or :py:class:`batchie.data.ExperimentSubset` of multiple plates. :py:class:`batchie.data.Experiment`
+    is the only data class that can be subdivided.
+    """
+
     def __init__(
         self,
         treatment_names: ArrayType,
@@ -404,7 +572,6 @@ class Experiment(ExperimentBase):
             treatment_name_arr=all_dose_names,
             treatment_dose_arr=all_drug_names,
             control_treatment_name=self.control_treatment_name,
-            sentinel_value=CONTROL_SENTINEL_VALUE,
         )
 
         self._treatment_ids = np.vstack(
@@ -421,22 +588,60 @@ class Experiment(ExperimentBase):
 
     @property
     def plate_ids(self):
+        """
+        Return the array of plate ids in the experiment.
+
+        Plate ids are always 0 indexed integers from
+        0 to :py:meth:`batchie.data.ExperimentBase.n_unique_plates` - 1 with no gaps.
+
+        :return: 1d array of plate ids
+        """
         return self._plate_ids
 
     @property
     def sample_ids(self):
+        """
+        Return the array of sample ids in the experiment.
+
+        Sample ids are always 0 indexed integers from
+        0 to :py:meth:`batchie.data.ExperimentBase.n_unique_samples` - 1 with no gaps.
+
+        :return: 1d array of sample ids
+        """
         return self._sample_ids
 
     @property
     def treatment_ids(self):
+        """
+        Return the array of treatment ids in the experiment.
+
+        Treatment ids are always 0 indexed integers from
+        0 to :py:meth:`batchie.data.ExperimentBase.n_unique_treatments` - 1 with no gaps.
+
+        :return: 2d array of treatment ids
+        """
         return self._treatment_ids
 
     @property
     def observations(self):
+        """
+        Return the array of observations in the experiment.
+
+        We do not use any NaN values in our arrays, the observation value
+        for a condition set where :py:meth:`batchie.data.Experiment.observation_mask` is False
+        is undefined. Its up to the user to decide how to handle this.
+
+        :return: 1d array of observations
+        """
         return self._observations
 
     @property
     def single_treatment_effects(self) -> Optional[ArrayType]:
+        """
+        Return the array of single treatment effects in the experiment.
+
+        :return: 2d array of single treatment effects
+        """
         try:
             return create_single_treatment_effect_array(
                 sample_ids=self.sample_ids,
@@ -449,9 +654,22 @@ class Experiment(ExperimentBase):
 
     @property
     def observation_mask(self):
+        """
+        Return the array of observation masks in the experiment.
+        If the array is true, it means the condition is observed,
+        if false it is unobserved.
+
+        :return: 1d array of observation masks
+        """
         return self._observation_mask
 
     def get_plate(self, plate_id: int) -> Plate:
+        """
+        Return a :py:class:`batchie.data.Plate` defined by a plate id.
+
+        :param plate_id: int, plate id
+        :return: A :py:class:`batchie.data.Plate`
+        """
         return Plate(self, self.plate_ids == plate_id)
 
     def set_observed(self, selection_mask: ArrayType, observations: ArrayType):
@@ -465,33 +683,63 @@ class Experiment(ExperimentBase):
 
     @property
     def plates(self):
+        """
+        Return a list of all :py:class:`batchie.data.Plate`s in the experiment.
+
+        :return: list of :py:class:`batchie.data.Plate`s
+        """
         return [self.get_plate(x) for x in self.unique_plate_ids]
 
-    def subset(self, selection_vector: ArrayType):
+    def subset(self, selection_vector: ArrayType) -> ExperimentSubset:
+        """
+        Return a :py:class:`batchie.data.ExperimentSubset` defined by a boolean selection vector.
+
+        :param selection_vector: 1d array of bools
+        :return: :py:class:`batchie.data.ExperimentSubset`
+        """
         if not np.issubdtype(selection_vector.dtype, bool):
             raise ValueError("selection_vector must be bool")
 
         if not selection_vector.size == self.size:
             raise ValueError("selection_vector must have same length as dataset")
 
-        return Experiment(
-            treatment_names=self.treatment_names[selection_vector],
-            treatment_doses=self.treatment_doses[selection_vector],
-            observations=self.observations[selection_vector],
-            sample_names=self.sample_names[selection_vector],
-            plate_names=self.plate_names[selection_vector],
-            control_treatment_name=self.control_treatment_name,
+        return ExperimentSubset(
+            self,
+            selection_vector,
         )
 
-    def subset_unobserved(self) -> Optional["Experiment"]:
+    def subset_unobserved(self) -> Optional[ExperimentSubset]:
+        """
+        Return a :py:class:`batchie.data.ExperimentSubset` containing all
+        conditions that are not observed. Returns none if
+        :py:meth:`batchie.data.Experiment.is_observed` is True.
+
+        :return: :py:class:`batchie.data.ExperimentSubset`
+        """
         if np.any(~self.observation_mask):
             return self.subset(~self.observation_mask)
 
-    def subset_observed(self) -> Optional["Experiment"]:
+    def subset_observed(self) -> Optional[ExperimentSubset]:
+        """
+        Return a :py:class:`batchie.data.ExperimentSubset` containing all
+        conditions that are observed. Returns none if
+        all conditions are unobserved.
+
+        :return: :py:class:`batchie.data.ExperimentSubset`
+        """
         if np.any(self.observation_mask):
             return self.subset(self.observation_mask)
 
     def combine(self, other):
+        """
+        Union this experiment with another experiment.
+
+        Warning: treatment, sample, and plate ids are not guaranteed to be
+        the same in the resulting new experiment instance.
+
+        :param other: :py:class:`batchie.data.Experiment`
+        :return: Unioned :py:class:`batchie.data.Experiment`
+        """
         if not isinstance(other, Experiment):
             raise ValueError("other must be an Experiment")
         if other.control_treatment_name != self.control_treatment_name:
@@ -516,7 +764,11 @@ class Experiment(ExperimentBase):
         )
 
     def save_h5(self, fn):
-        """Save all arrays to h5"""
+        """
+        Save experiment to h5 archive.
+
+        :param fn: str, path to h5 archive
+        """
         with h5py.File(fn, "w") as f:
             f.create_dataset(
                 "treatment_names", data=np.char.encode(self.treatment_names)
@@ -533,7 +785,11 @@ class Experiment(ExperimentBase):
 
     @staticmethod
     def load_h5(path):
-        """Load saved data from h5 archive"""
+        """
+        Load experiment from h5 archive.
+
+        :param path: str, path to h5 archive
+        """
         with h5py.File(path, "r") as f:
             return Experiment(
                 treatment_names=np.char.decode(f["treatment_names"][:], "utf-8"),
@@ -546,84 +802,16 @@ class Experiment(ExperimentBase):
             )
 
 
-def randomly_subsample_dataset(
-    dataset: Experiment,
-    treatment_class_fraction: Optional[float] = None,
-    treatment_fraction: Optional[float] = None,
-    sample_fraction: Optional[float] = None,
-    rng: Optional[np.random.BitGenerator] = None,
-) -> (Plate, Plate):
-    if rng is None:
-        logger.warning(
-            "No random number generator provided to randomly_subsample_dataset, using default. "
-            "This will not be reproducible"
-        )
-        rng = np.random.default_rng()
-
-    to_keep_vector = np.ones(dataset.size, dtype=bool)
-
-    # Select all values where the treatment class is in one of the randomly select proportions
-    if treatment_class_fraction is not None:
-        choices = np.unique(dataset.treatment_ids.flatten())
-        n_to_keep = int(treatment_class_fraction * choices.size)
-        logger.info(
-            f"Randomly selecting {n_to_keep} treatment classes out of {choices.size} total"
-        )
-
-        treatment_classes_to_keep = rng.choice(choices, size=n_to_keep, replace=False)
-        to_keep_vector = to_keep_vector & np.all(
-            np.isin(dataset.treatment_ids, treatment_classes_to_keep), axis=1
-        )
-
-    if treatment_fraction is not None:
-        choices = np.unique(dataset.treatment_ids.flatten())
-        choices = choices[choices != CONTROL_SENTINEL_VALUE]
-        n_to_keep = int(treatment_fraction * choices.size)
-        logger.info(
-            f"Randomly selecting {n_to_keep} treatments out of {choices.size} total"
-        )
-
-        treatments_to_keep = rng.choice(choices, size=n_to_keep, replace=False)
-        #  We don't want to drop controls, so we add it back in
-        treatments_to_keep = np.concatenate(
-            [CONTROL_SENTINEL_VALUE], treatments_to_keep
-        )
-        to_keep_vector = to_keep_vector & np.all(
-            np.isin(dataset.treatment_ids, treatments_to_keep), axis=1
-        )
-
-    if sample_fraction is not None:
-        choices = np.unique(dataset.sample_ids.flatten())
-        n_to_keep = int(sample_fraction * choices.size)
-        logger.info(
-            f"Randomly selecting {n_to_keep} samples out of {choices.size} total"
-        )
-
-        samples_to_keep = rng.choice(choices, size=n_to_keep, replace=False)
-        to_keep_vector = to_keep_vector & np.isin(dataset.sample_ids, samples_to_keep)
-
-    if np.sum(to_keep_vector) == 0:
-        raise ValueError("No experiments left after subsampling")
-
-    logger.info(
-        f"Keeping {np.sum(to_keep_vector)} experiments out of {dataset.size} total"
-    )
-
-    # Create two new dataset objects, one with the experiments to keep, and one with the experiments to drop
-    dataset_of_kept_experiments = Plate(
-        experiment=dataset, selection_vector=to_keep_vector
-    )
-
-    dataset_of_dropped_experiments = Plate(
-        experiment=dataset, selection_vector=~to_keep_vector
-    )
-
-    return dataset_of_kept_experiments, dataset_of_dropped_experiments
-
-
 def filter_dataset_to_treatments_that_appear_in_at_least_one_combo(
     dataset: Experiment,
 ) -> Experiment:
+    """
+    Utility function to filter down an :py:class:`batchie.data.Experiment` to only
+    the treatments that appear in at least one combo.
+
+    :param dataset: an :py:class:`batchie.data.Experiment`
+    :return: A filtered :py:class:`batchie.data.Experiment`
+    """
     if dataset.treatment_arity < 2:
         raise ValueError("Dataset must have at least 2 treatments")
 

@@ -4,10 +4,37 @@ batchie package
 Submodules
 ----------
 
-batchie.models.sparse_combo module
-----------------------------------
 
-.. automodule:: batchie.models.sparse_combo
+batchie.common module
+---------------------
+
+.. automodule:: batchie.common
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+
+batchie.core module
+-------------------
+
+.. automodule:: batchie.core
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+batchie.data module
+-------------------
+
+.. automodule:: batchie.data
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+
+batchie.distance_calculation module
+-----------------------------------
+
+.. automodule:: batchie.distance_calculation
    :members:
    :undoc-members:
    :show-inheritance:

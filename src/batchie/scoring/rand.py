@@ -10,6 +10,11 @@ from batchie.distance_calculation import ChunkedDistanceMatrix
 
 
 class RandomScorer(Scorer):
+
+    """
+    A scorer that returns a random score for each plate, used for baseline comparison
+    """
+
     def score(
         self,
         model: BayesianModel,

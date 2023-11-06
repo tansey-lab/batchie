@@ -5,6 +5,13 @@ from typing import Dict, Any
 
 
 def get_class(package_name: str, class_name: str, base_class: type) -> type:
+    """
+    Get a class from a package by name.
+
+    :param package_name: The name of the package to search.
+    :param class_name: The name of the class to search for.
+    :param base_class: The base class that the class should inherit from.
+    """
     package = importlib.import_module(package_name)
     for _, module_name, _ in pkgutil.walk_packages(
         package.__path__, package_name + "."
@@ -21,6 +28,14 @@ def get_class(package_name: str, class_name: str, base_class: type) -> type:
 
 
 def create_instance(package_name: str, class_name: str, base_class: type, kwargs: dict):
+    """
+    Create an instance of a class from a package by name.
+
+    :param package_name: The name of the package to search.
+    :param class_name: The name of the class to search for.
+    :param base_class: The base class that the class should inherit from.
+    :param kwargs: Keyword arguments to pass to the class constructor.
+    """
     cls = get_class(package_name, class_name, base_class)
 
     if not cls:

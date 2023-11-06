@@ -25,6 +25,9 @@ def select_next_batch(
     batch_size: int = 1,
     rng: Optional[np.random.Generator] = None,
 ) -> list[Plate]:
+    """
+    Select the next batch of plates to observe, these are the :py:class:`Plate` objects t
+    """
     if rng is None:
         rng = np.random.default_rng()
 
