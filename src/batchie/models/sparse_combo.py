@@ -137,13 +137,13 @@ class SparseDrugComboResults(ThetaHolder):
 
     def save_h5(self, fn: str):
         with h5py.File(fn, "w") as f:
-            f.create_dataset("V2", data=self.V2)
-            f.create_dataset("V1", data=self.V1)
-            f.create_dataset("W", data=self.W)
-            f.create_dataset("V0", data=self.V0)
-            f.create_dataset("W0", data=self.W0)
-            f.create_dataset("alpha", data=self.alpha)
-            f.create_dataset("precision", data=self.precision)
+            f.create_dataset("V2", data=self.V2, compression="gzip")
+            f.create_dataset("V1", data=self.V1, compression="gzip")
+            f.create_dataset("W", data=self.W, compression="gzip")
+            f.create_dataset("V0", data=self.V0, compression="gzip")
+            f.create_dataset("W0", data=self.W0, compression="gzip")
+            f.create_dataset("alpha", data=self.alpha, compression="gzip")
+            f.create_dataset("precision", data=self.precision, compression="gzip")
 
             # Save the cursor value metadata
             f.attrs["cursor"] = self._cursor
@@ -827,7 +827,7 @@ def predict_single_drug(mcmc_sample: SparseDrugComboMCMCSample, data: ScreenBase
 
 
 def bliss(mcmc_sample: SparseDrugComboMCMCSample, data: ScreenBase):
-    interaction2 = np.sum(
+    return np.sum(
         mcmc_sample.W[data.treatment_ids]
         * copy_array_with_control_treatments_set_to_zero(
             mcmc_sample.V2, data.treatment_ids[:, 0]

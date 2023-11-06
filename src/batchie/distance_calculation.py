@@ -151,10 +151,20 @@ class ChunkedDistanceMatrix(DistanceMatrix):
 
     def save(self, filename):
         with h5py.File(filename, "w") as f:
-            f.create_dataset("row_indices", data=self.row_indices[: self.current_index])
-            f.create_dataset("col_indices", data=self.col_indices[: self.current_index])
-            f.create_dataset("values", data=self.values[: self.current_index])
-            f.create_dataset("size", data=np.array([self.size]))
+            f.create_dataset(
+                "row_indices",
+                data=self.row_indices[: self.current_index],
+                compression="gzip",
+            )
+            f.create_dataset(
+                "col_indices",
+                data=self.col_indices[: self.current_index],
+                compression="gzip",
+            )
+            f.create_dataset(
+                "values", data=self.values[: self.current_index], compression="gzip"
+            )
+            f.create_dataset("size", data=np.array([self.size]), compression="gzip")
 
     @classmethod
     def load(cls, filename):
