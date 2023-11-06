@@ -15,6 +15,9 @@ import collections
 def consume(iterator, n):
     """
     Advance the iterator n-steps ahead. If n is none, consume entirely.
+
+    :param iterator: The iterator to consume
+    :param n: The number of steps to advance the iterator
     """
     collections.deque(islice(iterator, n), maxlen=0)
 
@@ -22,6 +25,9 @@ def consume(iterator, n):
 def lower_triangular_indices(n: int):
     """
     Iterate all the lower triangular indices of a square matrix with dimension n
+
+    :param n: The dimension of the square matrix
+    :return: A generator which yields the indices
     """
     for i in range(n):
         for j in range(i):
@@ -31,6 +37,9 @@ def lower_triangular_indices(n: int):
 def get_number_of_lower_triangular_indices(n: int):
     """
     Get the number of lower triangular indices of a square matrix with dimension n
+
+    :param n: The dimension of the square matrix
+    :return: The number of lower triangular indices
     """
     return n * (n - 1) // 2
 
@@ -39,6 +48,11 @@ def get_lower_triangular_indices_chunk(n: int, chunk_index: int, n_chunks: int):
     """
     Assuming we want to split the number of lower triangular indices of a square matrix with dimension n
     into roughly equal chunks, return the indices for the chunk with index chunk_index
+
+    :param n: The dimension of the square matrix
+    :param chunk_index: The index of the chunk to return
+    :param n_chunks: The number of chunks to split the indices into
+    :return: A list of indices
     """
     assert chunk_index < n_chunks
 
@@ -61,38 +75,6 @@ def get_lower_triangular_indices_chunk(n: int, chunk_index: int, n_chunks: int):
     consume(g, start_index)
 
     return list(islice(g, end_index - start_index))
-
-
-def calculate_pairwise_distance_matrix_on_predictions(
-    model: BayesianModel,
-    thetas: ThetaHolder,
-    distance_metric: DistanceMetric,
-    data: Experiment,
-    chunk_index: int,
-    n_chunks: int,
-):
-    indices = get_lower_triangular_indices_chunk(
-        n=thetas.n_thetas, chunk_index=chunk_index, n_chunks=n_chunks
-    )
-
-    result = ChunkedDistanceMatrix(
-        size=thetas.n_thetas, chunk_index=chunk_index, n_chunks=n_chunks
-    )
-
-    for i, j in indices:
-        sample_i = thetas.get_theta(i)
-        model.set_model_state(sample_i)
-        i_pred = model.predict(data)
-
-        sample_j = thetas.get_theta(j)
-        model.set_model_state(sample_j)
-        j_pred = model.predict(data)
-
-        value = distance_metric.distance(i_pred, j_pred)
-
-        result.add_value(i, j, value)
-
-    return result
 
 
 class ChunkedDistanceMatrix(DistanceMatrix):
@@ -233,3 +215,53 @@ class ChunkedDistanceMatrix(DistanceMatrix):
                 raise ValueError("Cannot concat matrices of different sizes")
             accumulator = accumulator.combine(matrix)
         return accumulator
+
+
+def calculate_pairwise_distance_matrix_on_predictions(
+    model: BayesianModel,
+    thetas: ThetaHolder,
+    distance_metric: DistanceMetric,
+    data: Experiment,
+    chunk_index: int,
+    n_chunks: int,
+) -> ChunkedDistanceMatrix:
+    """
+    Calculate the pairwise distance matrix between predictions.
+
+    For all pairs of thetas in the given :py:class:`ThetaHolder`, predictions will be made on the unobserved
+    conditions in the given :py:class:`Experiment` and the distance between the predictions produced by the two
+    theta values will be calculated and populated into a :py:class:`ChunkedDistanceMatrix` instance.
+
+    If n_chunks > 1, then the distance matrix is split into n_chunks roughly equal chunks, and only the chunk with
+    index chunk_index is calculated. This is useful for parallelization.
+
+    :param model: The model to use for prediction
+    :param thetas: The set of model parameters to use for prediction
+    :param distance_metric: The distance metric to use
+    :param data: The data to predict
+    :param chunk_index: The index of the chunk to calculate
+    :param n_chunks: The number of chunks to split the distance matrix into
+    :return: A :py:class:`ChunkedDistanceMatrix` containing the pairwise distances
+    """
+    indices = get_lower_triangular_indices_chunk(
+        n=thetas.n_thetas, chunk_index=chunk_index, n_chunks=n_chunks
+    )
+
+    result = ChunkedDistanceMatrix(
+        size=thetas.n_thetas, chunk_index=chunk_index, n_chunks=n_chunks
+    )
+
+    for i, j in indices:
+        sample_i = thetas.get_theta(i)
+        model.set_model_state(sample_i)
+        i_pred = model.predict(data)
+
+        sample_j = thetas.get_theta(j)
+        model.set_model_state(sample_j)
+        j_pred = model.predict(data)
+
+        value = distance_metric.distance(i_pred, j_pred)
+
+        result.add_value(i, j, value)
+
+    return result

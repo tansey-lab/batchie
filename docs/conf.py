@@ -31,8 +31,26 @@ release = "0.1"
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
-extensions = ["sphinx.ext.autodoc", "sphinxarg.ext"]
+extensions = [
+    "sphinx.ext.autodoc",
+    "sphinxarg.ext",
+    "sphinx_math_dollar",
+    "sphinx.ext.mathjax",
+]
 
+mathjax_config = {
+    "tex2jax": {
+        "inlineMath": [["\\(", "\\)"]],
+        "displayMath": [["\\[", "\\]"]],
+    },
+}
+
+mathjax3_config = {
+    "tex": {
+        "inlineMath": [["\\(", "\\)"]],
+        "displayMath": [["\\[", "\\]"]],
+    }
+}
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]
 

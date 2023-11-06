@@ -269,7 +269,11 @@ def reveal_plates(
     plate_ids: list[int],
 ) -> Experiment:
     """
-    Set observations in the masked experiment from the full experiment
+    Utility function to reveal observations in the masked experiment from the full experiment.
+
+    :param full_experiment: A :py:class:`Experiment` that is fully observed
+    :param masked_experiment: The same :py:class:`Experiment` that is partially observed
+    :param plate_ids: The plate ids to reveal
     """
     selection_mask = np.isin(masked_experiment.plate_ids, plate_ids)
 
@@ -287,6 +291,15 @@ def calculate_mse(
     model: BayesianModel,
     thetas: ThetaHolder,
 ) -> float:
+    """
+    Calculate the mean squared error between the masked observations and the unmasked observations
+
+    :param full_experiment: A :py:class:`Experiment` that is fully observed
+    :param masked_experiment: The same :py:class:`Experiment` that is partially observed
+    :param model: The model to use for prediction
+    :param thetas: The set of model parameters to use for prediction
+    :return: The average mean squared error between predicted and observed values
+    """
     preds = predict_avg(
         model=model,
         experiment=masked_experiment,

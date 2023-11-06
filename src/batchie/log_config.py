@@ -2,6 +2,11 @@ import logging
 
 
 def configure_logging(args):
+    """
+    Configure logging based on the given arguments.
+
+    :param args: Parsed command line arguments.
+    """
     logger = logging.getLogger("batchie")
 
     ch = logging.StreamHandler()

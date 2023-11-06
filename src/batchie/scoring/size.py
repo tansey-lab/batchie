@@ -10,6 +10,10 @@ from batchie.distance_calculation import ChunkedDistanceMatrix
 
 
 class SizeScorer(Scorer):
+    """
+    A scorer that returns the number of conditions in the :py:class:`Plate` as the score.
+    """
+
     def score(
         self,
         model: BayesianModel,

@@ -6,6 +6,8 @@ from batchie.common import FloatingPointType
 
 def predict_all(model: BayesianModel, experiment: ExperimentBase, thetas: ThetaHolder):
     """
+    Predict the experiment data using the model parameterized with each theta in thetas.
+
     :param model: The model to use for prediction
     :param experiment: The data to predict
     :param thetas: The set of model parameters to use for prediction
