@@ -22,4 +22,4 @@ Batchie can be installed directly as a python package using pip.
 
 .. code::
 
-    pip install git+https://github.com/tansey-lab/bayestme
+    pip install git+https://github.com/tansey-lab/batchie

@@ -4,14 +4,14 @@ Command Line Interface
 Batchie provides a suite of command line utilities that allow users to script running the pipeline end to end.
 
 
-.. _cli_advance_retrospective_experiment:
+.. _cli_advance_retrospective_simulation:
 
-``advance_retrospective_experiment``
+``advance_retrospective_simulation``
 -------------------------------------
 
 .. argparse::
-   :ref: batchie.cli.advance_retrospective_experiment.get_parser
-   :prog: advance_retrospective_experiment
+   :ref: batchie.cli.advance_retrospective_simulation.get_parser
+   :prog: advance_retrospective_simulation
 
 
 .. _cli_train_model:
@@ -34,14 +34,14 @@ Batchie provides a suite of command line utilities that allow users to script ru
    :prog: calculate_distance_matrix
 
 
-.. _cli_extract_experiment_metadata:
+.. _cli_extract_screen_metadata:
 
-``extract_experiment_metadata``
+``extract_screen_metadata``
 -------------------------------
 
 .. argparse::
-   :ref: batchie.cli.extract_experiment_metadata.get_parser
-   :prog: extract_experiment_metadata
+   :ref: batchie.cli.extract_screen_metadata.get_parser
+   :prog: extract_screen_metadata
 
 
 .. _cli_select_next_batch:
@@ -54,11 +54,11 @@ Batchie provides a suite of command line utilities that allow users to script ru
    :prog: select_next_batch
 
 
-.. _cli_prepare_retrospective_experiment:
+.. _cli_prepare_retrospective_simulation:
 
-``prepare_retrospective_experiment``
+``prepare_retrospective_simulation``
 ------------------------------------
 
 .. argparse::
-   :ref: batchie.cli.prepare_retrospective_experiment.get_parser
-   :prog: prepare_retrospective_experiment
+   :ref: batchie.cli.prepare_retrospective_simulation.get_parser
+   :prog: prepare_retrospective_simulation
