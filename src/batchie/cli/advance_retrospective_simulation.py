@@ -6,7 +6,7 @@ import logging
 from batchie import introspection
 from batchie import log_config
 from batchie.cli.argument_parsing import KVAppendAction, cast_dict_to_type
-from batchie.core import BayesianModel, ThetaHolder, ExperimentTracker
+from batchie.core import BayesianModel, ThetaHolder, SimulationTracker
 from batchie.data import Screen
 from batchie.common import SELECTED_PLATES_KEY, N_UNIQUE_SAMPLES, N_UNIQUE_TREATMENTS
 from batchie.retrospective import reveal_plates, calculate_mse
@@ -47,16 +47,16 @@ def get_parser():
         required=True,
     )
     parser.add_argument(
-        "--experiment-tracker-input",
-        help="A batchie ExperimentTracker in json format.",
+        "--simulation-tracker-input",
+        help="A batchie SimulationTracker in json format.",
         type=str,
         nargs="?",
         const=None,
         default=None,
     )
     parser.add_argument(
-        "--experiment-tracker-output",
-        help="An updated batchie ExperimentTracker in json format.",
+        "--simulation-tracker-output",
+        help="An updated batchie SimulationTracker in json format.",
         type=str,
         required=True,
     )
@@ -119,11 +119,11 @@ def main():
 
     unmasked_screen = Screen.load_h5(args.unmasked_screen)
 
-    if args.experiment_tracker_input and os.path.exists(args.experiment_tracker_input):
-        experiment_tracker = ExperimentTracker.load(args.experiment_tracker_input)
+    if args.simulation_tracker_input and os.path.exists(args.simulation_tracker_input):
+        simulation_tracker = SimulationTracker.load(args.simulation_tracker_input)
     else:
-        logger.warning("No experiment tracker provided, will create blank one.")
-        experiment_tracker = ExperimentTracker(plate_ids_selected=[], losses=[], seed=0)
+        logger.warning("No simulation tracker provided, will create blank one.")
+        simulation_tracker = SimulationTracker(plate_ids_selected=[], losses=[], seed=0)
 
     mse = calculate_mse(
         observed_screen=unmasked_screen,
@@ -132,7 +132,7 @@ def main():
         model=model,
     )
 
-    experiment_tracker.losses.append(mse)
+    simulation_tracker.losses.append(mse)
 
     with open(args.batch_selection, "r") as f:
         next_batch = json.load(f)
@@ -140,7 +140,7 @@ def main():
     plates_to_reveal = next_batch[SELECTED_PLATES_KEY]
     advanced_screen = reveal_plates(unmasked_screen, masked_screen, plates_to_reveal)
 
-    experiment_tracker.plate_ids_selected.append(plates_to_reveal)
+    simulation_tracker.plate_ids_selected.append(plates_to_reveal)
 
-    advanced_screen.save_h5(args.experiment_output)
-    experiment_tracker.save(args.experiment_tracker_output)
+    advanced_screen.save_h5(args.screen_output)
+    simulation_tracker.save(args.simulation_tracker_output)

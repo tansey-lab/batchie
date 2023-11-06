@@ -49,9 +49,9 @@ workflow RUN_RETROSPECTIVE_STEP {
 
     ADVANCE_RETROSPECTIVE_SIMULATION( advance_retrospective_simulation_input )
 
-    ADVANCE_RETROSPECTIVE_SIMULATION.out.advanced_experiment
+    ADVANCE_RETROSPECTIVE_SIMULATION.out.advanced_screen
         .join(ch_input.map { tuple(it[0], it[2]) })
-        .join(ADVANCE_RETROSPECTIVE_SIMULATION.out.experiment_tracker)
+        .join(ADVANCE_RETROSPECTIVE_SIMULATION.out.simulation_tracker)
         .join(ch_input.map { tuple(it[0], it[4], it[5]) })
         .tap { output_channel }
 

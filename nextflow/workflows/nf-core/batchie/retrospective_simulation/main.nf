@@ -27,21 +27,21 @@ process WRITE_REMAINING_PLATES {
 workflow RETROSPECTIVE_SIMULATION {
     def prepared_input = null
 
-    if (params.masked_experiment == null || params.experiment_tracker == null) {
-        def input_tuple = tuple([id:params.experiment_name], file(params.unmasked_experiment))
+    if (params.masked_screen == null || params.simulation_tracker == null) {
+        def input_tuple = tuple([id:params.simulation_name], file(params.unmasked_screen))
         def input_value_channel = Channel.fromList( [input_tuple] )
         PREPARE_RETROSPECTIVE_SIMULATION( input_value_channel )
 
-        prepared_input = PREPARE_RETROSPECTIVE_SIMULATION.out.experiment
+        prepared_input = PREPARE_RETROSPECTIVE_SIMULATION.out.screen
             .join(input_value_channel)
             .map { tuple(it[0], it[1], it[2], [], params.n_chains, params.n_chunks) }
             .collect()
     } else {
         def intermediate_input_tuple = tuple(
-            [id:params.experiment_name],
-            file(params.masked_experiment),
-            file(params.unmasked_experiment),
-            file(params.experiment_tracker),
+            [id:params.simulation_name],
+            file(params.masked_screen),
+            file(params.unmasked_screen),
+            file(params.simulation_tracker),
             params.n_chains,
             params.n_chunks
             )

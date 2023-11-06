@@ -9,7 +9,7 @@ process PREPARE_RETROSPECTIVE_SIMULATION {
     tuple val(meta), path(data)
 
     output:
-    tuple val(meta), path("${prefix}/retrospective_simulation.h5"), emit: experiment
+    tuple val(meta), path("${prefix}/retrospective_simulation.h5"), emit: screen
     path  "versions.yml"                , emit: versions
 
 
@@ -22,7 +22,7 @@ process PREPARE_RETROSPECTIVE_SIMULATION {
     """
     mkdir -p "${prefix}"
     prepare_retrospective_simulation \
-        --screen ${data} \
+        --data ${data} \
         --output ${prefix}/retrospective_simulation.h5 \
         ${args}
 

@@ -378,7 +378,7 @@ class PlatePolicy:
         raise NotImplementedError
 
 
-class ExperimentTracker:
+class SimulationTracker:
     """
     This class tracks the state of a retrospective active learning simulation.
     It will record the plates that were revealed at each step and the total loss of the predictor
