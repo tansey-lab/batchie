@@ -246,7 +246,7 @@ class RandomPlateGenerator(RetrospectivePlateGenerator):
             new_unobserved = permuted
 
         if experiment.subset_observed():
-            return experiment.subset_observed().combine(new_unobserved)
+            return experiment.subset_observed().to_experiment().combine(new_unobserved)
         else:
             return new_unobserved
 
