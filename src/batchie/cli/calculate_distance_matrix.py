@@ -143,6 +143,9 @@ def main():
         data=data,
         chunk_index=args.chunk_index,
         n_chunks=args.n_chunks,
+        progress=args.progress,
     )
+
+    logger.info("Saving results to {}".format(args.output))
 
     result.save(args.output)

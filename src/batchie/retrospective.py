@@ -1,5 +1,6 @@
 from typing import Optional
 
+import batchie.data
 import numpy as np
 from batchie.common import CONTROL_SENTINEL_VALUE, FloatingPointType
 from batchie.data import Screen, Plate
@@ -90,6 +91,12 @@ class SparseCoverPlateGenerator(InitialRetrospectivePlateGenerator):
 
         plate_names[~final_plate_selection_vector] = "unobserved_plate"
 
+        logger.info(
+            "Created initial plate of size {}".format(
+                final_plate_selection_vector.sum()
+            )
+        )
+
         observation_vector = screen.observations.copy()
         observation_vector[~final_plate_selection_vector] = 0.0
 
@@ -116,22 +123,32 @@ class PairwisePlateGenerator(RetrospectivePlateGenerator):
         Each plate will contain all pairwise combinations of the two groups of drug doses
         restricted to a single cell line
 
-        IF you do this for GDCS you'll get weird plates because they have some "anchor drugs"
+        If you do this for GDCS you'll get weird plates because they have some "anchor drugs"
         that are used in almost every experiment. So you need to make sure that you have
         <anchor_size> anchor drugs in each group
+
+        :param screen: The :py:class:`batchie.data.Screen` to generate plates for
+        :param rng: The random number generator to use
+        :return: A :py:class:`batchie.data.Screen` with the generated plates
         """
-
-        unobserved_data = screen.subset_unobserved().to_screen()
-
-        if not unobserved_data:
+        if not (~screen.observation_mask).any():
             logger.warning("No unobserved data found, returning original experiment")
             return screen
 
-        combo_mask = ~np.any(
-            (unobserved_data.treatment_ids == CONTROL_SENTINEL_VALUE), axis=1
-        )
+        combo_mask = ~np.any((screen.treatment_ids == CONTROL_SENTINEL_VALUE), axis=1)
+
+        unobserved_combo_only_plates_mask = combo_mask & (~screen.observation_mask)
+
+        unobserved_combo_only_plates = screen.subset(
+            unobserved_combo_only_plates_mask
+        ).to_screen()
+        if (~unobserved_combo_only_plates_mask).any():
+            remainder = screen.subset(~unobserved_combo_only_plates_mask).to_screen()
+        else:
+            remainder = None
+
         unique_treatments, unique_treatment_counts = np.unique(
-            unobserved_data.treatment_ids[combo_mask], return_counts=True
+            unobserved_combo_only_plates.treatment_ids, return_counts=True
         )
 
         if self.anchor_size > 0:
@@ -151,13 +168,13 @@ class PairwisePlateGenerator(RetrospectivePlateGenerator):
 
         num_groups = len(groupings)
         group_lookup = {}
-        for g, idxs in enumerate(groupings):
-            for j in idxs:
-                group_lookup[j] = g
+        for group_id, treatment_ids_in_group in enumerate(groupings):
+            for treatment_id_in_group in treatment_ids_in_group:
+                group_lookup[treatment_id_in_group] = group_id
         group_lookup[CONTROL_SENTINEL_VALUE] = CONTROL_SENTINEL_VALUE
 
         treatment_group_ids = np.vectorize(group_lookup.get)(
-            unobserved_data.treatment_ids
+            unobserved_combo_only_plates.treatment_ids
         )
 
         # Assign the groups for control treatments
@@ -167,32 +184,32 @@ class PairwisePlateGenerator(RetrospectivePlateGenerator):
         )
         treatment_group_ids_sorted = np.sort(treatment_group_ids, axis=1)
 
-        sample_id_col_vector = unobserved_data.sample_ids[:, np.newaxis]
+        sample_id_col_vector = unobserved_combo_only_plates.sample_ids[:, np.newaxis]
 
         grouping_tuples = np.hstack([sample_id_col_vector, treatment_group_ids_sorted])
 
         unique_grouping_tuples = np.unique(grouping_tuples, axis=0)
 
-        new_plate_names = np.array([""] * unobserved_data.size, dtype=str)
+        new_plate_names = np.array(
+            [""] * unobserved_combo_only_plates.size, dtype=object
+        )
 
         for idx, unique_grouping_tuple in enumerate(unique_grouping_tuples):
             mask = (grouping_tuples == unique_grouping_tuple).all(axis=1)
             new_plate_names[mask] = f"generated_plate_{idx}"
 
         unobserved_with_generated_plates = Screen(
-            treatment_names=unobserved_data.treatment_names,
-            treatment_doses=unobserved_data.treatment_doses,
-            observations=unobserved_data.observations,
-            observation_mask=np.zeros(unobserved_data.size, dtype=bool),
-            sample_names=unobserved_data.sample_names,
-            plate_names=new_plate_names,
-            control_treatment_name=unobserved_data.control_treatment_name,
+            treatment_names=unobserved_combo_only_plates.treatment_names,
+            treatment_doses=unobserved_combo_only_plates.treatment_doses,
+            observations=unobserved_combo_only_plates.observations,
+            observation_mask=np.zeros(unobserved_combo_only_plates.size, dtype=bool),
+            sample_names=unobserved_combo_only_plates.sample_names,
+            plate_names=new_plate_names.astype(str),
+            control_treatment_name=unobserved_combo_only_plates.control_treatment_name,
         )
 
-        observed_subset = screen.subset_observed()
-
-        if observed_subset:
-            return screen.subset_observed().combine(unobserved_with_generated_plates)
+        if remainder:
+            return unobserved_with_generated_plates.combine(remainder)
         else:
             return unobserved_with_generated_plates
 

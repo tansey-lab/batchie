@@ -113,7 +113,7 @@ def main():
     args = get_args()
     log_config.configure_logging(args)
 
-    full_experiment = Screen.load_h5(args.data)
+    screen = Screen.load_h5(args.data)
 
     rng = get_prng_from_seed_argument(args)
 
@@ -128,30 +128,37 @@ def main():
             args.initial_plate_generator_cls(**args.initial_plate_generator_params)
         )
 
-        experiment = initial_plate_generator.generate_and_unmask_initial_plate(
-            screen=full_experiment, rng=rng
+        initialized_screen = initial_plate_generator.generate_and_unmask_initial_plate(
+            screen=screen, rng=rng
         )
     else:
-        experiment = mask_screen(screen=full_experiment)
+        initialized_screen = mask_screen(screen=screen)
 
-    experiment = plate_generator.generate_plates(screen=experiment, rng=rng)
-    logger.info("Generated {} plates".format(len(experiment.plates)))
+    initialized_screen = plate_generator.generate_plates(
+        screen=initialized_screen, rng=rng
+    )
+    logger.info("Generated {} plates".format(len(initialized_screen.plates)))
 
     if initial_plate_generator is None:
         logger.warning(
             "No initial plate generator was provided. Selecting a random plate to reveal."
         )
 
-        logger.info([plate for plate in experiment.plates if not plate.is_observed])
+        logger.info(
+            [plate for plate in initialized_screen.plates if not plate.is_observed]
+        )
         random_first_plate = rng.choice(
-            [plate for plate in experiment.plates if not plate.is_observed]
+            [plate for plate in initialized_screen.plates if not plate.is_observed]
         )
 
         logger.warning("Will reveal plate {}".format(random_first_plate))
-        experiment = reveal_plates(
-            observed_screen=full_experiment,
-            masked_screen=experiment,
+        initialized_screen = reveal_plates(
+            observed_screen=screen,
+            masked_screen=initialized_screen,
             plate_ids=[random_first_plate.plate_id],
         )
 
-    experiment.save_h5(args.output)
+    logger.info("Revealed {} plates".format(len(initialized_screen.plates)))
+    logger.info("Created {} plates total".format(initialized_screen.n_plates))
+
+    initialized_screen.save_h5(args.output)

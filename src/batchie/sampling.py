@@ -1,6 +1,9 @@
 import numpy.random
 from batchie.core import BayesianModel, ThetaHolder
 from tqdm import trange
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def sample(
@@ -31,6 +34,12 @@ def sample(
 
     model.reset_model()
     model.set_rng(rng)
+
+    logger.info(
+        "Will run {} total iterations on model {}".format(
+            results.n_thetas * thin + n_burnin, model
+        )
+    )
 
     for _ in trange(n_burnin, disable=not progress_bar):
         model.step()
