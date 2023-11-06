@@ -21,7 +21,7 @@ def get_nextflow_dir():
 def get_args():
     parser = argparse.ArgumentParser(description="Run retrospective experiment")
     parser.add_argument(
-        "--unmasked-experiment",
+        "--unmasked-screen",
         type=str,
         required=True,
         help="Path to unmasked experiment",

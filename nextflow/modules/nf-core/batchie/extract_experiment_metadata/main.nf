@@ -26,7 +26,7 @@ process EXTRACT_SCREEN_METADATA {
     def args = task.ext.args ?: ""
     """
     mkdir -p "${prefix}"
-    extract_screen_metadata --experiment ${data} \
+    extract_screen_metadata --screen ${data} \
         --output ${prefix}/experiment_metadata.json \
         ${args}
 

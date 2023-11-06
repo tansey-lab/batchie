@@ -24,12 +24,12 @@ process ADVANCE_RETROSPECTIVE_SIMULATION {
     mkdir -p "${prefix}"
     advance_retrospective_simulation \
         --thetas ${thetas} \
-        --masked-experiment ${data_masked} \
-        --unmasked-experiment ${data_unmasked} \
+        --masked-screen ${data_masked} \
+        --unmasked-screen ${data_unmasked} \
         --batch-selection ${batch_selection} \
         --experiment-tracker-output ${prefix}/experiment_tracker_output.json \
         --experiment-tracker-input ${experiment_tracker} \
-        --experiment-output ${prefix}/advanced_experiment.h5 \
+        --screen-output ${prefix}/advanced_experiment.h5 \
         ${args}
 
     cat <<-END_VERSIONS > versions.yml

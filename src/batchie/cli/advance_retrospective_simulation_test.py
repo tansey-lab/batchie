@@ -52,9 +52,9 @@ def test_main(mocker, test_masked_dataset, test_unmasked_dataset):
         "SparseDrugCombo",
         "--model-param",
         "n_embedding_dimensions=2",
-        "--unmasked-experiment",
+        "--unmasked-screen",
         os.path.join(tmpdir, "unmasked_experiment.h5"),
-        "--masked-experiment",
+        "--masked-screen",
         os.path.join(tmpdir, "masked_experiment.h5"),
         "--thetas",
         os.path.join(tmpdir, "samples.h5"),
@@ -64,7 +64,7 @@ def test_main(mocker, test_masked_dataset, test_unmasked_dataset):
         os.path.join(tmpdir, "experiment_tracker_output.json"),
         "--batch-selection",
         os.path.join(tmpdir, "batch_selection.json"),
-        "--experiment-output",
+        "--screen-output",
         os.path.join(tmpdir, "advanced_experiment.h5"),
     ]
 

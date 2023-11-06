@@ -22,10 +22,10 @@ def get_parser():
         "and saving the results."
     )
     log_config.add_logging_args(parser)
-    parser.add_argument("--unmasked-experiment", type=str, required=True)
-    parser.add_argument("--masked-experiment", type=str, required=True)
+    parser.add_argument("--unmasked-screen", type=str, required=True)
+    parser.add_argument("--masked-screen", type=str, required=True)
     parser.add_argument("--batch-selection", type=str, required=True)
-    parser.add_argument("--experiment-output", type=str, required=True)
+    parser.add_argument("--screen-output", type=str, required=True)
     parser.add_argument(
         "--experiment-tracker-input", type=str, nargs="?", const=None, default=None
     )
@@ -67,7 +67,7 @@ def main():
     args = get_args()
     log_config.configure_logging(args)
 
-    masked_screen = Screen.load_h5(args.masked_experiment)
+    masked_screen = Screen.load_h5(args.masked_screen)
 
     args.model_params[N_UNIQUE_SAMPLES] = masked_screen.n_unique_samples
     args.model_params[N_UNIQUE_TREATMENTS] = masked_screen.n_unique_treatments
@@ -76,7 +76,7 @@ def main():
     theta_holder: ThetaHolder = model.get_results_holder(n_samples=1)
     thetas = theta_holder.concat([theta_holder.load_h5(x) for x in args.thetas])
 
-    unmasked_screen = Screen.load_h5(args.unmasked_experiment)
+    unmasked_screen = Screen.load_h5(args.unmasked_screen)
 
     if args.experiment_tracker_input and os.path.exists(args.experiment_tracker_input):
         experiment_tracker = ExperimentTracker.load(args.experiment_tracker_input)

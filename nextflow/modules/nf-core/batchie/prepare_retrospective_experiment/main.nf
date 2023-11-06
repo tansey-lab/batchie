@@ -22,7 +22,7 @@ process PREPARE_RETROSPECTIVE_SIMULATION {
     """
     mkdir -p "${prefix}"
     prepare_retrospective_simulation \
-        --experiment ${data} \
+        --screen ${data} \
         --output ${prefix}/retrospective_simulation.h5 \
         ${args}
 
