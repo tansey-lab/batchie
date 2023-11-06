@@ -107,7 +107,6 @@ class SparseDrugComboResults(ThetaHolder):
         return output
 
     def get_theta(self, step_index: int) -> SparseDrugComboMCMCSample:
-        """Get one sample from the MCMC chain"""
         # Test if this is beyond the step we are current at with the cursor
         if step_index >= self._cursor:
             raise ValueError("Cannot get a step beyond the current cursor position")
@@ -137,7 +136,6 @@ class SparseDrugComboResults(ThetaHolder):
         self.precision[sample_index] = sample.precision
 
     def save_h5(self, fn: str):
-        """Save all arrays to h5"""
         with h5py.File(fn, "w") as f:
             f.create_dataset("V2", data=self.V2)
             f.create_dataset("V1", data=self.V1)
@@ -152,7 +150,6 @@ class SparseDrugComboResults(ThetaHolder):
 
     @staticmethod
     def load_h5(path: str):
-        """Load saved data from h5 archive"""
         with h5py.File(path, "r") as f:
             n_unique_samples = f["W"].shape[1]
             n_unique_treatments = f["V0"].shape[1]
@@ -179,7 +176,9 @@ class SparseDrugComboResults(ThetaHolder):
 
 
 class SparseDrugCombo(BayesianModel):
-    """Simple Gibbs sampler for Sparse Representation"""
+    """
+    Bayesian tensor factorization model for predicting combination drug response
+    """
 
     def __init__(
         self,
