@@ -248,7 +248,7 @@ def test_filter_dataset_to_treatments_that_appear_in_at_least_one_combo():
     )
 
     result = filter_dataset_to_treatments_that_appear_in_at_least_one_combo(
-        dataset=test_experiment
+        screen=test_experiment
     )
 
     assert result.size == 1

@@ -126,7 +126,7 @@ def test_create_sparse_cover_plate(test_dataset):
 
 
 @pytest.mark.parametrize("anchor_size", [0, 1])
-def test_create_sarcoma_plates(anchor_size, unobserved_dataset):
+def test_pairwise_plate_generator(anchor_size, unobserved_dataset):
     rng = np.random.default_rng(0)
 
     plate_generator = retrospective.PairwisePlateGenerator(

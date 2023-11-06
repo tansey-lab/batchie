@@ -1,5 +1,6 @@
 import h5py
 import numpy as np
+import tqdm
 
 from batchie.core import (
     DistanceMetric,
@@ -10,6 +11,9 @@ from batchie.core import (
 from batchie.data import Screen
 from itertools import islice
 import collections
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def consume(iterator, n):
@@ -234,6 +238,7 @@ def calculate_pairwise_distance_matrix_on_predictions(
     data: Screen,
     chunk_index: int,
     n_chunks: int,
+    progress: bool = False,
 ) -> ChunkedDistanceMatrix:
     """
     Calculate the pairwise distance matrix between predictions.
@@ -251,6 +256,7 @@ def calculate_pairwise_distance_matrix_on_predictions(
     :param data: The data to predict
     :param chunk_index: The index of the chunk to calculate
     :param n_chunks: The number of chunks to split the distance matrix into
+    :param progress: Whether to show a progress bar
     :return: A :py:class:`ChunkedDistanceMatrix` containing the pairwise distances
     """
     indices = get_lower_triangular_indices_chunk(
@@ -261,7 +267,9 @@ def calculate_pairwise_distance_matrix_on_predictions(
         size=thetas.n_thetas, chunk_index=chunk_index, n_chunks=n_chunks
     )
 
-    for i, j in indices:
+    logger.info("Will calculate {} distances".format(len(indices)))
+
+    for i, j in tqdm.tqdm(indices) if progress else indices:
         sample_i = thetas.get_theta(i)
         model.set_model_state(sample_i)
         i_pred = model.predict(data)

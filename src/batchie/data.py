@@ -817,19 +817,19 @@ class Screen(ScreenBase):
 
 
 def filter_dataset_to_treatments_that_appear_in_at_least_one_combo(
-    dataset: Screen,
+    screen: Screen,
 ) -> Screen:
     """
     Utility function to filter down an :py:class:`batchie.data.Screen` to only
     the treatments that appear in at least one combo.
 
-    :param dataset: an :py:class:`batchie.data.Screen`
+    :param screen: an :py:class:`batchie.data.Screen`
     :return: A filtered :py:class:`batchie.data.Screen`
     """
-    if dataset.treatment_arity < 2:
+    if screen.treatment_arity < 2:
         raise ValueError("Dataset must have at least 2 treatments")
 
-    treatment_ids: ArrayType = dataset.treatment_ids
+    treatment_ids: ArrayType = screen.treatment_ids
 
     treatment_selection_vector = np.all(
         ~((treatment_ids == CONTROL_SENTINEL_VALUE).reshape(treatment_ids.shape)),
@@ -844,8 +844,18 @@ def filter_dataset_to_treatments_that_appear_in_at_least_one_combo(
     )
 
     logger.info(
-        "Filtering {}/{} treatments that appear in at least one combo".format(
-            treatments_to_select.size, dataset.treatment_arity
+        "Selecting {} treatments that appear in at least one combo of arity {}".format(
+            treatments_to_select.size, screen.treatment_arity
+        )
+    )
+
+    filtered_treatment_names = np.unique(
+        screen.treatment_names[~treatment_selection_vector].flatten()
+    )
+
+    logger.info(
+        "Filtering {} treatments that do not appear in any combo: ({})".format(
+            len(filtered_treatment_names), ", ".join(filtered_treatment_names)
         )
     )
 
@@ -856,4 +866,4 @@ def filter_dataset_to_treatments_that_appear_in_at_least_one_combo(
         axis=1,
     )
 
-    return dataset.subset(screen_selection_vector).to_screen()
+    return screen.subset(screen_selection_vector).to_screen()

@@ -7,6 +7,9 @@ from batchie.cli.argument_parsing import KVAppendAction, cast_dict_to_type
 from batchie.common import N_UNIQUE_SAMPLES, N_UNIQUE_TREATMENTS
 from batchie.core import BayesianModel, ThetaHolder
 from batchie.data import Screen
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def get_parser():
@@ -121,6 +124,8 @@ def main():
         thin=args.thin,
         progress_bar=args.progress,
     )
+
+    logger.info("Saving thetas to {}".format(args.output))
 
     results.save_h5(args.output)
 
