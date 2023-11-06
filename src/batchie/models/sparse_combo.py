@@ -8,7 +8,7 @@ import numpy as np
 
 from batchie.common import ArrayType, copy_array_with_control_treatments_set_to_zero
 from batchie.core import BayesianModel, Theta, ThetaHolder
-from batchie.data import ExperimentBase
+from batchie.data import ScreenBase
 from batchie.fast_mvn import sample_mvn_from_precision
 from numpy.random import Generator
 from scipy.special import logit
@@ -289,7 +289,7 @@ class SparseDrugCombo(BayesianModel):
             n_thetas=n_samples,
         )
 
-    def add_observations(self, data: ExperimentBase):
+    def add_observations(self, data: ScreenBase):
         if data.treatment_arity != 2:
             raise ValueError(
                 "SparseDrugCombo only works with two-treatments combination datasets, "
@@ -347,7 +347,7 @@ class SparseDrugCombo(BayesianModel):
             V1=self.V1.copy(),
         )
 
-    def predict(self, data: ExperimentBase):
+    def predict(self, data: ScreenBase):
         state = self.get_model_state()
         if data.treatment_arity == 1:
             return predict_single_drug(state, data)
@@ -771,7 +771,7 @@ class SparseDrugCombo(BayesianModel):
     # endregion
 
 
-def predict(mcmc_sample: SparseDrugComboMCMCSample, data: ExperimentBase):
+def predict(mcmc_sample: SparseDrugComboMCMCSample, data: ScreenBase):
     interaction2 = np.sum(
         mcmc_sample.W[data.sample_ids]
         * copy_array_with_control_treatments_set_to_zero(
@@ -808,7 +808,7 @@ def predict(mcmc_sample: SparseDrugComboMCMCSample, data: ExperimentBase):
     return Mu
 
 
-def predict_single_drug(mcmc_sample: SparseDrugComboMCMCSample, data: ExperimentBase):
+def predict_single_drug(mcmc_sample: SparseDrugComboMCMCSample, data: ScreenBase):
     interaction1 = np.sum(
         mcmc_sample.W[data.sample_ids]
         * copy_array_with_control_treatments_set_to_zero(
@@ -827,7 +827,7 @@ def predict_single_drug(mcmc_sample: SparseDrugComboMCMCSample, data: Experiment
     return Mu
 
 
-def bliss(mcmc_sample: SparseDrugComboMCMCSample, data: ExperimentBase):
+def bliss(mcmc_sample: SparseDrugComboMCMCSample, data: ScreenBase):
     interaction2 = np.sum(
         mcmc_sample.W[data.treatment_ids]
         * copy_array_with_control_treatments_set_to_zero(

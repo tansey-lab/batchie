@@ -7,7 +7,7 @@ from batchie import log_config
 from batchie.cli.argument_parsing import KVAppendAction, cast_dict_to_type
 from batchie.common import N_UNIQUE_SAMPLES, N_UNIQUE_TREATMENTS
 from batchie.core import DistanceMetric, BayesianModel, ThetaHolder
-from batchie.data import Experiment
+from batchie.data import Screen
 from batchie.distance_calculation import (
     calculate_pairwise_distance_matrix_on_predictions,
 )
@@ -85,7 +85,7 @@ def main():
     args = get_args()
     log_config.configure_logging(args)
 
-    data = Experiment.load_h5(args.data)
+    data = Screen.load_h5(args.data)
 
     args.model_params[N_UNIQUE_SAMPLES] = data.n_unique_samples
     args.model_params[N_UNIQUE_TREATMENTS] = data.n_unique_treatments

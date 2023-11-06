@@ -1,10 +1,10 @@
 import numpy as np
 from batchie.core import BayesianModel, ThetaHolder
-from batchie.data import ExperimentBase
+from batchie.data import ScreenBase
 from batchie.common import FloatingPointType
 
 
-def predict_all(model: BayesianModel, experiment: ExperimentBase, thetas: ThetaHolder):
+def predict_all(model: BayesianModel, experiment: ScreenBase, thetas: ThetaHolder):
     """
     Predict the experiment data using the model parameterized with each theta in thetas.
 
@@ -21,7 +21,7 @@ def predict_all(model: BayesianModel, experiment: ExperimentBase, thetas: ThetaH
     return result
 
 
-def predict_avg(model: BayesianModel, experiment: ExperimentBase, thetas: ThetaHolder):
+def predict_avg(model: BayesianModel, experiment: ScreenBase, thetas: ThetaHolder):
     """
     :param model: The model to use for prediction
     :param experiment: The data to predict

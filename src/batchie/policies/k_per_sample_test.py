@@ -2,13 +2,13 @@ from unittest import mock
 
 import numpy as np
 import pytest
-from batchie.data import Experiment
+from batchie.data import Screen
 from batchie.policies.k_per_sample import KPerSamplePlatePolicy
 
 
 @pytest.fixture
 def test_dataset():
-    test_dataset = Experiment(
+    test_dataset = Screen(
         observations=np.array([0.1, 0.2, 0.3, 0.4, 0.1, 0.2, 0.1, 0.2]),
         sample_names=np.array(["a", "a", "b", "b", "c", "c", "c", "c"], dtype=str),
         plate_names=np.array(["1", "2", "3", "4", "5", "6", "7", "8"], dtype=str),
@@ -76,7 +76,7 @@ def test_k_per_sample_batcher(test_dataset):
 
 
 def test_k_per_sample_batcher_preconditions():
-    bad_plates = Experiment(
+    bad_plates = Screen(
         observations=np.array([0.1, 0.2, 0.3, 0.4, 0.1, 0.2, 0.1, 0.2]),
         sample_names=np.array(["a", "a", "b", "b", "c", "c", "c", "c"], dtype=str),
         plate_names=np.array(["1", "1", "1", "1", "2", "2", "2", "2"], dtype=str),

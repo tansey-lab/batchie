@@ -1,7 +1,7 @@
 import argparse
 import json
 from batchie import log_config
-from batchie.data import Experiment
+from batchie.data import Screen
 
 
 def get_parser():
@@ -24,7 +24,7 @@ def main():
     args = get_args()
     log_config.configure_logging(args)
 
-    experiment = Experiment.load_h5(args.experiment)
+    experiment = Screen.load_h5(args.experiment)
 
     n_observed_plates = 0
     n_unobserved_plates = 0

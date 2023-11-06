@@ -16,7 +16,7 @@ from batchie.core import (
     PlatePolicy,
 )
 from batchie.distance_calculation import ChunkedDistanceMatrix
-from batchie.data import Experiment
+from batchie.data import Screen
 from batchie.scoring.main import select_next_batch
 from batchie.common import N_UNIQUE_SAMPLES, N_UNIQUE_TREATMENTS, SELECTED_PLATES_KEY
 
@@ -121,7 +121,7 @@ def main():
     args = get_args()
     log_config.configure_logging(args)
 
-    experiment = Experiment.load_h5(args.data)
+    experiment = Screen.load_h5(args.data)
 
     args.model_params[N_UNIQUE_SAMPLES] = experiment.n_unique_samples
     args.model_params[N_UNIQUE_TREATMENTS] = experiment.n_unique_treatments

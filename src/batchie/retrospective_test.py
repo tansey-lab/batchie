@@ -1,6 +1,6 @@
 import numpy as np
 import pytest
-from batchie.data import Experiment
+from batchie.data import Screen
 from batchie import retrospective
 from unittest import mock
 from batchie.core import BayesianModel, ThetaHolder
@@ -8,7 +8,7 @@ from batchie.core import BayesianModel, ThetaHolder
 
 @pytest.fixture
 def test_dataset():
-    test_dataset = Experiment(
+    test_dataset = Screen(
         observations=np.array([0.1, 0.2, 0.3, 0.4, 0.1, 0.2, 0.3, 0.4]),
         sample_names=np.array(["a", "b", "c", "d", "a", "b", "c", "d"], dtype=str),
         plate_names=np.array(["a", "a", "b", "b", "a", "a", "b", "b"], dtype=str),
@@ -43,7 +43,7 @@ def test_dataset():
 
 @pytest.fixture
 def unobserved_dataset():
-    test_dataset = Experiment(
+    test_dataset = Screen(
         observations=np.array([0.1, 0.2, 0.3, 0.4, 0.1, 0.2, 0.3, 0.4]),
         observation_mask=np.array(
             [False, False, False, False, False, False, False, False]
@@ -81,7 +81,7 @@ def unobserved_dataset():
 
 @pytest.fixture
 def masked_dataset():
-    return Experiment(
+    return Screen(
         observations=np.array([0.1, 0.2, 0.3, 0.4, 0.1, 0.2, 0, 0]),
         observation_mask=np.array([True, True, True, True, True, True, False, False]),
         sample_names=np.array(["a", "b", "c", "d", "a", "b", "c", "d"], dtype=str),

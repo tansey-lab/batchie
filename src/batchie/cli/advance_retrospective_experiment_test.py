@@ -6,13 +6,13 @@ import numpy as np
 import json
 from batchie.cli import advance_retrospective_experiment
 from batchie.models.sparse_combo import SparseDrugComboResults
-from batchie.data import Experiment
+from batchie.data import Screen
 from batchie.common import SELECTED_PLATES_KEY
 
 
 @pytest.fixture
 def test_masked_dataset():
-    return Experiment(
+    return Screen(
         observations=np.array([0.1, 0.2, 0, 0, 0, 0]),
         observation_mask=np.array([True, True, False, False, False, False]),
         sample_names=np.array(["a", "a", "b", "b", "c", "c"], dtype=str),
@@ -29,7 +29,7 @@ def test_masked_dataset():
 
 @pytest.fixture
 def test_unmasked_dataset():
-    return Experiment(
+    return Screen(
         observations=np.array([0.1, 0.2, 0.3, 0.4, 0.5, 0.6]),
         observation_mask=np.array([True, True, True, True, True, True]),
         sample_names=np.array(["a", "a", "b", "b", "c", "c"], dtype=str),
@@ -97,7 +97,7 @@ def test_main(mocker, test_masked_dataset, test_unmasked_dataset):
         assert results["plate_ids_selected"][-1] == [1]
         assert len(results["losses"]) == 2
 
-        exp_output = Experiment.load_h5(os.path.join(tmpdir, "advanced_experiment.h5"))
+        exp_output = Screen.load_h5(os.path.join(tmpdir, "advanced_experiment.h5"))
 
         np.testing.assert_array_equal(
             exp_output.observation_mask,

@@ -7,7 +7,7 @@ from batchie import introspection
 from batchie import log_config
 from batchie.cli.argument_parsing import KVAppendAction, cast_dict_to_type
 from batchie.core import BayesianModel, ThetaHolder, ExperimentTracker
-from batchie.data import Experiment
+from batchie.data import Screen
 from batchie.common import SELECTED_PLATES_KEY, N_UNIQUE_SAMPLES, N_UNIQUE_TREATMENTS
 from batchie.retrospective import reveal_plates, calculate_mse
 
@@ -67,7 +67,7 @@ def main():
     args = get_args()
     log_config.configure_logging(args)
 
-    masked_experiment = Experiment.load_h5(args.masked_experiment)
+    masked_experiment = Screen.load_h5(args.masked_experiment)
 
     args.model_params[N_UNIQUE_SAMPLES] = masked_experiment.n_unique_samples
     args.model_params[N_UNIQUE_TREATMENTS] = masked_experiment.n_unique_treatments
@@ -76,7 +76,7 @@ def main():
     theta_holder: ThetaHolder = model.get_results_holder(n_samples=1)
     thetas = theta_holder.concat([theta_holder.load_h5(x) for x in args.thetas])
 
-    unmasked_experiment = Experiment.load_h5(args.unmasked_experiment)
+    unmasked_experiment = Screen.load_h5(args.unmasked_experiment)
 
     if args.experiment_tracker_input and os.path.exists(args.experiment_tracker_input):
         experiment_tracker = ExperimentTracker.load(args.experiment_tracker_input)

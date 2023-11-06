@@ -6,7 +6,7 @@ from batchie import sampling
 from batchie.cli.argument_parsing import KVAppendAction, cast_dict_to_type
 from batchie.common import N_UNIQUE_SAMPLES, N_UNIQUE_TREATMENTS
 from batchie.core import BayesianModel, ThetaHolder
-from batchie.data import Experiment
+from batchie.data import Screen
 
 
 def get_parser():
@@ -93,7 +93,7 @@ def main():
     args = get_args()
     log_config.configure_logging(args)
 
-    data = Experiment.load_h5(args.data)
+    data = Screen.load_h5(args.data)
 
     args.model_params[N_UNIQUE_SAMPLES] = data.n_unique_samples
     args.model_params[N_UNIQUE_TREATMENTS] = data.n_unique_treatments

@@ -7,7 +7,7 @@ from batchie.cli.argument_parsing import (
     get_prng_from_seed_argument,
 )
 from batchie.core import InitialRetrospectivePlateGenerator, RetrospectivePlateGenerator
-from batchie.data import Experiment
+from batchie.data import Screen
 from batchie.retrospective import reveal_plates, mask_experiment
 from typing import Optional
 import logging
@@ -96,7 +96,7 @@ def main():
     args = get_args()
     log_config.configure_logging(args)
 
-    full_experiment = Experiment.load_h5(args.experiment)
+    full_experiment = Screen.load_h5(args.experiment)
 
     rng = get_prng_from_seed_argument(args)
 
@@ -112,12 +112,12 @@ def main():
         )
 
         experiment = initial_plate_generator.generate_and_unmask_initial_plate(
-            experiment=full_experiment, rng=rng
+            screen=full_experiment, rng=rng
         )
     else:
         experiment = mask_experiment(experiment=full_experiment)
 
-    experiment = plate_generator.generate_plates(experiment=experiment, rng=rng)
+    experiment = plate_generator.generate_plates(screen=experiment, rng=rng)
     logger.info("Generated {} plates".format(len(experiment.plates)))
 
     if initial_plate_generator is None:

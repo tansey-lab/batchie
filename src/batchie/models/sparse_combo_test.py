@@ -2,13 +2,13 @@ import tempfile
 
 import numpy as np
 import pytest
-from batchie.data import Experiment
+from batchie.data import Screen
 from batchie.models import sparse_combo
 
 
 @pytest.fixture
 def test_dataset():
-    test_dataset = Experiment(
+    test_dataset = Screen(
         observations=np.array([0.1, 0.2, 0.3, 0.4, 0.1, 0.2]),
         sample_names=np.array(["a", "a", "a", "b", "b", "b"], dtype=str),
         plate_names=np.array(["1"] * 6, dtype=str),

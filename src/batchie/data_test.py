@@ -9,7 +9,7 @@ import pytest
 import batchie.data
 from batchie.common import CONTROL_SENTINEL_VALUE
 from batchie.data import (
-    Experiment,
+    Screen,
     Plate,
     encode_treatment_arrays_to_0_indexed_ids,
     filter_dataset_to_treatments_that_appear_in_at_least_one_combo,
@@ -39,7 +39,7 @@ def test_encode_treatment_arrays_with_controls_to_0_indexed_ids():
 
 
 def test_experiment_props():
-    experiment = Experiment(
+    experiment = Screen(
         observations=np.array([0.1, 0.2, 0, 0]),
         observation_mask=np.array([True, True, False, False]),
         sample_names=np.array(["a", "b", "c", "d"], dtype=str),
@@ -75,10 +75,8 @@ def test_experiment_props():
     assert experiment.treatment_arity == 2
     assert experiment.n_plates == 2
 
-    first_half = experiment.subset(np.array([True, True, False, False])).to_experiment()
-    second_half = experiment.subset(
-        np.array([False, False, True, True])
-    ).to_experiment()
+    first_half = experiment.subset(np.array([True, True, False, False])).to_screen()
+    second_half = experiment.subset(np.array([False, False, True, True])).to_screen()
 
     assert first_half.size == 2
     assert second_half.size == 2
@@ -109,7 +107,7 @@ def test_experiment_props():
 
 
 def test_experiment_subset_props():
-    experiment = Experiment(
+    experiment = Screen(
         observations=np.array([0.1, 0.2, 0, 0]),
         observation_mask=np.array([True, True, False, False]),
         sample_names=np.array(["a", "b", "c", "d"], dtype=str),
@@ -121,7 +119,7 @@ def test_experiment_subset_props():
     )
 
     experiment_subset = Plate(
-        experiment=experiment, selection_vector=np.array([True, True, False, False])
+        screen=experiment, selection_vector=np.array([True, True, False, False])
     )
 
     np.testing.assert_array_equal(
@@ -141,7 +139,7 @@ def test_experiment_subset_props():
 
 
 def test_experiment_subset_combine_and_concat():
-    experiment = Experiment(
+    experiment = Screen(
         observations=np.array([0.1, 0.2, 0, 0]),
         observation_mask=np.array([True, True, False, False]),
         sample_names=np.array(["a", "b", "c", "d"], dtype=str),
@@ -153,11 +151,11 @@ def test_experiment_subset_combine_and_concat():
     )
 
     experiment_subset1 = Plate(
-        experiment=experiment, selection_vector=np.array([True, True, False, False])
+        screen=experiment, selection_vector=np.array([True, True, False, False])
     )
 
     experiment_subset2 = Plate(
-        experiment=experiment, selection_vector=np.array([False, False, True, True])
+        screen=experiment, selection_vector=np.array([False, False, True, True])
     )
 
     assert experiment_subset1.combine(experiment_subset2).size == 4
@@ -166,7 +164,7 @@ def test_experiment_subset_combine_and_concat():
 
 def test_experiment_validates_observation_mask():
     with pytest.raises(ValueError):
-        Experiment(
+        Screen(
             observations=np.array([0.1, 0.2, 0, 0]),
             observation_mask=np.array([True, True, False, True]),
             sample_names=np.array(["a", "b", "c", "d"], dtype=str),
@@ -179,7 +177,7 @@ def test_experiment_validates_observation_mask():
 
 
 def test_experiment_initialization_succeeds_under_correct_condition():
-    result = Experiment(
+    result = Screen(
         observations=np.array([0.1, 0.2, 0.3, 0.4]),
         sample_names=np.array(["a", "b", "c", "d"], dtype=str),
         plate_names=np.array(["a", "a", "b", "b"], dtype=str),
@@ -198,7 +196,7 @@ def test_experiment_initialization_succeeds_under_correct_condition():
 
 
 def test_experiment_serialization():
-    dset = Experiment(
+    dset = Screen(
         observations=np.array([0.1, 0.2, 0.3, 0.4]),
         sample_names=np.array(["a", "b", "c", "d"], dtype=str),
         plate_names=np.array(["a", "a", "b", "b"], dtype=str),
@@ -215,7 +213,7 @@ def test_experiment_serialization():
     try:
         dset.save_h5(fn)
 
-        dset_loaded = Experiment.load_h5(fn)
+        dset_loaded = Screen.load_h5(fn)
 
         numpy.testing.assert_array_equal(dset_loaded.plate_ids, np.array([0, 0, 1, 1]))
         numpy.testing.assert_array_equal(dset_loaded.sample_ids, np.array([0, 1, 2, 3]))
@@ -239,7 +237,7 @@ def test_experiment_serialization():
 
 
 def test_filter_dataset_to_treatments_that_appear_in_at_least_one_combo():
-    test_experiment = Experiment(
+    test_experiment = Screen(
         observations=np.array([0.1, 0.2, 0.3, 0.4]),
         sample_names=np.array(["a", "b", "c", "d"], dtype=str),
         plate_names=np.array(["a", "a", "b", "b"], dtype=str),
@@ -258,7 +256,7 @@ def test_filter_dataset_to_treatments_that_appear_in_at_least_one_combo():
 
 
 def test_experiment_subset():
-    test_experiment = Experiment(
+    test_experiment = Screen(
         observations=np.array([0.1, 0.2, 0.3, 0.4]),
         sample_names=np.array(["a", "b", "c", "d"], dtype=str),
         plate_names=np.array(["a", "a", "b", "b"], dtype=str),
@@ -269,7 +267,7 @@ def test_experiment_subset():
     )
 
     subset = Plate(
-        experiment=test_experiment,
+        screen=test_experiment,
         selection_vector=np.array([True, False, False, True]),
     )
 

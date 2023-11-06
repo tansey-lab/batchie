@@ -2,13 +2,13 @@ import tempfile
 
 import numpy as np
 import pytest
-from batchie.data import Experiment
+from batchie.data import Screen
 from batchie.models import sparse_combo_interaction
 
 
 @pytest.fixture
 def test_dataset():
-    test_dataset = Experiment(
+    test_dataset = Screen(
         observations=np.array([0.1, 0.2, 0.3, 0.4, 0.1, 0.2]),
         sample_names=np.array(["a", "a", "a", "b", "b", "b"], dtype=str),
         plate_names=np.array(["1"] * 6, dtype=str),
@@ -38,7 +38,7 @@ def test_dataset():
     return test_dataset
 
 
-Experiment(
+Screen(
     observations=np.array([0.1, 0.2, 0.3, 0.4, 0.1, 0.2]),
     sample_names=np.array(["a", "a", "a", "a", "a", "a"], dtype=str),
     plate_names=np.array(["a", "a", "b", "b", "c", "c"], dtype=str),
@@ -67,7 +67,7 @@ Experiment(
 )
 
 
-Experiment(
+Screen(
     observations=np.array([0.1, 0.2, 0, 0, 0, 0]),
     observation_mask=np.array([True, True, False, False, False, False]),
     sample_names=np.array(["a", "a", "a", "a", "a", "a"], dtype=str),

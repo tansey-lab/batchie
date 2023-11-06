@@ -6,13 +6,13 @@ import numpy as np
 import json
 from batchie.cli import extract_experiment_metadata
 from batchie.models.sparse_combo import SparseDrugComboResults
-from batchie.data import Experiment
+from batchie.data import Screen
 from batchie.common import SELECTED_PLATES_KEY
 
 
 @pytest.fixture
 def test_dataset():
-    return Experiment(
+    return Screen(
         observations=np.array([0.1, 0.2, 0, 0, 0, 0]),
         observation_mask=np.array([True, True, False, False, False, False]),
         sample_names=np.array(["a", "a", "b", "b", "c", "c"], dtype=str),

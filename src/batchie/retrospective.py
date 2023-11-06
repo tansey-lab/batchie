@@ -2,7 +2,7 @@ from typing import Optional
 
 import numpy as np
 from batchie.common import CONTROL_SENTINEL_VALUE, FloatingPointType
-from batchie.data import Experiment, Plate
+from batchie.data import Screen, Plate
 from batchie.core import (
     BayesianModel,
     ThetaHolder,
@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 class SparseCoverPlateGenerator(InitialRetrospectivePlateGenerator):
     def generate_and_unmask_initial_plate(
-        self, experiment: Experiment, rng: np.random.BitGenerator
+        self, experiment: Screen, rng: np.random.BitGenerator
     ):
         """
         We want to make sure we have at least one observation for
@@ -93,7 +93,7 @@ class SparseCoverPlateGenerator(InitialRetrospectivePlateGenerator):
         observation_vector = experiment.observations.copy()
         observation_vector[~final_plate_selection_vector] = 0.0
 
-        return Experiment(
+        return Screen(
             treatment_names=experiment.treatment_names,
             treatment_doses=experiment.treatment_doses,
             observations=observation_vector,
@@ -110,8 +110,8 @@ class PairwisePlateGenerator(RetrospectivePlateGenerator):
         self.subset_size = subset_size
 
     def generate_plates(
-        self, experiment: Experiment, rng: np.random.BitGenerator
-    ) -> Experiment:
+        self, experiment: Screen, rng: np.random.BitGenerator
+    ) -> Screen:
         """
         Break up your drug doses into groups of size subset_size
 
@@ -123,7 +123,7 @@ class PairwisePlateGenerator(RetrospectivePlateGenerator):
         <anchor_size> anchor drugs in each group
         """
 
-        unobserved_data = experiment.subset_unobserved().to_experiment()
+        unobserved_data = experiment.subset_unobserved().to_screen()
 
         if not unobserved_data:
             logger.warning("No unobserved data found, returning original experiment")
@@ -181,7 +181,7 @@ class PairwisePlateGenerator(RetrospectivePlateGenerator):
             mask = (grouping_tuples == unique_grouping_tuple).all(axis=1)
             new_plate_names[mask] = f"generated_plate_{idx}"
 
-        unobserved_with_generated_plates = Experiment(
+        unobserved_with_generated_plates = Screen(
             treatment_names=unobserved_data.treatment_names,
             treatment_doses=unobserved_data.treatment_doses,
             observations=unobserved_data.observations,
@@ -205,8 +205,8 @@ class RandomPlateGenerator(RetrospectivePlateGenerator):
     def __init__(self, force_include_plate_names: Optional[list[str]] = None):
         self.force_include_plate_names = force_include_plate_names
 
-    def generate_plates(self, experiment: Experiment, rng: np.random.BitGenerator):
-        unobserved_experiment = experiment.subset_unobserved().to_experiment()
+    def generate_plates(self, experiment: Screen, rng: np.random.BitGenerator):
+        unobserved_experiment = experiment.subset_unobserved().to_screen()
 
         if unobserved_experiment is None:
             logger.warning("No unobserved data found, returning original experiment")
@@ -220,17 +220,15 @@ class RandomPlateGenerator(RetrospectivePlateGenerator):
             selection_vector = np.ones(unobserved_experiment.size, dtype=bool)
 
         if np.any(~selection_vector):
-            to_permute = unobserved_experiment.subset(selection_vector).to_experiment()
-            non_permuted = unobserved_experiment.subset(
-                ~selection_vector
-            ).to_experiment()
+            to_permute = unobserved_experiment.subset(selection_vector).to_screen()
+            non_permuted = unobserved_experiment.subset(~selection_vector).to_screen()
         else:
-            to_permute = unobserved_experiment.subset(selection_vector).to_experiment()
+            to_permute = unobserved_experiment.subset(selection_vector).to_screen()
             non_permuted = None
 
         new_plate_names = rng.permutation(to_permute.plate_names)
 
-        permuted = Experiment(
+        permuted = Screen(
             treatment_names=to_permute.treatment_names,
             treatment_doses=to_permute.treatment_doses,
             observations=to_permute.observations,
@@ -246,13 +244,13 @@ class RandomPlateGenerator(RetrospectivePlateGenerator):
             new_unobserved = permuted
 
         if experiment.subset_observed():
-            return experiment.subset_observed().to_experiment().combine(new_unobserved)
+            return experiment.subset_observed().to_screen().combine(new_unobserved)
         else:
             return new_unobserved
 
 
-def mask_experiment(experiment: Experiment) -> Experiment:
-    return Experiment(
+def mask_experiment(experiment: Screen) -> Screen:
+    return Screen(
         treatment_names=experiment.treatment_names,
         treatment_doses=experiment.treatment_doses,
         observations=np.zeros(experiment.size, dtype=FloatingPointType),
@@ -264,10 +262,10 @@ def mask_experiment(experiment: Experiment) -> Experiment:
 
 
 def reveal_plates(
-    full_experiment: Experiment,
-    masked_experiment: Experiment,
+    full_experiment: Screen,
+    masked_experiment: Screen,
     plate_ids: list[int],
-) -> Experiment:
+) -> Screen:
     """
     Utility function to reveal observations in the masked experiment from the full experiment.
 
@@ -286,8 +284,8 @@ def reveal_plates(
 
 
 def calculate_mse(
-    full_experiment: Experiment,
-    masked_experiment: Experiment,
+    full_experiment: Screen,
+    masked_experiment: Screen,
     model: BayesianModel,
     thetas: ThetaHolder,
 ) -> float:

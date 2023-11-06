@@ -4,12 +4,12 @@ import tempfile
 import pytest
 import numpy as np
 from batchie.cli import prepare_retrospective_experiment
-from batchie.data import Experiment
+from batchie.data import Screen
 
 
 @pytest.fixture
 def test_dataset():
-    return Experiment(
+    return Screen(
         observations=np.array([0.1, 0.2, 0.3, 0.4, 0.5, 0.6]),
         observation_mask=np.array([True, True, True, True, True, True]),
         sample_names=np.array(["a", "a", "b", "b", "c", "c"], dtype=str),
@@ -43,7 +43,7 @@ def test_main_no_initial(mocker, test_dataset):
     try:
         prepare_retrospective_experiment.main()
 
-        exp_output = Experiment.load_h5(os.path.join(tmpdir, "prepared_experiment.h5"))
+        exp_output = Screen.load_h5(os.path.join(tmpdir, "prepared_experiment.h5"))
 
         assert len([x for x in exp_output.plates if x.is_observed]) == 1
     finally:
@@ -71,7 +71,7 @@ def test_main(mocker, test_dataset):
     try:
         prepare_retrospective_experiment.main()
 
-        exp_output = Experiment.load_h5(os.path.join(tmpdir, "prepared_experiment.h5"))
+        exp_output = Screen.load_h5(os.path.join(tmpdir, "prepared_experiment.h5"))
 
         assert len([x for x in exp_output.plates if x.is_observed]) == 1
     finally:
