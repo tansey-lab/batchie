@@ -19,9 +19,22 @@ logger = logging.getLogger(__name__)
 def get_parser():
     parser = argparse.ArgumentParser(description="calculate_distance_matrix.py")
     log_config.add_logging_args(parser)
-    parser.add_argument("--data", type=str, required=True)
-    parser.add_argument("--thetas", type=str, required=True, nargs="+")
-    parser.add_argument("--distance-metric", type=str, required=True)
+    parser.add_argument(
+        "--data", help="A batchie Screen in hdf5 format.", type=str, required=True
+    )
+    parser.add_argument(
+        "--thetas",
+        help="A batchie ThetaHolder in hdf5 format.",
+        type=str,
+        required=True,
+        nargs="+",
+    )
+    parser.add_argument(
+        "--distance-metric",
+        help="Fully qualified name of the DistanceMetric class to use.",
+        type=str,
+        required=True,
+    )
     parser.add_argument(
         "--distance-metric-param",
         nargs=1,
@@ -29,7 +42,12 @@ def get_parser():
         metavar="KEY=VALUE",
         help="Distance metric parameters",
     )
-    parser.add_argument("--model", type=str, required=True)
+    parser.add_argument(
+        "--model",
+        help="Fully qualified name of the BayesianModel class to use.",
+        type=str,
+        required=True,
+    )
     parser.add_argument(
         "--model-param",
         nargs=1,
@@ -37,9 +55,24 @@ def get_parser():
         metavar="KEY=VALUE",
         help="Model parameters",
     )
-    parser.add_argument("--n-chunks", type=int, required=True)
-    parser.add_argument("--chunk-index", type=int, required=True)
-    parser.add_argument("--output", type=str, required=True)
+    parser.add_argument(
+        "--n-chunks",
+        help="Number of chunks to split the distance matrix calculation into.",
+        type=int,
+        required=True,
+    )
+    parser.add_argument(
+        "--chunk-index",
+        help="Which of the n chunks to calculate in this invocation.",
+        type=int,
+        required=True,
+    )
+    parser.add_argument(
+        "--output",
+        help="Output batchie ChunkedDistanceMatrix in hdf5 format.",
+        type=str,
+        required=True,
+    )
     return parser
 
 

@@ -7,8 +7,15 @@ from batchie.data import Screen
 def get_parser():
     parser = argparse.ArgumentParser(description="extract_screen_metadata.py")
     log_config.add_logging_args(parser)
-    parser.add_argument("--screen", type=str, required=True)
-    parser.add_argument("--output", type=str, required=True)
+    parser.add_argument(
+        "--screen", help="A batchie Screen in hdf5 format.", type=str, required=True
+    )
+    parser.add_argument(
+        "--output",
+        help="Output json file to save metadata to.",
+        type=str,
+        required=True,
+    )
     return parser
 
 

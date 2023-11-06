@@ -10,9 +10,18 @@ from batchie.data import Screen
 
 
 def get_parser():
-    parser = argparse.ArgumentParser(description="train_model.py")
+    parser = argparse.ArgumentParser(
+        description="Train the provided model by iteratively calling its #step method,"
+        "conditioned on the provided data. Collect the model parameters and save"
+        "to a file."
+    )
     log_config.add_logging_args(parser)
-    parser.add_argument("--data", type=str, required=True)
+    parser.add_argument(
+        "--data",
+        help="A batchie Screen object in hdf5 format.",
+        type=str,
+        required=True,
+    )
     parser.add_argument("--model", type=str, required=True)
     parser.add_argument(
         "--model-param",

@@ -17,21 +17,62 @@ logger = logging.getLogger(__name__)
 
 def get_parser():
     parser = argparse.ArgumentParser(
-        description="This is a utility for revealing plates in a retrospective experiment,"
+        description="This is a utility for revealing plates in a retrospective simulation,"
         "calculating the prediction error on the un-revealed plates thus far,"
         "and saving the results."
     )
     log_config.add_logging_args(parser)
-    parser.add_argument("--unmasked-screen", type=str, required=True)
-    parser.add_argument("--masked-screen", type=str, required=True)
-    parser.add_argument("--batch-selection", type=str, required=True)
-    parser.add_argument("--screen-output", type=str, required=True)
     parser.add_argument(
-        "--experiment-tracker-input", type=str, nargs="?", const=None, default=None
+        "--unmasked-screen",
+        help="A batchie Screen in hdf5 format with all experiments observed.",
+        type=str,
+        required=True,
     )
-    parser.add_argument("--experiment-tracker-output", type=str, required=True)
-    parser.add_argument("--thetas", type=str, required=True, nargs="+")
-    parser.add_argument("--model", type=str, required=True)
+    parser.add_argument(
+        "--masked-screen",
+        help="The same batchie Screen in hdf5 format with some experiments masked.",
+        type=str,
+        required=True,
+    )
+    parser.add_argument(
+        "--batch-selection",
+        help="A json file containing the next batch to reveal.",
+        type=str,
+        required=True,
+    )
+    parser.add_argument(
+        "--screen-output",
+        help="Output batchie Screen in hdf5 format with the next batch of experiments revealed.",
+        type=str,
+        required=True,
+    )
+    parser.add_argument(
+        "--experiment-tracker-input",
+        help="A batchie ExperimentTracker in json format.",
+        type=str,
+        nargs="?",
+        const=None,
+        default=None,
+    )
+    parser.add_argument(
+        "--experiment-tracker-output",
+        help="An updated batchie ExperimentTracker in json format.",
+        type=str,
+        required=True,
+    )
+    parser.add_argument(
+        "--thetas",
+        help="A batchie ThetaHolder in hdf5 format.",
+        type=str,
+        required=True,
+        nargs="+",
+    )
+    parser.add_argument(
+        "--model",
+        help="Fully qualified name of the BayesianModel class to use.",
+        type=str,
+        required=True,
+    )
     parser.add_argument(
         "--model-param",
         nargs=1,
