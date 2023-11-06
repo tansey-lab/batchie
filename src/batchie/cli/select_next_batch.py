@@ -121,10 +121,10 @@ def main():
     args = get_args()
     log_config.configure_logging(args)
 
-    experiment = Screen.load_h5(args.data)
+    screen = Screen.load_h5(args.data)
 
-    args.model_params[N_UNIQUE_SAMPLES] = experiment.n_unique_samples
-    args.model_params[N_UNIQUE_TREATMENTS] = experiment.n_unique_treatments
+    args.model_params[N_UNIQUE_SAMPLES] = screen.n_unique_samples
+    args.model_params[N_UNIQUE_TREATMENTS] = screen.n_unique_treatments
 
     model: BayesianModel = args.model_cls(**args.model_params)
     scorer: Scorer = args.scorer_cls(**args.scorer_params)
@@ -143,7 +143,7 @@ def main():
     next_batch = select_next_batch(
         model=model,
         scorer=scorer,
-        experiment_space=experiment,
+        screen=screen,
         distance_matrix=distance_matrix,
         policy=policy,
         samples=thetas,

@@ -1,4 +1,4 @@
-process PREPARE_RETROSPECTIVE_EXPERIMENT {
+process PREPARE_RETROSPECTIVE_SIMULATION {
     tag "$meta.id"
     label 'process_single'
     container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
@@ -9,7 +9,7 @@ process PREPARE_RETROSPECTIVE_EXPERIMENT {
     tuple val(meta), path(data)
 
     output:
-    tuple val(meta), path("${prefix}/retrospective_experiment.h5"), emit: experiment
+    tuple val(meta), path("${prefix}/retrospective_simulation.h5"), emit: experiment
     path  "versions.yml"                , emit: versions
 
 
@@ -21,9 +21,9 @@ process PREPARE_RETROSPECTIVE_EXPERIMENT {
     def args = task.ext.args ?: ""
     """
     mkdir -p "${prefix}"
-    prepare_retrospective_experiment \
+    prepare_retrospective_simulation \
         --experiment ${data} \
-        --output ${prefix}/retrospective_experiment.h5 \
+        --output ${prefix}/retrospective_simulation.h5 \
         ${args}
 
     cat <<-END_VERSIONS > versions.yml

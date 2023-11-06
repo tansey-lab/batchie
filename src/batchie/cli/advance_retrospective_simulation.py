@@ -67,16 +67,16 @@ def main():
     args = get_args()
     log_config.configure_logging(args)
 
-    masked_experiment = Screen.load_h5(args.masked_experiment)
+    masked_screen = Screen.load_h5(args.masked_experiment)
 
-    args.model_params[N_UNIQUE_SAMPLES] = masked_experiment.n_unique_samples
-    args.model_params[N_UNIQUE_TREATMENTS] = masked_experiment.n_unique_treatments
+    args.model_params[N_UNIQUE_SAMPLES] = masked_screen.n_unique_samples
+    args.model_params[N_UNIQUE_TREATMENTS] = masked_screen.n_unique_treatments
 
     model: BayesianModel = args.model_cls(**args.model_params)
     theta_holder: ThetaHolder = model.get_results_holder(n_samples=1)
     thetas = theta_holder.concat([theta_holder.load_h5(x) for x in args.thetas])
 
-    unmasked_experiment = Screen.load_h5(args.unmasked_experiment)
+    unmasked_screen = Screen.load_h5(args.unmasked_experiment)
 
     if args.experiment_tracker_input and os.path.exists(args.experiment_tracker_input):
         experiment_tracker = ExperimentTracker.load(args.experiment_tracker_input)
@@ -85,8 +85,8 @@ def main():
         experiment_tracker = ExperimentTracker(plate_ids_selected=[], losses=[], seed=0)
 
     mse = calculate_mse(
-        full_experiment=unmasked_experiment,
-        masked_experiment=masked_experiment,
+        observed_screen=unmasked_screen,
+        masked_screen=masked_screen,
         thetas=thetas,
         model=model,
     )
@@ -97,11 +97,9 @@ def main():
         next_batch = json.load(f)
 
     plates_to_reveal = next_batch[SELECTED_PLATES_KEY]
-    advanced_experiment = reveal_plates(
-        unmasked_experiment, masked_experiment, plates_to_reveal
-    )
+    advanced_screen = reveal_plates(unmasked_screen, masked_screen, plates_to_reveal)
 
     experiment_tracker.plate_ids_selected.append(plates_to_reveal)
 
-    advanced_experiment.save_h5(args.experiment_output)
+    advanced_screen.save_h5(args.experiment_output)
     experiment_tracker.save(args.experiment_tracker_output)

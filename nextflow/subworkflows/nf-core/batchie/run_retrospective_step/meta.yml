@@ -4,7 +4,7 @@ keywords:
   - active_learning
 
 components:
-  - batchie/advance_retrospective_experiment
+  - batchie/advance_retrospective_simulation
   - batchie/calculate_distance_metric_chunk
   - batchie/select_next_batch
   - batchie/train_model

@@ -1,4 +1,4 @@
-name: advance_retrospective_experiment
+name: advance_retrospective_simulation
 description: Unmask the next batch and calculate loss
 keywords:
   - active_learning

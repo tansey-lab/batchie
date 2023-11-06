@@ -195,7 +195,7 @@ class GaussianDBALScorer(Scorer):
                     plate_subgroup_mask = plate_subgroup_mask | plate.selection_vector
 
             per_plate_predictions = [
-                predict_all(experiment=plate, model=model, thetas=samples)
+                predict_all(screen=plate, model=model, thetas=samples)
                 for plate in current_plates
             ]
 

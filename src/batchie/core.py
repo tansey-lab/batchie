@@ -449,7 +449,7 @@ class RetrospectivePlateGenerator:
 
     def generate_plates(self, screen: Screen, rng: np.random.BitGenerator) -> Screen:
         """
-        Generate plates from the remaining unobserved experiment in the input screen.
+        Generate plates from the remaining unobserved experiments in the input screen.
 
         :param screen: A partially observed :py:class:`batchie.data.Screen`
         :param rng: The PRNG to use.

@@ -1,4 +1,4 @@
-process EXTRACT_EXPERIMENT_METADATA {
+process EXTRACT_SCREEN_METADATA {
     tag "$meta.id"
     label 'process_single'
     container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
@@ -26,7 +26,7 @@ process EXTRACT_EXPERIMENT_METADATA {
     def args = task.ext.args ?: ""
     """
     mkdir -p "${prefix}"
-    extract_experiment_metadata --experiment ${data} \
+    extract_screen_metadata --experiment ${data} \
         --output ${prefix}/experiment_metadata.json \
         ${args}
 

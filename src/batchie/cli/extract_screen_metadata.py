@@ -5,7 +5,7 @@ from batchie.data import Screen
 
 
 def get_parser():
-    parser = argparse.ArgumentParser(description="extract_experiment_metadata.py")
+    parser = argparse.ArgumentParser(description="extract_screen_metadata.py")
     log_config.add_logging_args(parser)
     parser.add_argument("--experiment", type=str, required=True)
     parser.add_argument("--output", type=str, required=True)

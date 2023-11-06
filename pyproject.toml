@@ -48,8 +48,8 @@ train_model = "batchie.cli.train_model:main"
 select_next_batch = "batchie.cli.select_next_batch:main"
 extract_experiment_metadata = "batchie.cli.extract_experiment_metadata:main"
 calculate_distance_matrix = "batchie.cli.calculate_distance_matrix:main"
-advance_retrospective_experiment = "batchie.cli.advance_retrospective_experiment:main"
-prepare_retrospective_experiment = "batchie.cli.prepare_retrospective_experiment:main"
+advance_retrospective_simulation = "batchie.cli.advance_retrospective_simulation:main"
+prepare_retrospective_simulation = "batchie.cli.prepare_retrospective_simulation:main"
 
 [build-system]
 requires = ["setuptools>=43.0.0", "wheel"]

@@ -155,8 +155,8 @@ def test_reveal_plates(test_dataset, masked_dataset):
     full_dataset = test_dataset
 
     result = retrospective.reveal_plates(
-        full_experiment=full_dataset,
-        masked_experiment=masked_dataset,
+        observed_screen=full_dataset,
+        masked_screen=masked_dataset,
         plate_ids=[3],
     )
 
@@ -176,8 +176,8 @@ def test_calculate_mse(test_dataset, masked_dataset):
     samples_holder.n_thetas = 10
 
     result = retrospective.calculate_mse(
-        masked_experiment=masked_dataset,
-        full_experiment=full_dataset,
+        masked_screen=masked_dataset,
+        observed_screen=full_dataset,
         thetas=samples_holder,
         model=model,
     )

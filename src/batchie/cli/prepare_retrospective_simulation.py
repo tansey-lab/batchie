@@ -8,7 +8,7 @@ from batchie.cli.argument_parsing import (
 )
 from batchie.core import InitialRetrospectivePlateGenerator, RetrospectivePlateGenerator
 from batchie.data import Screen
-from batchie.retrospective import reveal_plates, mask_experiment
+from batchie.retrospective import reveal_plates, mask_screen
 from typing import Optional
 import logging
 
@@ -115,7 +115,7 @@ def main():
             screen=full_experiment, rng=rng
         )
     else:
-        experiment = mask_experiment(experiment=full_experiment)
+        experiment = mask_screen(screen=full_experiment)
 
     experiment = plate_generator.generate_plates(screen=experiment, rng=rng)
     logger.info("Generated {} plates".format(len(experiment.plates)))
@@ -132,8 +132,8 @@ def main():
 
         logger.warning("Will reveal plate {}".format(random_first_plate))
         experiment = reveal_plates(
-            full_experiment=full_experiment,
-            masked_experiment=experiment,
+            observed_screen=full_experiment,
+            masked_screen=experiment,
             plate_ids=[random_first_plate.plate_id],
         )
 

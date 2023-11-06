@@ -1,4 +1,4 @@
-name: extract_experiment_metadata
+name: extract_screen_metadata
 description: Extract experiment metadata into nextflow vars
 keywords:
   - active_learning

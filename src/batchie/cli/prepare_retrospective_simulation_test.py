@@ -3,7 +3,7 @@ import shutil
 import tempfile
 import pytest
 import numpy as np
-from batchie.cli import prepare_retrospective_experiment
+from batchie.cli import prepare_retrospective_simulation
 from batchie.data import Screen
 
 
@@ -27,7 +27,7 @@ def test_dataset():
 def test_main_no_initial(mocker, test_dataset):
     tmpdir = tempfile.mkdtemp()
     command_line_args = [
-        "prepare_retrospective_experiment",
+        "prepare_retrospective_simulation",
         "--plate-generator",
         "RandomPlateGenerator",
         "--experiment",
@@ -41,7 +41,7 @@ def test_main_no_initial(mocker, test_dataset):
     mocker.patch("sys.argv", command_line_args)
 
     try:
-        prepare_retrospective_experiment.main()
+        prepare_retrospective_simulation.main()
 
         exp_output = Screen.load_h5(os.path.join(tmpdir, "prepared_experiment.h5"))
 
@@ -53,7 +53,7 @@ def test_main_no_initial(mocker, test_dataset):
 def test_main(mocker, test_dataset):
     tmpdir = tempfile.mkdtemp()
     command_line_args = [
-        "prepare_retrospective_experiment",
+        "prepare_retrospective_simulation",
         "--plate-generator",
         "RandomPlateGenerator",
         "--initial-plate-generator",
@@ -69,7 +69,7 @@ def test_main(mocker, test_dataset):
     mocker.patch("sys.argv", command_line_args)
 
     try:
-        prepare_retrospective_experiment.main()
+        prepare_retrospective_simulation.main()
 
         exp_output = Screen.load_h5(os.path.join(tmpdir, "prepared_experiment.h5"))
 

@@ -1,4 +1,4 @@
-process ADVANCE_RETROSPECTIVE_EXPERIMENT {
+process ADVANCE_RETROSPECTIVE_SIMULATION {
     tag "$meta.id"
     label 'process_single'
     container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
@@ -22,7 +22,7 @@ process ADVANCE_RETROSPECTIVE_EXPERIMENT {
     def args = task.ext.args ?: ""
     """
     mkdir -p "${prefix}"
-    advance_retrospective_experiment \
+    advance_retrospective_simulation \
         --thetas ${thetas} \
         --masked-experiment ${data_masked} \
         --unmasked-experiment ${data_unmasked} \

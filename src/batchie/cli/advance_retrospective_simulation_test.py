@@ -4,7 +4,7 @@ import tempfile
 import pytest
 import numpy as np
 import json
-from batchie.cli import advance_retrospective_experiment
+from batchie.cli import advance_retrospective_simulation
 from batchie.models.sparse_combo import SparseDrugComboResults
 from batchie.data import Screen
 from batchie.common import SELECTED_PLATES_KEY
@@ -47,7 +47,7 @@ def test_unmasked_dataset():
 def test_main(mocker, test_masked_dataset, test_unmasked_dataset):
     tmpdir = tempfile.mkdtemp()
     command_line_args = [
-        "advance_retrospective_experiment",
+        "advance_retrospective_simulation",
         "--model",
         "SparseDrugCombo",
         "--model-param",
@@ -90,7 +90,7 @@ def test_main(mocker, test_masked_dataset, test_unmasked_dataset):
         json.dump({"losses": [0.0], "plate_ids_selected": [[0]], "seed": 0}, f)
 
     try:
-        advance_retrospective_experiment.main()
+        advance_retrospective_simulation.main()
         with open(os.path.join(tmpdir, "experiment_tracker_output.json"), "r") as f:
             results = json.load(f)
 

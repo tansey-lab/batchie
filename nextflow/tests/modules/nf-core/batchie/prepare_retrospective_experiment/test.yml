@@ -1,5 +1,5 @@
-- name: prepare_retrospective_experiment
-  command: nextflow run ./nextflow/tests/modules/nf-core/batchie/prepare_retrospective_experiment -entry prepare_retrospective_experiment -c ./nextflow/tests/modules/nf-core/batchie/prepare_retrospective_experiment/nextflow.config -c ./nextflow/tests/config/nextflow.config
+- name: prepare_retrospective_simulation
+  command: nextflow run ./nextflow/tests/modules/nf-core/batchie/prepare_retrospective_simulation -entry prepare_retrospective_simulation -c ./nextflow/tests/modules/nf-core/batchie/prepare_retrospective_simulation/nextflow.config -c ./nextflow/tests/config/nextflow.config
   tags:
-    - prepare_retrospective_experiment
+    - prepare_retrospective_simulation
   files: []

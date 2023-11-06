@@ -7,7 +7,7 @@ import logging
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
-WORKFLOW_NAME = "RETROSPECTIVE_EXPERIMENT"
+WORKFLOW_NAME = "RETROSPECTIVE_SIMULATION"
 
 
 def get_script_location():
@@ -99,7 +99,7 @@ def run_nextflow_step(
         "workflows",
         "nf-core",
         "batchie",
-        "retrospective_experiment",
+        "retrospective_simulation",
         "main.nf",
     )
 

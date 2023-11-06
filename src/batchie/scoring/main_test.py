@@ -43,7 +43,7 @@ def test_select_next_batch_with_policy(test_experiment):
         model=mock.MagicMock(BayesianModel),
         scorer=scorer,
         samples=mock.MagicMock(ThetaHolder),
-        experiment_space=test_experiment,
+        screen=test_experiment,
         distance_matrix=mock.MagicMock(ChunkedDistanceMatrix),
         policy=policy,
     )
@@ -59,7 +59,7 @@ def test_select_next_batch_without_policy(test_experiment):
         model=mock.MagicMock(BayesianModel),
         scorer=scorer,
         samples=mock.MagicMock(ThetaHolder),
-        experiment_space=test_experiment,
+        screen=test_experiment,
         distance_matrix=mock.MagicMock(ChunkedDistanceMatrix),
         policy=None,
     )

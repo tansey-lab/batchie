@@ -4,7 +4,7 @@ import tempfile
 import pytest
 import numpy as np
 import json
-from batchie.cli import extract_experiment_metadata
+from batchie.cli import extract_screen_metadata
 from batchie.models.sparse_combo import SparseDrugComboResults
 from batchie.data import Screen
 from batchie.common import SELECTED_PLATES_KEY
@@ -30,7 +30,7 @@ def test_dataset():
 def test_main(mocker, test_dataset):
     tmpdir = tempfile.mkdtemp()
     command_line_args = [
-        "extract_experiment_metadata",
+        "extract_screen_metadata",
         "--experiment",
         os.path.join(tmpdir, "experiment.h5"),
         "--output",
@@ -42,7 +42,7 @@ def test_main(mocker, test_dataset):
     mocker.patch("sys.argv", command_line_args)
 
     try:
-        extract_experiment_metadata.main()
+        extract_screen_metadata.main()
         with open(os.path.join(tmpdir, "experiment_metadata.json"), "r") as f:
             results = json.load(f)
 
