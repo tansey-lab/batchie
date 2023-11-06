@@ -38,3 +38,11 @@ batchie.distance_calculation module
    :members:
    :undoc-members:
    :show-inheritance:
+
+batchie.scoring.gaussian_dbal module
+------------------------------------
+
+.. automodule:: batchie.scoring.gaussian_dbal
+   :members:
+   :undoc-members:
+   :show-inheritance:
