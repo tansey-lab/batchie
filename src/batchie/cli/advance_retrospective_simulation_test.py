@@ -53,23 +53,23 @@ def test_main(mocker, test_masked_dataset, test_unmasked_dataset):
         "--model-param",
         "n_embedding_dimensions=2",
         "--unmasked-screen",
-        os.path.join(tmpdir, "unmasked_experiment.h5"),
+        os.path.join(tmpdir, "unmasked_screen.h5"),
         "--masked-screen",
-        os.path.join(tmpdir, "masked_experiment.h5"),
+        os.path.join(tmpdir, "masked_screen.h5"),
         "--thetas",
         os.path.join(tmpdir, "samples.h5"),
-        "--experiment-tracker-input",
-        os.path.join(tmpdir, "experiment_tracker_input.json"),
-        "--experiment-tracker-output",
-        os.path.join(tmpdir, "experiment_tracker_output.json"),
+        "--simulation-tracker-input",
+        os.path.join(tmpdir, "simulation_tracker_input.json"),
+        "--simulation-tracker-output",
+        os.path.join(tmpdir, "simulation_tracker_output.json"),
         "--batch-selection",
         os.path.join(tmpdir, "batch_selection.json"),
         "--screen-output",
-        os.path.join(tmpdir, "advanced_experiment.h5"),
+        os.path.join(tmpdir, "advanced_screen.h5"),
     ]
 
-    test_masked_dataset.save_h5(os.path.join(tmpdir, "masked_experiment.h5"))
-    test_masked_dataset.save_h5(os.path.join(tmpdir, "unmasked_experiment.h5"))
+    test_masked_dataset.save_h5(os.path.join(tmpdir, "masked_screen.h5"))
+    test_masked_dataset.save_h5(os.path.join(tmpdir, "unmasked_screen.h5"))
     results_holder = SparseDrugComboResults(
         n_thetas=10,
         n_unique_samples=test_masked_dataset.n_unique_samples,
@@ -86,18 +86,18 @@ def test_main(mocker, test_masked_dataset, test_unmasked_dataset):
     with open(os.path.join(tmpdir, "batch_selection.json"), "w") as f:
         json.dump({SELECTED_PLATES_KEY: [1]}, f)
 
-    with open(os.path.join(tmpdir, "experiment_tracker_input.json"), "w") as f:
+    with open(os.path.join(tmpdir, "simulation_tracker_input.json"), "w") as f:
         json.dump({"losses": [0.0], "plate_ids_selected": [[0]], "seed": 0}, f)
 
     try:
         advance_retrospective_simulation.main()
-        with open(os.path.join(tmpdir, "experiment_tracker_output.json"), "r") as f:
+        with open(os.path.join(tmpdir, "simulation_tracker_output.json"), "r") as f:
             results = json.load(f)
 
         assert results["plate_ids_selected"][-1] == [1]
         assert len(results["losses"]) == 2
 
-        exp_output = Screen.load_h5(os.path.join(tmpdir, "advanced_experiment.h5"))
+        exp_output = Screen.load_h5(os.path.join(tmpdir, "advanced_screen.h5"))
 
         np.testing.assert_array_equal(
             exp_output.observation_mask,

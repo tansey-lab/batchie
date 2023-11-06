@@ -31,19 +31,19 @@ def test_main(mocker, test_dataset):
     tmpdir = tempfile.mkdtemp()
     command_line_args = [
         "extract_screen_metadata",
-        "--experiment",
-        os.path.join(tmpdir, "experiment.h5"),
+        "--screen",
+        os.path.join(tmpdir, "screen.h5"),
         "--output",
-        os.path.join(tmpdir, "experiment_metadata.json"),
+        os.path.join(tmpdir, "screen_metadata.json"),
     ]
 
-    test_dataset.save_h5(os.path.join(tmpdir, "experiment.h5"))
+    test_dataset.save_h5(os.path.join(tmpdir, "screen.h5"))
 
     mocker.patch("sys.argv", command_line_args)
 
     try:
         extract_screen_metadata.main()
-        with open(os.path.join(tmpdir, "experiment_metadata.json"), "r") as f:
+        with open(os.path.join(tmpdir, "screen_metadata.json"), "r") as f:
             results = json.load(f)
 
         assert results == {
