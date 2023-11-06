@@ -114,10 +114,10 @@ class SparseDrugComboInteractionResults(ThetaHolder):
     def save_h5(self, fn: str):
         """Save all arrays to h5"""
         with h5py.File(fn, "w") as f:
-            f.create_dataset("V2", data=self.V2)
-            f.create_dataset("W", data=self.W)
-            f.create_dataset("alpha", data=self.alpha)
-            f.create_dataset("precision", data=self.precision)
+            f.create_dataset("V2", data=self.V2, compression="gzip")
+            f.create_dataset("W", data=self.W, compression="gzip")
+            f.create_dataset("alpha", data=self.alpha, compression="gzip")
+            f.create_dataset("precision", data=self.precision, compression="gzip")
 
             # Save the cursor value metadata
             f.attrs["cursor"] = self._cursor

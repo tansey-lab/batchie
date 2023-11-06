@@ -771,16 +771,30 @@ class Screen(ScreenBase):
         """
         with h5py.File(fn, "w") as f:
             f.create_dataset(
-                "treatment_names", data=np.char.encode(self.treatment_names)
+                "treatment_names",
+                data=np.char.encode(self.treatment_names),
+                compression="gzip",
             )
-            f.create_dataset("treatment_doses", data=self.treatment_doses)
-            f.create_dataset("treatment_ids", data=self.treatment_ids)
-            f.create_dataset("observations", data=self.observations)
-            f.create_dataset("observation_mask", data=self.observation_mask)
-            f.create_dataset("sample_ids", data=self.sample_ids)
-            f.create_dataset("sample_names", data=np.char.encode(self.sample_names))
-            f.create_dataset("plate_ids", data=self.plate_ids)
-            f.create_dataset("plate_names", data=np.char.encode(self.plate_names))
+            f.create_dataset(
+                "treatment_doses", data=self.treatment_doses, compression="gzip"
+            )
+            f.create_dataset(
+                "treatment_ids", data=self.treatment_ids, compression="gzip"
+            )
+            f.create_dataset("observations", data=self.observations, compression="gzip")
+            f.create_dataset(
+                "observation_mask", data=self.observation_mask, compression="gzip"
+            )
+            f.create_dataset("sample_ids", data=self.sample_ids, compression="gzip")
+            f.create_dataset(
+                "sample_names",
+                data=np.char.encode(self.sample_names),
+                compression="gzip",
+            )
+            f.create_dataset("plate_ids", data=self.plate_ids, compression="gzip")
+            f.create_dataset(
+                "plate_names", data=np.char.encode(self.plate_names), compression="gzip"
+            )
             f.attrs["control_treatment_name"] = self.control_treatment_name
 
     @staticmethod
