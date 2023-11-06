@@ -123,7 +123,7 @@ class PairwisePlateGenerator(RetrospectivePlateGenerator):
         <anchor_size> anchor drugs in each group
         """
 
-        unobserved_data = experiment.subset_unobserved()
+        unobserved_data = experiment.subset_unobserved().to_experiment()
 
         if not unobserved_data:
             logger.warning("No unobserved data found, returning original experiment")
@@ -225,7 +225,7 @@ class RandomPlateGenerator(RetrospectivePlateGenerator):
                 ~selection_vector
             ).to_experiment()
         else:
-            to_permute = unobserved_experiment.subset(selection_vector)
+            to_permute = unobserved_experiment.subset(selection_vector).to_experiment()
             non_permuted = None
 
         new_plate_names = rng.permutation(to_permute.plate_names)
