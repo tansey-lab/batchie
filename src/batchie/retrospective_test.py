@@ -275,3 +275,154 @@ def test_sample_segregating_permutation_plate_generator_does_not_affect_observed
 
     assert result.n_plates == 4
     assert sorted([x.size for x in result.plates]) == [1, 2, 3, 3]
+
+
+def test_merge_min_plate_smoother():
+    smoother = retrospective.MergeMinPlateSmoother(min_size=2)
+
+    input_screen = Screen(
+        observations=np.array([0.0, 0.0, 0.0]),
+        observation_mask=np.array([False, False, False]),
+        sample_names=np.array(["a", "a", "b"], dtype=str),
+        plate_names=np.array(["c", "d", "e"], dtype=str),
+        treatment_names=np.array(
+            [
+                ["a", "b"],
+                ["a", "b"],
+                ["a", "b"],
+            ],
+            dtype=str,
+        ),
+        treatment_doses=np.array(
+            [
+                [2.0, 2.0],
+                [2.0, 2.0],
+                [2.0, 2.0],
+            ]
+        ),
+    )
+
+    result = smoother.smooth_plates(input_screen, mock.Mock())
+    assert result.n_plates == 2
+    assert result.size == 3
+
+
+def test_merge_min_plate_smoother_stops_at_min_size():
+    smoother = retrospective.MergeMinPlateSmoother(min_size=2)
+
+    input_screen = Screen(
+        observations=np.array([0.0, 0.0, 0.0, 0.0]),
+        observation_mask=np.array([False, False, False, False]),
+        sample_names=np.array(["a", "a", "a", "b"], dtype=str),
+        plate_names=np.array(["c", "d", "e", "f"], dtype=str),
+        treatment_names=np.array(
+            [
+                ["a", "b"],
+                ["a", "b"],
+                ["a", "b"],
+                ["a", "b"],
+            ],
+            dtype=str,
+        ),
+        treatment_doses=np.array(
+            [
+                [2.0, 2.0],
+                [2.0, 2.0],
+                [2.0, 2.0],
+                [2.0, 2.0],
+            ]
+        ),
+    )
+
+    result = smoother.smooth_plates(input_screen, mock.Mock())
+    assert result.n_plates == 3
+    assert result.size == 4
+
+
+def test_merge_top_bottom_smoother():
+    smoother = retrospective.MergeTopBottomPlateSmoother(n_iterations=1)
+    input_screen = Screen(
+        observations=np.array([0.1, 0.2, 0.3, 0.4, 0.1, 0.2, 0.3, 0.4]),
+        observation_mask=np.array(
+            [False, False, False, False, False, False, False, False]
+        ),
+        sample_names=np.array(["a", "a", "b", "b", "b", "b", "b", "b"], dtype=str),
+        plate_names=np.array(["a", "b", "c", "d", "e", "f", "g", "h"], dtype=str),
+        treatment_names=np.array(
+            [
+                ["a", "b"],
+                ["a", "b"],
+                ["a", "b"],
+                ["a", "b"],
+                ["a", "b"],
+                ["a", "b"],
+                ["a", "b"],
+                ["a", "b"],
+            ],
+            dtype=str,
+        ),
+        treatment_doses=np.array(
+            [
+                [2.0, 2.0],
+                [2.0, 2.0],
+                [2.0, 2.0],
+                [2.0, 2.0],
+                [2.0, 2.0],
+                [2.0, 2.0],
+                [2.0, 2.0],
+                [2.0, 2.0],
+            ]
+        ),
+    )
+
+    result = smoother.smooth_plates(input_screen, mock.Mock())
+
+    assert result.n_plates == 4
+
+    smoother_2_iteration = retrospective.MergeTopBottomPlateSmoother(n_iterations=2)
+    result = smoother_2_iteration.smooth_plates(input_screen, mock.Mock())
+
+    assert result.n_plates == 3
+
+
+def test_subsample_drop_plates_smoother():
+    smoother = retrospective.SubsampleDropPlatesSmoother()
+    input_screen = Screen(
+        observations=np.array([0.1, 0.2, 0.3, 0.4, 0.1, 0.2, 0.3, 0.4, 1.0]),
+        observation_mask=np.array(
+            [False, False, False, False, False, False, False, False, False]
+        ),
+        sample_names=np.array(["a", "a", "b", "b", "b", "c", "c", "c", "c"], dtype=str),
+        plate_names=np.array(["a", "a", "b", "b", "b", "c", "c", "c", "c"], dtype=str),
+        treatment_names=np.array(
+            [
+                ["a", "b"],
+                ["a", "b"],
+                ["a", "b"],
+                ["a", "b"],
+                ["a", "b"],
+                ["a", "b"],
+                ["a", "b"],
+                ["a", "b"],
+                ["a", "b"],
+            ],
+            dtype=str,
+        ),
+        treatment_doses=np.array(
+            [
+                [2.0, 2.0],
+                [2.0, 2.0],
+                [2.0, 2.0],
+                [2.0, 2.0],
+                [2.0, 2.0],
+                [2.0, 2.0],
+                [2.0, 2.0],
+                [2.0, 2.0],
+                [2.0, 2.0],
+            ]
+        ),
+    )
+    result = smoother.smooth_plates(input_screen, rng=np.random.default_rng(0))
+    assert result.size == 6
+    assert result.n_plates == 3
+    assert set([x.size for x in result.plates]) == set([2])
