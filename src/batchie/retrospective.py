@@ -10,6 +10,7 @@ from batchie.core import (
     ThetaHolder,
     InitialRetrospectivePlateGenerator,
     RetrospectivePlateGenerator,
+    RetrospectivePlateSmoother,
 )
 from batchie.models.main import predict_avg
 import logging
@@ -325,6 +326,70 @@ class SampleSegregatingPermutationPlateGenerator(RetrospectivePlateGenerator):
             return new_unobserved_screen.combine(observed_subset.to_screen())
         else:
             return new_unobserved_screen
+
+
+class MergeMinPlateSmoother(RetrospectivePlateSmoother):
+    def __init__(self, min_size: int, n_passes: int):
+        self.min_size = min_size
+        self.n_passes = n_passes
+
+    def _get_plate_sample_id(self, plate: Plate):
+        if len(plate.unique_sample_ids) > 1:
+            raise ValueError(
+                "This method is only valid for one-sample-per-plate designs"
+            )
+
+        return plate.unique_sample_ids[0]
+
+    def smooth_plates(self, screen: Screen, rng: np.random.BitGenerator):
+        unobserved_subset = screen.subset_unobserved()
+        observed_subset = screen.subset_observed()
+
+        if not unobserved_subset:
+            logger.warning("No unobserved data found, returning original experiment")
+            return screen
+
+        current_screen = unobserved_subset.to_screen()
+
+        for sample_id in current_screen.unique_sample_ids:
+            while True:
+                plates = [
+                    p
+                    for p in current_screen.plates
+                    if self._get_plate_sample_id(p) == sample_id
+                ]
+
+                if len(plates) <= 1:
+                    break
+
+                plates = sorted(plates, key=lambda x: x.size)
+                smallest_plate = plates[0]
+                second_smallest_plate = plates[1]
+
+                if (smallest_plate.size + second_smallest_plate.size) > self.min_size:
+                    break
+
+                new_plate_names = current_screen.plate_names.copy()
+
+                new_plate_names[
+                    new_plate_names == smallest_plate.plate_name
+                ] = second_smallest_plate.plate_name
+
+                # merge plates
+                current_screen = Screen(
+                    treatment_names=current_screen.treatment_names,
+                    treatment_doses=current_screen.treatment_doses,
+                    observations=current_screen.observations,
+                    sample_names=current_screen.sample_names,
+                    plate_names=new_plate_names,
+                    control_treatment_name=current_screen.control_treatment_name,
+                    observation_mask=current_screen.observation_mask,
+                )
+
+        if not observed_subset:
+            return current_screen
+        else:
+            return current_screen.combine(observed_subset.to_screen())
 
 
 def mask_screen(screen: Screen) -> Screen:

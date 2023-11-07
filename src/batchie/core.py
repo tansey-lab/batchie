@@ -455,3 +455,22 @@ class RetrospectivePlateGenerator:
         :param rng: The PRNG to use.
         """
         raise NotImplementedError
+
+
+class RetrospectivePlateSmoother:
+    """
+    After plates have been generated for a retrospective simulation using a
+    :py:class:`batchie.core.RetrospectivePlateGenerator`,
+    those plates may be of very uneven sizes, which is not desirable. Implementations of this class
+    should aim to merge plates together and/or drop experiments until plate sizes are more even. We call
+    this process "plate smoothing".
+    """
+
+    def smooth_plates(self, screen: Screen, rng: np.random.BitGenerator) -> Screen:
+        """
+        Smooth the plates in the screen.
+
+        :param screen: A partially observed :py:class:`batchie.data.Screen`
+        :param rng: The PRNG to use.
+        """
+        raise NotImplementedError

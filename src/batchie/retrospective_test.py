@@ -186,7 +186,7 @@ def test_calculate_mse(test_dataset, masked_dataset):
 
 
 def test_sample_segregating_permutation_plate_generator():
-    input = Screen(
+    input_screen = Screen(
         observations=np.array([0.1, 0.2, 0.3, 0.4, 0.1, 0.2, 0.3, 0.4]),
         observation_mask=np.array(
             [False, False, False, False, False, False, False, False]
@@ -224,14 +224,14 @@ def test_sample_segregating_permutation_plate_generator():
 
     result = retrospective.SampleSegregatingPermutationPlateGenerator(
         max_plate_size=5
-    ).generate_plates(input, rng)
+    ).generate_plates(input_screen, rng)
 
     assert result.n_plates == 3
     assert sorted([x.size for x in result.plates]) == [2, 3, 3]
 
 
 def test_sample_segregating_permutation_plate_generator_does_not_affect_observed():
-    input = Screen(
+    input_screen = Screen(
         observations=np.array([0.1, 0.2, 0.3, 0.4, 0.1, 0.2, 0.3, 0.4, 0.1]),
         observation_mask=np.array(
             [False, False, False, False, False, False, False, False, True]
@@ -271,7 +271,7 @@ def test_sample_segregating_permutation_plate_generator_does_not_affect_observed
 
     result = retrospective.SampleSegregatingPermutationPlateGenerator(
         max_plate_size=5
-    ).generate_plates(input, rng)
+    ).generate_plates(input_screen, rng)
 
     assert result.n_plates == 4
     assert sorted([x.size for x in result.plates]) == [1, 2, 3, 3]
