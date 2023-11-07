@@ -386,7 +386,7 @@ def test_merge_top_bottom_smoother():
 
 
 def test_subsample_drop_plates_smoother():
-    smoother = retrospective.SubsampleDropPlatesSmoother()
+    smoother = retrospective.OptimalSizeSmoother()
     input_screen = Screen(
         observations=np.array([0.1, 0.2, 0.3, 0.4, 0.1, 0.2, 0.3, 0.4, 1.0]),
         observation_mask=np.array(

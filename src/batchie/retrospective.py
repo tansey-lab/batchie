@@ -392,24 +392,35 @@ class MergeTopBottomPlateSmoother(RetrospectivePlateSmoother):
         return current_screen
 
 
-class SubsampleDropPlatesSmoother(RetrospectivePlateSmoother):
+class OptimalSizeSmoother(RetrospectivePlateSmoother):
+    """
+    The cost function for any particular plate size is the sum of two terms,
+    the first term is the number of experiments you have to completely throw out
+    because they are in plates below the threshold,
+    the second term is the number of experiments that need to be trimmed out of plates
+    that are over the threshold. This smoother optimizes this cost function
+    and then drops all plates smaller than the optimal size and sub-samples all
+    plates larger than the optimal size until all plates are the same size.
+    """
+
     def _smooth_plates(self, screen: Screen, rng: np.random.BitGenerator):
+        # Find optimal plate size
         plate_sizes = np.sort(np.array([plate.size for plate in screen.plates]))
         i = np.argmax(plate_sizes * (len(plate_sizes) - np.arange(len(plate_sizes))))
-        threshold_size = plate_sizes[i]
+        optimal_size = plate_sizes[i]
 
         results = []
 
         for plate in screen.plates:
-            if plate.size < threshold_size:
+            if plate.size < optimal_size:
                 logger.info("Dropping plate of size {}".format(plate.size()))
                 continue
-            elif plate.size == threshold_size:
+            elif plate.size == optimal_size:
                 results.append(plate.to_screen())
-            elif plate.size > threshold_size:
+            elif plate.size > optimal_size:
                 # create a boolean selection vector of size plate.size() with threshold_size True values
                 selection_vector = np.zeros(plate.size, dtype=bool)
-                selection_vector[:threshold_size] = True
+                selection_vector[:optimal_size] = True
                 selection_vector = rng.permutation(selection_vector)
 
                 results.append(plate.to_screen().subset(selection_vector).to_screen())
