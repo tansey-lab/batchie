@@ -29,7 +29,7 @@ def test_main_no_initial(mocker, test_dataset):
     command_line_args = [
         "prepare_retrospective_simulation",
         "--plate-generator",
-        "RandomPlateGenerator",
+        "PlatePermutationPlateGenerator",
         "--data",
         os.path.join(tmpdir, "experiment.h5"),
         "--output",
@@ -55,7 +55,7 @@ def test_main(mocker, test_dataset):
     command_line_args = [
         "prepare_retrospective_simulation",
         "--plate-generator",
-        "RandomPlateGenerator",
+        "PlatePermutationPlateGenerator",
         "--initial-plate-generator",
         "SparseCoverPlateGenerator",
         "--data",
