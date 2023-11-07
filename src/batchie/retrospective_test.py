@@ -142,7 +142,7 @@ def test_pairwise_plate_generator(anchor_size, unobserved_dataset):
 def test_randomly_sample_plates(unobserved_dataset, force_include_plate_names):
     rng = np.random.default_rng(0)
 
-    plate_generator = retrospective.RandomPlateGenerator(
+    plate_generator = retrospective.PlatePermutationPlateGenerator(
         force_include_plate_names=force_include_plate_names
     )
 
@@ -183,3 +183,48 @@ def test_calculate_mse(test_dataset, masked_dataset):
     )
 
     assert result == np.mean((np.array([1.0, 1.0]) - np.array([0.3, 0.4])) ** 2)
+
+
+def test_sample_segregating_permutation_plate_generator():
+    input = Screen(
+        observations=np.array([0.1, 0.2, 0.3, 0.4, 0.1, 0.2, 0.3, 0.4]),
+        observation_mask=np.array(
+            [False, False, False, False, False, False, False, False]
+        ),
+        sample_names=np.array(["a", "a", "b", "b", "b", "b", "b", "b"], dtype=str),
+        plate_names=np.array(["a", "a", "b", "b", "a", "a", "b", "b"], dtype=str),
+        treatment_names=np.array(
+            [
+                ["a", "b"],
+                ["a", "b"],
+                ["a", "b"],
+                ["a", "b"],
+                ["a", "b"],
+                ["a", "b"],
+                ["a", "b"],
+                ["a", "b"],
+            ],
+            dtype=str,
+        ),
+        treatment_doses=np.array(
+            [
+                [2.0, 2.0],
+                [2.0, 2.0],
+                [2.0, 2.0],
+                [2.0, 2.0],
+                [2.0, 2.0],
+                [2.0, 2.0],
+                [2.0, 2.0],
+                [2.0, 2.0],
+            ]
+        ),
+    )
+
+    rng = np.random.default_rng(0)
+
+    result = retrospective.SampleSegregatingPermutationPlateGenerator(
+        max_plate_size=5
+    ).generate_plates(input, rng)
+
+    assert result.n_plates == 3
+    assert sorted([x.size for x in result.plates]) == [2, 3, 3]

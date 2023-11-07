@@ -2,6 +2,7 @@ from typing import Optional
 
 import batchie.data
 import numpy as np
+import math
 from batchie.common import CONTROL_SENTINEL_VALUE, FloatingPointType
 from batchie.data import Screen, Plate
 from batchie.core import (
@@ -214,7 +215,13 @@ class PairwisePlateGenerator(RetrospectivePlateGenerator):
             return unobserved_with_generated_plates
 
 
-class RandomPlateGenerator(RetrospectivePlateGenerator):
+class PlatePermutationPlateGenerator(RetrospectivePlateGenerator):
+    """
+    This generator will create new plates by permuting the plate labels.
+
+    Plates can be excluded from permutation with the force_include_plate_names argument
+    """
+
     def __init__(self, force_include_plate_names: Optional[list[str]] = None):
         self.force_include_plate_names = force_include_plate_names
 
@@ -260,6 +267,64 @@ class RandomPlateGenerator(RetrospectivePlateGenerator):
             return screen.subset_observed().to_screen().combine(new_unobserved)
         else:
             return new_unobserved
+
+
+class SampleSegregatingPermutationPlateGenerator(RetrospectivePlateGenerator):
+    """
+    This generator will generate plates that only contain experiments for a single
+    sample. If there are more than max_plate_size experiments for a single sample
+    then the experiments will be split across multiple equal sized plates.
+    """
+
+    def __init__(self, max_plate_size: int):
+        self.max_plate_size = max_plate_size
+
+    def generate_plates(self, screen: Screen, rng: np.random.BitGenerator):
+        unobserved_subset = screen.subset_unobserved()
+        observed_subset = screen.subset_observed()
+
+        if unobserved_subset is None:
+            logger.warning("No unobserved data found, returning original experiment")
+            return screen
+
+        unobserved_screen = unobserved_subset.to_screen()
+
+        plate_indices = []
+        for sample_id in unobserved_screen.unique_sample_ids:
+            sample_indices = np.arange(unobserved_screen.size)[
+                unobserved_screen.sample_ids == sample_id
+            ]
+
+            if len(sample_indices) > self.max_plate_size:
+                n_plates = math.ceil(len(sample_indices) / float(self.max_plate_size))
+                plates = np.array_split(rng.permutation(sample_indices), n_plates)
+                for plate in plates:
+                    plate_indices.append(plate)
+        logger.info(
+            "SampleSegregatingPermutationPlateGenerator created {} plates".format(
+                len(plate_indices)
+            )
+        )
+
+        plate_names = np.array([""] * unobserved_screen.size, dtype=object)
+
+        for idx, indices in enumerate(plate_indices):
+            plate_names[indices] = f"generated_plate_{idx}"
+
+        new_unobserved_screen = Screen(
+            treatment_names=unobserved_screen.treatment_names.copy(),
+            treatment_doses=unobserved_screen.treatment_doses.copy(),
+            observations=unobserved_screen.observations.copy(),
+            sample_names=unobserved_screen.sample_names.copy(),
+            plate_names=plate_names.astype(str),
+            control_treatment_name=unobserved_screen.control_treatment_name,
+            observation_mask=unobserved_screen.observation_mask.copy(),
+        )
+
+        if observed_subset:
+            return new_unobserved_screen.combine(observed_subset.to_screen())
+        else:
+            return new_unobserved_screen
 
 
 def mask_screen(screen: Screen) -> Screen:
