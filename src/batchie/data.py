@@ -417,6 +417,7 @@ class ScreenSubset(ScreenBase):
             treatment_names=self.screen.treatment_names[self.selection_vector].copy(),
             treatment_doses=self.screen.treatment_doses[self.selection_vector].copy(),
             observations=self.screen.observations[self.selection_vector].copy(),
+            observation_mask=self.screen.observation_mask[self.selection_vector].copy(),
             sample_names=self.screen.sample_names[self.selection_vector].copy(),
             plate_names=self.screen.plate_names[self.selection_vector].copy(),
             control_treatment_name=self.screen.control_treatment_name,
@@ -762,6 +763,26 @@ class Screen(ScreenBase):
             plate_names=np.concatenate([self.plate_names, other.plate_names]),
             control_treatment_name=self.control_treatment_name,
         )
+
+    @classmethod
+    def concat(cls, screens: list["Screen"]):
+        """
+        Concatenate a list of :py:class:`batchie.data.Screen`s into a single :py:class:`batchie.data.Screen`.
+
+        :param screens: list of :py:class:`batchie.data.Screen`
+        :return: Unioned :py:class:`batchie.data.Screen`
+        """
+        if len(screens) == 1:
+            return screens[0]
+        elif len(screens) == 0:
+            raise ValueError("Cannot concat empty list")
+
+        result = screens[0]
+
+        for screen in screens[1:]:
+            result = result.combine(screen)
+
+        return result
 
     def save_h5(self, fn):
         """

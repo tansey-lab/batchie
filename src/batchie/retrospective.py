@@ -2,6 +2,7 @@ from typing import Optional
 
 import batchie.data
 import numpy as np
+import math
 from batchie.common import CONTROL_SENTINEL_VALUE, FloatingPointType
 from batchie.data import Screen, Plate
 from batchie.core import (
@@ -9,6 +10,7 @@ from batchie.core import (
     ThetaHolder,
     InitialRetrospectivePlateGenerator,
     RetrospectivePlateGenerator,
+    RetrospectivePlateSmoother,
 )
 from batchie.models.main import predict_avg
 import logging
@@ -17,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 
 class SparseCoverPlateGenerator(InitialRetrospectivePlateGenerator):
-    def generate_and_unmask_initial_plate(
+    def _generate_and_unmask_initial_plate(
         self, screen: Screen, rng: np.random.BitGenerator
     ):
         """
@@ -29,12 +31,6 @@ class SparseCoverPlateGenerator(InitialRetrospectivePlateGenerator):
         We'll use this to construct the first plate, this initialization causes
         faster convergence of the algorithm.
         """
-        if not screen.is_observed:
-            raise ValueError(
-                "The experiment used for retrospective "
-                "analysis must be fully observed"
-            )
-
         covered_treatments = set()
         chosen_selection_indices = []
 
@@ -116,7 +112,7 @@ class PairwisePlateGenerator(RetrospectivePlateGenerator):
         self.anchor_size = anchor_size
         self.subset_size = subset_size
 
-    def generate_plates(self, screen: Screen, rng: np.random.BitGenerator) -> Screen:
+    def _generate_plates(self, screen: Screen, rng: np.random.BitGenerator) -> Screen:
         """
         Break up your drug doses into groups of size subset_size
 
@@ -131,10 +127,6 @@ class PairwisePlateGenerator(RetrospectivePlateGenerator):
         :param rng: The random number generator to use
         :return: A :py:class:`batchie.data.Screen` with the generated plates
         """
-        if not (~screen.observation_mask).any():
-            logger.warning("No unobserved data found, returning original experiment")
-            return screen
-
         combo_mask = ~np.any((screen.treatment_ids == CONTROL_SENTINEL_VALUE), axis=1)
 
         unobserved_combo_only_plates_mask = combo_mask & (~screen.observation_mask)
@@ -142,6 +134,7 @@ class PairwisePlateGenerator(RetrospectivePlateGenerator):
         unobserved_combo_only_plates = screen.subset(
             unobserved_combo_only_plates_mask
         ).to_screen()
+
         if (~unobserved_combo_only_plates_mask).any():
             remainder = screen.subset(~unobserved_combo_only_plates_mask).to_screen()
         else:
@@ -214,29 +207,29 @@ class PairwisePlateGenerator(RetrospectivePlateGenerator):
             return unobserved_with_generated_plates
 
 
-class RandomPlateGenerator(RetrospectivePlateGenerator):
+class PlatePermutationPlateGenerator(RetrospectivePlateGenerator):
+    """
+    This generator will create new plates by permuting the plate labels.
+
+    Plates can be excluded from permutation with the force_include_plate_names argument
+    """
+
     def __init__(self, force_include_plate_names: Optional[list[str]] = None):
         self.force_include_plate_names = force_include_plate_names
 
-    def generate_plates(self, screen: Screen, rng: np.random.BitGenerator):
-        unobserved_experiment = screen.subset_unobserved().to_screen()
-
-        if unobserved_experiment is None:
-            logger.warning("No unobserved data found, returning original experiment")
-            return screen
-
+    def _generate_plates(self, screen: Screen, rng: np.random.BitGenerator):
         if self.force_include_plate_names:
             selection_vector = ~np.isin(
-                unobserved_experiment.plate_names, self.force_include_plate_names
+                screen.plate_names, self.force_include_plate_names
             )
         else:
-            selection_vector = np.ones(unobserved_experiment.size, dtype=bool)
+            selection_vector = np.ones(screen.size, dtype=bool)
 
         if np.any(~selection_vector):
-            to_permute = unobserved_experiment.subset(selection_vector).to_screen()
-            non_permuted = unobserved_experiment.subset(~selection_vector).to_screen()
+            to_permute = screen.subset(selection_vector).to_screen()
+            non_permuted = screen.subset(~selection_vector).to_screen()
         else:
-            to_permute = unobserved_experiment.subset(selection_vector).to_screen()
+            to_permute = screen.subset(selection_vector).to_screen()
             non_permuted = None
 
         new_plate_names = rng.permutation(to_permute.plate_names)
@@ -252,14 +245,187 @@ class RandomPlateGenerator(RetrospectivePlateGenerator):
         )
 
         if non_permuted is not None:
-            new_unobserved = permuted.combine(non_permuted)
+            return permuted.combine(non_permuted)
         else:
-            new_unobserved = permuted
+            return permuted
 
-        if screen.subset_observed():
-            return screen.subset_observed().to_screen().combine(new_unobserved)
-        else:
-            return new_unobserved
+
+class SampleSegregatingPermutationPlateGenerator(RetrospectivePlateGenerator):
+    """
+    This generator will generate plates that only contain experiments for a single
+    sample. If there are more than max_plate_size experiments for a single sample
+    then the experiments will be split across multiple equal sized plates.
+    """
+
+    def __init__(self, max_plate_size: int):
+        self.max_plate_size = max_plate_size
+
+    def _generate_plates(self, screen: Screen, rng: np.random.BitGenerator):
+        plate_indices = []
+        for sample_id in screen.unique_sample_ids:
+            sample_indices = np.arange(screen.size)[screen.sample_ids == sample_id]
+
+            if len(sample_indices) > self.max_plate_size:
+                n_plates = math.ceil(len(sample_indices) / float(self.max_plate_size))
+                plates = np.array_split(rng.permutation(sample_indices), n_plates)
+                for plate in plates:
+                    plate_indices.append(plate)
+        logger.info(
+            "SampleSegregatingPermutationPlateGenerator created {} plates".format(
+                len(plate_indices)
+            )
+        )
+
+        plate_names = np.array([""] * screen.size, dtype=object)
+
+        for idx, indices in enumerate(plate_indices):
+            plate_names[indices] = f"generated_plate_{idx}"
+
+        return Screen(
+            treatment_names=screen.treatment_names.copy(),
+            treatment_doses=screen.treatment_doses.copy(),
+            observations=screen.observations.copy(),
+            sample_names=screen.sample_names.copy(),
+            plate_names=plate_names.astype(str),
+            control_treatment_name=screen.control_treatment_name,
+            observation_mask=screen.observation_mask.copy(),
+        )
+
+
+class MergeMinPlateSmoother(RetrospectivePlateSmoother):
+    def __init__(self, min_size: int):
+        self.min_size = min_size
+
+    def _get_plate_sample_id(self, plate: Plate):
+        if len(plate.unique_sample_ids) > 1:
+            raise ValueError(
+                "This method is only valid for one-sample-per-plate designs"
+            )
+
+        return plate.unique_sample_ids[0]
+
+    def _smooth_plates(self, screen: Screen, rng: np.random.BitGenerator):
+        current_screen = screen
+
+        for sample_id in current_screen.unique_sample_ids:
+            while True:
+                plates = [
+                    p
+                    for p in current_screen.plates
+                    if self._get_plate_sample_id(p) == sample_id
+                ]
+
+                if len(plates) <= 1:
+                    break
+
+                plates = sorted(plates, key=lambda x: x.size)
+                smallest_plate = plates[0]
+                second_smallest_plate = plates[1]
+
+                if (smallest_plate.size + second_smallest_plate.size) > self.min_size:
+                    break
+
+                new_plate_names = current_screen.plate_names.copy()
+
+                new_plate_names[
+                    new_plate_names == smallest_plate.plate_name
+                ] = second_smallest_plate.plate_name
+
+                # merge plates
+                current_screen = Screen(
+                    treatment_names=current_screen.treatment_names,
+                    treatment_doses=current_screen.treatment_doses,
+                    observations=current_screen.observations,
+                    sample_names=current_screen.sample_names,
+                    plate_names=new_plate_names,
+                    control_treatment_name=current_screen.control_treatment_name,
+                    observation_mask=current_screen.observation_mask,
+                )
+
+        return current_screen
+
+
+class MergeTopBottomPlateSmoother(RetrospectivePlateSmoother):
+    def __init__(self, n_iterations: int):
+        self.n_iterations = n_iterations
+
+    def _get_plate_sample_id(self, plate: Plate):
+        if len(plate.unique_sample_ids) > 1:
+            raise ValueError(
+                "This method is only valid for one-sample-per-plate designs"
+            )
+
+        return plate.unique_sample_ids[0]
+
+    def _smooth_plates(self, screen: Screen, rng: np.random.BitGenerator):
+        current_screen = screen
+
+        for sample_id in current_screen.unique_sample_ids:
+            for i in range(self.n_iterations):
+                new_plate_names = current_screen.plate_names.copy()
+                plates = [
+                    p
+                    for p in current_screen.plates
+                    if self._get_plate_sample_id(p) == sample_id
+                ]
+
+                if len(plates) <= 1:
+                    break
+
+                plates = sorted(plates, key=lambda x: x.size)
+                for smaller_plate, bigger_plate in zip(plates, reversed(plates)):
+                    new_plate_selection = (
+                        smaller_plate.selection_vector | bigger_plate.selection_vector
+                    )
+                    new_plate_names[new_plate_selection] = bigger_plate.plate_name
+
+                current_screen = Screen(
+                    treatment_names=current_screen.treatment_names,
+                    treatment_doses=current_screen.treatment_doses,
+                    observations=current_screen.observations,
+                    sample_names=current_screen.sample_names,
+                    plate_names=new_plate_names,
+                    control_treatment_name=current_screen.control_treatment_name,
+                    observation_mask=current_screen.observation_mask,
+                )
+
+        return current_screen
+
+
+class OptimalSizeSmoother(RetrospectivePlateSmoother):
+    """
+    The cost function for any particular plate size is the sum of two terms,
+    the first term is the number of experiments you have to completely throw out
+    because they are in plates below the threshold,
+    the second term is the number of experiments that need to be trimmed out of plates
+    that are over the threshold. This smoother optimizes this cost function
+    and then drops all plates smaller than the optimal size and sub-samples all
+    plates larger than the optimal size until all plates are the same size.
+    """
+
+    def _smooth_plates(self, screen: Screen, rng: np.random.BitGenerator):
+        # Find optimal plate size
+        plate_sizes = np.sort(np.array([plate.size for plate in screen.plates]))
+        i = np.argmax(plate_sizes * (len(plate_sizes) - np.arange(len(plate_sizes))))
+        optimal_size = plate_sizes[i]
+
+        results = []
+
+        for plate in screen.plates:
+            if plate.size < optimal_size:
+                logger.info("Dropping plate of size {}".format(plate.size()))
+                continue
+            elif plate.size == optimal_size:
+                results.append(plate.to_screen())
+            elif plate.size > optimal_size:
+                # create a boolean selection vector of size plate.size() with threshold_size True values
+                selection_vector = np.zeros(plate.size, dtype=bool)
+                selection_vector[:optimal_size] = True
+                selection_vector = rng.permutation(selection_vector)
+
+                results.append(plate.to_screen().subset(selection_vector).to_screen())
+
+        return Screen.concat(results)
 
 
 def mask_screen(screen: Screen) -> Screen:

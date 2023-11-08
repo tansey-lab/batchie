@@ -4,7 +4,8 @@ from dataclasses import dataclass
 import numpy as np
 import pytest
 from batchie.common import ArrayType
-from batchie.core import ThetaHolder, Theta
+from batchie.core import ThetaHolder, Theta, RetrospectivePlateGenerator
+from batchie.data import Screen
 from batchie.distance_calculation import ChunkedDistanceMatrix
 
 
@@ -153,3 +154,108 @@ def test_save_load(distance_matrix):
     )
 
     os.remove(filename)  # Cleanup
+
+
+def test_retrospective_plate_generator():
+    class TestRetrospectivePlateGenerator(RetrospectivePlateGenerator):
+        def _generate_plates(
+            self, screen: Screen, rng: np.random.BitGenerator
+        ) -> Screen:
+            return screen
+
+    partially_observed_screen = Screen(
+        observations=np.array([0.1, 0.2, 0.3, 0.4, 0.1, 0.2, 0.3, 0.4, 0.1]),
+        observation_mask=np.array(
+            [False, False, False, False, False, False, False, True, True]
+        ),
+        sample_names=np.array(["a", "a", "b", "b", "b", "b", "b", "b", "c"], dtype=str),
+        plate_names=np.array(["a", "a", "b", "b", "a", "a", "b", "c", "c"], dtype=str),
+        treatment_names=np.array(
+            [
+                ["a", "b"],
+                ["a", "b"],
+                ["a", "b"],
+                ["a", "b"],
+                ["a", "b"],
+                ["a", "b"],
+                ["a", "b"],
+                ["a", "b"],
+                ["a", "b"],
+            ],
+            dtype=str,
+        ),
+        treatment_doses=np.array(
+            [
+                [2.0, 2.0],
+                [2.0, 2.0],
+                [2.0, 2.0],
+                [2.0, 2.0],
+                [2.0, 2.0],
+                [2.0, 2.0],
+                [2.0, 2.0],
+                [2.0, 2.0],
+                [2.0, 2.0],
+            ]
+        ),
+    )
+
+    result = TestRetrospectivePlateGenerator().generate_plates(
+        partially_observed_screen, np.random.default_rng(0)
+    )
+
+    assert result.observation_mask.sum() == 2
+    assert result.n_unique_samples == 3
+    assert len(result.plates) == 3
+    assert result.size == 9
+
+    fully_observed_screen = Screen(
+        observations=np.array([0.4, 0.1]),
+        observation_mask=np.array([True, True]),
+        sample_names=np.array(["b", "c"], dtype=str),
+        plate_names=np.array(["c", "c"], dtype=str),
+        treatment_names=np.array(
+            [
+                ["a", "b"],
+                ["a", "b"],
+            ],
+            dtype=str,
+        ),
+        treatment_doses=np.array(
+            [
+                [2.0, 2.0],
+                [2.0, 2.0],
+            ]
+        ),
+    )
+
+    result = TestRetrospectivePlateGenerator().generate_plates(
+        fully_observed_screen, np.random.default_rng(0)
+    )
+
+    assert result is fully_observed_screen
+
+    fully_unobserved_screen = Screen(
+        observations=np.array([0.4, 0.1]),
+        observation_mask=np.array([False, False]),
+        sample_names=np.array(["b", "c"], dtype=str),
+        plate_names=np.array(["c", "c"], dtype=str),
+        treatment_names=np.array(
+            [
+                ["a", "b"],
+                ["a", "b"],
+            ],
+            dtype=str,
+        ),
+        treatment_doses=np.array(
+            [
+                [2.0, 2.0],
+                [2.0, 2.0],
+            ]
+        ),
+    )
+
+    result = TestRetrospectivePlateGenerator().generate_plates(
+        fully_unobserved_screen, np.random.default_rng(0)
+    )
+
+    assert result.size == 2

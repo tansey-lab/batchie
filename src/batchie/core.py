@@ -4,6 +4,9 @@ import json
 import numpy as np
 from batchie.common import ArrayType, FloatingPointType
 from batchie.data import ScreenBase, Plate, Screen
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class Theta:
@@ -419,11 +422,11 @@ class SimulationTracker:
         return cls(**data)
 
 
-class InitialRetrospectivePlateGenerator:
+class InitialRetrospectivePlateGenerator(ABC):
     """
     When running a retrospective active learning simulation, results are sensitive to the initial
     plate which is revealed. For this reason users might want to implement a special routine for revealing
-    the initial plate separate from the subsequence plates.
+    the initial plate separate from the subsequent plates.
     """
 
     def generate_and_unmask_initial_plate(
@@ -437,10 +440,21 @@ class InitialRetrospectivePlateGenerator:
         :return: The same :py:class:`batchie.data.Screen` with the initial plate observed, and all other plates
         masked.
         """
+        if not screen.is_observed:
+            raise ValueError(
+                "The experiment used for retrospective analysis must be fully observed"
+            )
+
+        return self._generate_and_unmask_initial_plate(screen, rng)
+
+    @abstractmethod
+    def _generate_and_unmask_initial_plate(
+        self, screen: Screen, rng: np.random.BitGenerator
+    ):
         raise NotImplementedError
 
 
-class RetrospectivePlateGenerator:
+class RetrospectivePlateGenerator(ABC):
     """
     When running a retrospective active learning simulation, the user might want to reorganize the dataset
     into different plates then were originally run. This class will generate these plate groupings from the individual
@@ -454,4 +468,57 @@ class RetrospectivePlateGenerator:
         :param screen: A partially observed :py:class:`batchie.data.Screen`
         :param rng: The PRNG to use.
         """
+        unobserved_subset = screen.subset_unobserved()
+        observed_subset = screen.subset_observed()
+
+        if unobserved_subset is None:
+            logger.warning("No unobserved data found, returning original experiment")
+            return screen
+
+        new_unobserved_subset = self._generate_plates(
+            unobserved_subset.to_screen(), rng
+        )
+
+        if observed_subset is None:
+            return new_unobserved_subset
+        else:
+            return new_unobserved_subset.combine(observed_subset.to_screen())
+
+    @abstractmethod
+    def _generate_plates(self, screen: Screen, rng: np.random.BitGenerator) -> Screen:
+        raise NotImplementedError
+
+
+class RetrospectivePlateSmoother(ABC):
+    """
+    After plates have been generated for a retrospective simulation using a
+    :py:class:`batchie.core.RetrospectivePlateGenerator`,
+    those plates may be of very uneven sizes, which is not desirable. Implementations of this class
+    should aim to merge plates together and/or drop experiments until plate sizes are more even. We call
+    this process "plate smoothing".
+    """
+
+    def smooth_plates(self, screen: Screen, rng: np.random.BitGenerator) -> Screen:
+        """
+        Smooth the plates in the screen.
+
+        :param screen: A partially observed :py:class:`batchie.data.Screen`
+        :param rng: The PRNG to use.
+        """
+        unobserved_subset = screen.subset_unobserved()
+        observed_subset = screen.subset_observed()
+
+        if unobserved_subset is None:
+            logger.warning("No unobserved data found, returning original experiment")
+            return screen
+
+        new_unobserved_subset = self._smooth_plates(unobserved_subset.to_screen(), rng)
+
+        if observed_subset is None:
+            return new_unobserved_subset
+        else:
+            return new_unobserved_subset.combine(observed_subset.to_screen())
+
+    @abstractmethod
+    def _smooth_plates(self, screen: Screen, rng: np.random.BitGenerator) -> Screen:
         raise NotImplementedError
