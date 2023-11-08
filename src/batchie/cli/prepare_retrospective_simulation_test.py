@@ -24,12 +24,40 @@ def test_dataset():
     )
 
 
-def test_main_no_initial(mocker, test_dataset):
+def test_main_no_initial_no_smoother(mocker, test_dataset):
     tmpdir = tempfile.mkdtemp()
     command_line_args = [
         "prepare_retrospective_simulation",
         "--plate-generator",
         "PlatePermutationPlateGenerator",
+        "--data",
+        os.path.join(tmpdir, "experiment.h5"),
+        "--output",
+        os.path.join(tmpdir, "prepared_experiment.h5"),
+    ]
+
+    test_dataset.save_h5(os.path.join(tmpdir, "experiment.h5"))
+
+    mocker.patch("sys.argv", command_line_args)
+
+    try:
+        prepare_retrospective_simulation.main()
+
+        exp_output = Screen.load_h5(os.path.join(tmpdir, "prepared_experiment.h5"))
+
+        assert len([x for x in exp_output.plates if x.is_observed]) == 1
+    finally:
+        shutil.rmtree(tmpdir)
+
+
+def test_main_no_smoother(mocker, test_dataset):
+    tmpdir = tempfile.mkdtemp()
+    command_line_args = [
+        "prepare_retrospective_simulation",
+        "--plate-generator",
+        "PlatePermutationPlateGenerator",
+        "--initial-plate-generator",
+        "SparseCoverPlateGenerator",
         "--data",
         os.path.join(tmpdir, "experiment.h5"),
         "--output",
@@ -58,6 +86,10 @@ def test_main(mocker, test_dataset):
         "PlatePermutationPlateGenerator",
         "--initial-plate-generator",
         "SparseCoverPlateGenerator",
+        "--plate-smoother",
+        "FixedSizeSmoother",
+        "--plate-smoother-param",
+        "plate_size=2",
         "--data",
         os.path.join(tmpdir, "experiment.h5"),
         "--output",

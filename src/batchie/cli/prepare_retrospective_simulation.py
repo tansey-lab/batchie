@@ -6,11 +6,16 @@ from batchie.cli.argument_parsing import (
     cast_dict_to_type,
     get_prng_from_seed_argument,
 )
-from batchie.core import InitialRetrospectivePlateGenerator, RetrospectivePlateGenerator
+from batchie.core import (
+    InitialRetrospectivePlateGenerator,
+    RetrospectivePlateGenerator,
+    RetrospectivePlateSmoother,
+)
 from batchie.data import Screen
 from batchie.retrospective import reveal_plates, mask_screen
 from typing import Optional
 import logging
+import numpy as np
 
 logger = logging.getLogger(__name__)
 
@@ -56,6 +61,19 @@ def get_parser():
         action=KVAppendAction,
         metavar="KEY=VALUE",
         help="Plate generator parameters",
+    )
+    parser.add_argument(
+        "--plate-smoother",
+        help="Fully qualified name of the RetrospectivePlateSmoother class to use.",
+        type=str,
+        default=None,
+    )
+    parser.add_argument(
+        "--plate-smoother-param",
+        nargs=1,
+        action=KVAppendAction,
+        metavar="KEY=VALUE",
+        help="Plate smoother parameters",
     )
     parser.add_argument(
         "--seed",
@@ -104,6 +122,24 @@ def get_args():
         else:
             args.initial_plate_generator_params = cast_dict_to_type(
                 args.initial_plate_generator_param, required_args
+            )
+
+    if args.plate_smoother is not None:
+        args.plate_smoother_cls = introspection.get_class(
+            package_name="batchie",
+            class_name=args.plate_smoother,
+            base_class=RetrospectivePlateSmoother,
+        )
+
+        required_args = introspection.get_required_init_args_with_annotations(
+            args.plate_smoother_cls
+        )
+
+        if not args.plate_smoother_param:
+            args.plate_smoother_params = {}
+        else:
+            args.plate_smoother_params = cast_dict_to_type(
+                args.plate_smoother_param, required_args
             )
 
     return args
@@ -159,6 +195,31 @@ def main():
         )
 
     logger.info("Revealed {} plates".format(len(initialized_screen.plates)))
-    logger.info("Created {} plates total".format(initialized_screen.n_plates))
+    logger.info(
+        "Created {} plates (before smoothing)".format(initialized_screen.n_plates)
+    )
 
-    initialized_screen.save_h5(args.output)
+    if args.plate_smoother is None:
+        logger.info("No plate smoother specified, skipping smoothing")
+        smoothed_screen = initialized_screen
+    else:
+        logger.info("Applying {}".format(args.plate_smoother))
+        plate_smoother: RetrospectivePlateSmoother = args.plate_smoother_cls(
+            **args.plate_smoother_params
+        )
+
+        smoothed_screen = plate_smoother.smooth_plates(
+            screen=initialized_screen, rng=rng
+        )
+
+        n_plates = smoothed_screen.n_plates
+        avg_plate_size = smoothed_screen.size / n_plates
+        plate_size_std = np.std([plate.size for plate in smoothed_screen.plates])
+
+        logger.info(
+            "After smoothing {} plates remain of average size {} with stddev in size of {}".format(
+                n_plates, avg_plate_size, plate_size_std
+            )
+        )
+
+    smoothed_screen.save_h5(args.output)
