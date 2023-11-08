@@ -14,6 +14,7 @@ from batchie.core import (
 )
 from batchie.models.main import predict_avg
 import logging
+from collections import defaultdict
 
 logger = logging.getLogger(__name__)
 
@@ -293,6 +294,11 @@ class SampleSegregatingPermutationPlateGenerator(RetrospectivePlateGenerator):
 
 
 class MergeMinPlateSmoother(RetrospectivePlateSmoother):
+    """
+    Iteratively combine the smallest two plates for each sample until all plates are
+    above a user specified size.
+    """
+
     def __init__(self, min_size: int):
         self.min_size = min_size
 
@@ -346,6 +352,11 @@ class MergeMinPlateSmoother(RetrospectivePlateSmoother):
 
 
 class MergeTopBottomPlateSmoother(RetrospectivePlateSmoother):
+    """
+    Iteratively combine the largest and smallest plates for each sample.
+    Runs for a user specified number of iterations.
+    """
+
     def __init__(self, n_iterations: int):
         self.n_iterations = n_iterations
 
@@ -392,6 +403,35 @@ class MergeTopBottomPlateSmoother(RetrospectivePlateSmoother):
         return current_screen
 
 
+class FixedSizeSmoother(RetrospectivePlateSmoother):
+    """
+    Filter all plates smaller than the given size and randomly truncate all plates larger
+    than a fixed size to the given size.
+    """
+
+    def __init__(self, plate_size: int):
+        self.plate_size = plate_size
+
+    def _smooth_plates(self, screen: Screen, rng: np.random.BitGenerator):
+        results = []
+
+        for plate in screen.plates:
+            if plate.size < self.plate_size:
+                logger.info("Dropping plate of size {}".format(plate.size))
+                continue
+            elif plate.size == self.plate_size:
+                results.append(plate.to_screen())
+            elif plate.size > self.plate_size:
+                # create a boolean selection vector of size plate.size() with threshold_size True values
+                selection_vector = np.zeros(plate.size, dtype=bool)
+                selection_vector[: self.plate_size] = True
+                selection_vector = rng.permutation(selection_vector)
+
+                results.append(plate.to_screen().subset(selection_vector).to_screen())
+
+        return Screen.concat(results)
+
+
 class OptimalSizeSmoother(RetrospectivePlateSmoother):
     """
     The cost function for any particular plate size is the sum of two terms,
@@ -413,7 +453,7 @@ class OptimalSizeSmoother(RetrospectivePlateSmoother):
 
         for plate in screen.plates:
             if plate.size < optimal_size:
-                logger.info("Dropping plate of size {}".format(plate.size()))
+                logger.info("Dropping plate of size {}".format(plate.size))
                 continue
             elif plate.size == optimal_size:
                 results.append(plate.to_screen())
@@ -426,6 +466,66 @@ class OptimalSizeSmoother(RetrospectivePlateSmoother):
                 results.append(plate.to_screen().subset(selection_vector).to_screen())
 
         return Screen.concat(results)
+
+
+class NPlatePerCellLineSmoother(RetrospectivePlateSmoother):
+    """
+    Remove all experiments involving cell lines which have less than
+    the user specified min_n_cell_line_plates
+    """
+
+    def __init__(self, min_n_cell_line_plates: int):
+        self.min_n_cell_line_plates = min_n_cell_line_plates
+
+    def _get_plate_sample_id(self, plate: Plate):
+        if len(plate.unique_sample_ids) > 1:
+            raise ValueError(
+                "This method is only valid for one-sample-per-plate designs"
+            )
+
+        return plate.unique_sample_ids[0]
+
+    def _smooth_plates(self, screen: Screen, rng: np.random.BitGenerator):
+        plate_counts = defaultdict(lambda: 0)
+
+        for plate in screen.plates:
+            plate_counts[self._get_plate_sample_id(plate)] += 1
+
+        for sample_id, plate_count in plate_counts.items():
+            if plate_count < self.min_n_cell_line_plates:
+                logger.info("Dropping all plates for sample {}".format(sample_id))
+                screen = screen.subset(screen.sample_ids != sample_id).to_screen()
+
+        return screen
+
+
+class BatchieEnsemblePlateSmoother(RetrospectivePlateSmoother):
+    """
+    Apply the following smoothers in sequence to the input :py:class:`batchie.data.Screen`:
+
+    :py:class:`MergeMinPlateSmoother`
+    :py:class:`MergeTopBottomPlateSmoother`
+    :py:class:`OptimalSizeSmoother`
+    :py:class:`NPlatePerCellLineSmoother`
+    """
+
+    def __init__(self, min_size: int, n_iterations: int, min_n_cell_line_plates: int):
+        self.min_size = min_size
+        self.n_iterations = n_iterations
+        self.min_n_cell_line_plates = min_n_cell_line_plates
+
+    def _smooth_plates(self, screen: Screen, rng: np.random.BitGenerator):
+        screen = MergeMinPlateSmoother(min_size=self.min_size).smooth_plates(
+            screen, rng
+        )
+        screen = MergeTopBottomPlateSmoother(
+            n_iterations=self.n_iterations
+        ).smooth_plates(screen, rng)
+        screen = OptimalSizeSmoother().smooth_plates(screen, rng)
+        screen = NPlatePerCellLineSmoother(
+            min_n_cell_line_plates=self.min_n_cell_line_plates
+        ).smooth_plates(screen, rng)
+        return screen
 
 
 def mask_screen(screen: Screen) -> Screen:
