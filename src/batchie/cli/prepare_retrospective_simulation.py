@@ -173,7 +173,6 @@ def main():
     initialized_screen = plate_generator.generate_plates(
         screen=initialized_screen, rng=rng
     )
-    logger.info("Generated {} plates".format(len(initialized_screen.plates)))
 
     if initial_plate_generator is None:
         logger.warning(
@@ -194,7 +193,6 @@ def main():
             plate_ids=[random_first_plate.plate_id],
         )
 
-    logger.info("Revealed {} plates".format(len(initialized_screen.plates)))
     logger.info(
         "Created {} plates (before smoothing)".format(initialized_screen.n_plates)
     )
