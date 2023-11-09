@@ -459,6 +459,24 @@ class Plate(ScreenSubset):
         """
         return self.screen.plate_names[self.selection_vector][0]
 
+    def merge(self, other):
+        """
+        Merge this plate with another plate, mutate the parent :py:class:`batchie.data.Screen` in place.
+
+        :param other: :py:class:`batchie.data.Plate`
+        """
+        if other.screen is not self.screen:
+            raise ValueError("Cannot merge two plates from different screens")
+        self.selection_vector = self.selection_vector | other.selection_vector
+        self.screen.plate_names[self.selection_vector] = self.plate_name
+        self.screen._plate_ids = encode_1d_array_to_0_indexed_ids(
+            self.screen.plate_names
+        )
+        return self
+
+    def __lt__(self, other):
+        return self.size < other.size
+
 
 class Screen(ScreenBase):
     """

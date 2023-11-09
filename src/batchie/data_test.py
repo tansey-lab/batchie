@@ -138,6 +138,27 @@ def test_experiment_subset_props():
     assert experiment_subset.treatment_arity == 2
 
 
+def test_plate_merge():
+    screen = Screen(
+        observations=np.array([0.1, 0.2, 0, 0]),
+        observation_mask=np.array([True, True, False, False]),
+        sample_names=np.array(["a", "b", "c", "d"], dtype=str),
+        plate_names=np.array(["a", "b", "c", "d"], dtype=str),
+        treatment_names=np.array(
+            [["a", "b"], ["a", "b"], ["a", "b"], ["a", "b"]], dtype=str
+        ),
+        treatment_doses=np.array([[2.0, 2.0], [1.0, 2.0], [2.0, 1.0], [2.0, 0]]),
+    )
+
+    plate1, plate2, plate3, plate4 = screen.plates
+
+    plate1.merge(plate2)
+    plate3.merge(plate4)
+
+    numpy.testing.assert_array_equal(screen.plate_names, np.array(["a", "a", "c", "c"]))
+    numpy.testing.assert_array_equal(screen.plate_ids, np.array([0, 0, 1, 1]))
+
+
 def test_experiment_subset_combine_and_concat():
     experiment = Screen(
         observations=np.array([0.1, 0.2, 0, 0]),

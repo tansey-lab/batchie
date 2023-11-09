@@ -10,6 +10,7 @@ from batchie.core import BayesianModel, ThetaHolder
 def test_dataset():
     test_dataset = Screen(
         observations=np.array([0.1, 0.2, 0.3, 0.4, 0.1, 0.2, 0.3, 0.4]),
+        observation_mask=np.array([True] * 8),
         sample_names=np.array(["a", "b", "c", "d", "a", "b", "c", "d"], dtype=str),
         plate_names=np.array(["a", "a", "b", "b", "a", "a", "b", "b"], dtype=str),
         treatment_names=np.array(
@@ -114,8 +115,43 @@ def masked_dataset():
     )
 
 
-def test_create_sparse_cover_plate(test_dataset):
+def test_create_sparse_cover_plate():
     rng = np.random.default_rng(0)
+
+    test_dataset = Screen(
+        observations=np.array([0.1, 0.2, 0.3, 0.4, 0.1, 0.2, 0.3, 0.4, 0.01]),
+        observation_mask=np.array([True] * 9),
+        sample_names=np.array(["a", "b", "c", "d", "a", "b", "c", "d", "z"], dtype=str),
+        plate_names=np.array(["a", "a", "b", "b", "a", "a", "b", "b", "z"], dtype=str),
+        treatment_names=np.array(
+            [
+                ["a", "b"],
+                ["a", "b"],
+                ["a", "b"],
+                ["a", "b"],
+                ["a", "b"],
+                ["a", "b"],
+                ["a", "b"],
+                ["a", "b"],
+                ["c", "control"],
+            ],
+            dtype=str,
+        ),
+        treatment_doses=np.array(
+            [
+                [2.0, 2.0],
+                [2.0, 2.0],
+                [2.0, 2.0],
+                [2.0, 2.0],
+                [2.0, 2.0],
+                [2.0, 2.0],
+                [2.0, 2.0],
+                [2.0, 2.0],
+                [2.0, 0.0],
+            ]
+        ),
+        control_treatment_name="control",
+    )
 
     inital_plate_generator = retrospective.SparseCoverPlateGenerator()
 
@@ -123,6 +159,7 @@ def test_create_sparse_cover_plate(test_dataset):
 
     assert result.unique_plate_ids.size == 2
     assert result.observation_mask.sum() > 0
+    assert "z" in result.subset_observed().to_screen().sample_names
 
 
 @pytest.mark.parametrize("anchor_size", [0, 1])
@@ -136,6 +173,8 @@ def test_pairwise_plate_generator(anchor_size, unobserved_dataset):
     result = plate_generator.generate_plates(unobserved_dataset, rng)
 
     assert result.size == unobserved_dataset.size
+    for plate in result.plates:
+        assert plate.n_unique_samples == 1
 
 
 @pytest.mark.parametrize("force_include_plate_names", [["a"], None])

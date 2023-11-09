@@ -170,7 +170,7 @@ def main():
     else:
         initialized_screen = mask_screen(screen=screen)
 
-    initialized_screen = plate_generator.generate_plates(
+    initialized_screen_with_generated_plates = plate_generator.generate_plates(
         screen=initialized_screen, rng=rng
     )
 
@@ -180,26 +180,36 @@ def main():
         )
 
         logger.info(
-            [plate for plate in initialized_screen.plates if not plate.is_observed]
+            [
+                plate
+                for plate in initialized_screen_with_generated_plates.plates
+                if not plate.is_observed
+            ]
         )
         random_first_plate = rng.choice(
-            [plate for plate in initialized_screen.plates if not plate.is_observed]
+            [
+                plate
+                for plate in initialized_screen_with_generated_plates.plates
+                if not plate.is_observed
+            ]
         )
 
         logger.warning("Will reveal plate {}".format(random_first_plate))
-        initialized_screen = reveal_plates(
+        initialized_screen_with_generated_plates = reveal_plates(
             observed_screen=screen,
-            masked_screen=initialized_screen,
+            masked_screen=initialized_screen_with_generated_plates,
             plate_ids=[random_first_plate.plate_id],
         )
 
     logger.info(
-        "Created {} plates (before smoothing)".format(initialized_screen.n_plates)
+        "Created {} plates (before smoothing)".format(
+            initialized_screen_with_generated_plates.n_plates
+        )
     )
 
     if args.plate_smoother is None:
         logger.info("No plate smoother specified, skipping smoothing")
-        smoothed_screen = initialized_screen
+        smoothed_screen = initialized_screen_with_generated_plates
     else:
         logger.info("Applying {}".format(args.plate_smoother))
         plate_smoother: RetrospectivePlateSmoother = args.plate_smoother_cls(
@@ -207,7 +217,7 @@ def main():
         )
 
         smoothed_screen = plate_smoother.smooth_plates(
-            screen=initialized_screen, rng=rng
+            screen=initialized_screen_with_generated_plates, rng=rng
         )
 
         n_plates = smoothed_screen.n_plates
