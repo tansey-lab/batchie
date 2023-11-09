@@ -406,16 +406,23 @@ class FixedSizeSmoother(RetrospectivePlateSmoother):
                 logger.info("Dropping plate of size {}".format(plate.size))
                 continue
             elif plate.size == self.plate_size:
-                results.append(plate.to_screen())
+                results.append(plate)
             elif plate.size > self.plate_size:
-                # create a boolean selection vector of size plate.size() with threshold_size True values
-                selection_vector = np.zeros(plate.size, dtype=bool)
-                selection_vector[: self.plate_size] = True
-                selection_vector = rng.permutation(selection_vector)
+                new_indices = rng.choice(
+                    np.arange(screen.size)[plate.selection_vector],
+                    self.plate_size,
+                    replace=False,
+                )
+                new_selection_vector = np.isin(np.arange(screen.size), new_indices)
 
-                results.append(plate.to_screen().subset(selection_vector).to_screen())
+                results.append(Plate(screen, new_selection_vector))
 
-        return Screen.concat(results)
+        final_selection_vector = np.zeros(screen.size, dtype=bool)
+
+        for plate in results:
+            final_selection_vector = final_selection_vector | plate.selection_vector
+
+        return screen.subset(final_selection_vector).to_screen()
 
 
 class OptimalSizeSmoother(RetrospectivePlateSmoother):
