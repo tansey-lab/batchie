@@ -20,6 +20,9 @@ logger = logging.getLogger(__name__)
 
 
 class SparseCoverPlateGenerator(InitialRetrospectivePlateGenerator):
+    def __init__(self, reveal_single_treatment_experiments: bool):
+        self.reveal_single_drug_experiments = reveal_single_treatment_experiments
+
     def _generate_and_unmask_initial_plate(
         self, screen: Screen, rng: np.random.BitGenerator
     ):
@@ -84,13 +87,14 @@ class SparseCoverPlateGenerator(InitialRetrospectivePlateGenerator):
             np.arange(screen.size), chosen_selection_indices
         )
 
-        single_drug_experiments = np.any(
-            np.isin(screen.treatment_ids, [CONTROL_SENTINEL_VALUE]), axis=1
-        )
+        if self.reveal_single_drug_experiments:
+            single_drug_experiments = np.any(
+                np.isin(screen.treatment_ids, [CONTROL_SENTINEL_VALUE]), axis=1
+            )
 
-        final_plate_selection_vector = (
-            final_plate_selection_vector | single_drug_experiments
-        )
+            final_plate_selection_vector = (
+                final_plate_selection_vector | single_drug_experiments
+            )
 
         plate_names = np.array(["initial_plate"] * screen.size, dtype=str)
 
@@ -137,20 +141,16 @@ class PairwisePlateGenerator(RetrospectivePlateGenerator):
         :return: A :py:class:`batchie.data.Screen` with the generated plates
         """
         combo_mask = ~np.any((screen.treatment_ids == CONTROL_SENTINEL_VALUE), axis=1)
+        single_treatment_mask = ~combo_mask
 
-        unobserved_combo_only_plates_mask = combo_mask & (~screen.observation_mask)
+        combo_treatment_screen = screen.subset(combo_mask).to_screen()
 
-        unobserved_combo_only_plates = screen.subset(
-            unobserved_combo_only_plates_mask
-        ).to_screen()
-
-        if (~unobserved_combo_only_plates_mask).any():
-            remainder = screen.subset(~unobserved_combo_only_plates_mask).to_screen()
+        if single_treatment_mask.any():
+            single_treatment_screen = screen.subset(single_treatment_mask).to_screen()
         else:
-            remainder = None
-
+            single_treatment_screen = None
         unique_treatments, unique_treatment_counts = np.unique(
-            unobserved_combo_only_plates.treatment_ids, return_counts=True
+            combo_treatment_screen.treatment_ids, return_counts=True
         )
 
         if self.anchor_size > 0:
@@ -176,7 +176,7 @@ class PairwisePlateGenerator(RetrospectivePlateGenerator):
         group_lookup[CONTROL_SENTINEL_VALUE] = CONTROL_SENTINEL_VALUE
 
         treatment_group_ids = np.vectorize(group_lookup.get)(
-            unobserved_combo_only_plates.treatment_ids
+            combo_treatment_screen.treatment_ids
         )
 
         # Assign the groups for control treatments
@@ -186,34 +186,68 @@ class PairwisePlateGenerator(RetrospectivePlateGenerator):
         )
         treatment_group_ids_sorted = np.sort(treatment_group_ids, axis=1)
 
-        sample_id_col_vector = unobserved_combo_only_plates.sample_ids[:, np.newaxis]
+        sample_id_col_vector = combo_treatment_screen.sample_ids[:, np.newaxis]
 
         grouping_tuples = np.hstack([sample_id_col_vector, treatment_group_ids_sorted])
 
         unique_grouping_tuples = np.unique(grouping_tuples, axis=0)
 
-        new_plate_names = np.array(
-            [""] * unobserved_combo_only_plates.size, dtype=object
-        )
+        new_plate_names = np.array([""] * combo_treatment_screen.size, dtype=object)
 
         for idx, unique_grouping_tuple in enumerate(unique_grouping_tuples):
             mask = (grouping_tuples == unique_grouping_tuple).all(axis=1)
             new_plate_names[mask] = f"generated_plate_{idx}"
 
-        unobserved_with_generated_plates = Screen(
-            treatment_names=unobserved_combo_only_plates.treatment_names,
-            treatment_doses=unobserved_combo_only_plates.treatment_doses,
-            observations=unobserved_combo_only_plates.observations,
-            observation_mask=np.zeros(unobserved_combo_only_plates.size, dtype=bool),
-            sample_names=unobserved_combo_only_plates.sample_names,
+        combo_screen_with_generated_plates = Screen(
+            treatment_names=combo_treatment_screen.treatment_names,
+            treatment_doses=combo_treatment_screen.treatment_doses,
+            observations=combo_treatment_screen.observations,
+            observation_mask=np.zeros(combo_treatment_screen.size, dtype=bool),
+            sample_names=combo_treatment_screen.sample_names,
             plate_names=new_plate_names.astype(str),
-            control_treatment_name=unobserved_combo_only_plates.control_treatment_name,
+            control_treatment_name=combo_treatment_screen.control_treatment_name,
         )
 
-        if remainder:
-            return unobserved_with_generated_plates.combine(remainder)
-        else:
-            return unobserved_with_generated_plates
+        if single_treatment_screen is None:
+            return combo_screen_with_generated_plates
+
+        new_plate_names = np.array([""] * single_treatment_screen.size, dtype=object)
+
+        for sample_name in np.unique(single_treatment_screen.sample_names):
+            n_to_assign = (single_treatment_screen.sample_names == sample_name).sum()
+
+            eligible_plate_names = np.unique(
+                combo_screen_with_generated_plates.plate_names[
+                    combo_screen_with_generated_plates.sample_names == sample_name
+                ]
+            )
+            if len(eligible_plate_names) == 0:
+                raise ValueError(
+                    "Single treatment experiments not corresponding to a treatment seen in any combo experiment"
+                    "should be filtered before using this method"
+                )
+
+            assignments = rng.choice(
+                eligible_plate_names, size=n_to_assign, replace=True
+            )
+
+            new_plate_names[
+                single_treatment_screen.sample_names == sample_name
+            ] = assignments
+
+        single_screen_with_generated_plates = Screen(
+            treatment_names=single_treatment_screen.treatment_names,
+            treatment_doses=single_treatment_screen.treatment_doses,
+            observations=single_treatment_screen.observations,
+            observation_mask=np.zeros(single_treatment_screen.size, dtype=bool),
+            sample_names=single_treatment_screen.sample_names,
+            plate_names=new_plate_names.astype(str),
+            control_treatment_name=single_treatment_screen.control_treatment_name,
+        )
+
+        return combo_screen_with_generated_plates.combine(
+            single_screen_with_generated_plates
+        )
 
 
 class PlatePermutationPlateGenerator(RetrospectivePlateGenerator):
