@@ -482,7 +482,8 @@ class RetrospectivePlateGenerator(ABC):
         if observed_subset is None:
             return new_unobserved_subset
         else:
-            return new_unobserved_subset.combine(observed_subset.to_screen())
+            combined_screen = new_unobserved_subset.combine(observed_subset.to_screen())
+            return combined_screen
 
     @abstractmethod
     def _generate_plates(self, screen: Screen, rng: np.random.BitGenerator) -> Screen:

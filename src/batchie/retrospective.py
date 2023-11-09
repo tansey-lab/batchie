@@ -1,6 +1,5 @@
 from typing import Optional
 
-import batchie.data
 import numpy as np
 import math
 from batchie.common import CONTROL_SENTINEL_VALUE, FloatingPointType
@@ -15,6 +14,7 @@ from batchie.core import (
 from batchie.models.main import predict_avg
 import logging
 from collections import defaultdict
+import heapq
 
 logger = logging.getLogger(__name__)
 
@@ -82,6 +82,14 @@ class SparseCoverPlateGenerator(InitialRetrospectivePlateGenerator):
 
         final_plate_selection_vector = np.isin(
             np.arange(screen.size), chosen_selection_indices
+        )
+
+        single_drug_experiments = np.any(
+            np.isin(screen.treatment_ids, [CONTROL_SENTINEL_VALUE]), axis=1
+        )
+
+        final_plate_selection_vector = (
+            final_plate_selection_vector | single_drug_experiments
         )
 
         plate_names = np.array(["initial_plate"] * screen.size, dtype=str)
@@ -311,42 +319,33 @@ class MergeMinPlateSmoother(RetrospectivePlateSmoother):
         return plate.unique_sample_ids[0]
 
     def _smooth_plates(self, screen: Screen, rng: np.random.BitGenerator):
+        logger.info(
+            "Applying MergeMinPlateSmoother with min_size={}".format(self.min_size)
+        )
         current_screen = screen
 
         for sample_id in current_screen.unique_sample_ids:
-            while True:
-                plates = [
-                    p
-                    for p in current_screen.plates
-                    if self._get_plate_sample_id(p) == sample_id
-                ]
+            plate_heap = [
+                p
+                for p in current_screen.plates
+                if self._get_plate_sample_id(p) == sample_id
+            ]
+            # create minheap of plate objects
+            heapq.heapify(plate_heap)
 
-                if len(plates) <= 1:
+            while True:
+                if len(plate_heap) <= 1:
                     break
 
-                plates = sorted(plates, key=lambda x: x.size)
-                smallest_plate = plates[0]
-                second_smallest_plate = plates[1]
+                smallest_plate = heapq.heappop(plate_heap)
+                second_smallest_plate = heapq.heappop(plate_heap)
 
                 if (smallest_plate.size + second_smallest_plate.size) > self.min_size:
                     break
 
-                new_plate_names = current_screen.plate_names.copy()
+                merged_plate = second_smallest_plate.merge(smallest_plate)
 
-                new_plate_names[
-                    new_plate_names == smallest_plate.plate_name
-                ] = second_smallest_plate.plate_name
-
-                # merge plates
-                current_screen = Screen(
-                    treatment_names=current_screen.treatment_names,
-                    treatment_doses=current_screen.treatment_doses,
-                    observations=current_screen.observations,
-                    sample_names=current_screen.sample_names,
-                    plate_names=new_plate_names,
-                    control_treatment_name=current_screen.control_treatment_name,
-                    observation_mask=current_screen.observation_mask,
-                )
+                heapq.heappush(plate_heap, merged_plate)
 
         return current_screen
 
@@ -369,11 +368,15 @@ class MergeTopBottomPlateSmoother(RetrospectivePlateSmoother):
         return plate.unique_sample_ids[0]
 
     def _smooth_plates(self, screen: Screen, rng: np.random.BitGenerator):
+        logger.info(
+            "Applying MergeTopBottomPlateSmoother with n_iterations={}".format(
+                self.n_iterations
+            )
+        )
         current_screen = screen
 
         for sample_id in current_screen.unique_sample_ids:
             for i in range(self.n_iterations):
-                new_plate_names = current_screen.plate_names.copy()
                 plates = [
                     p
                     for p in current_screen.plates
@@ -384,21 +387,12 @@ class MergeTopBottomPlateSmoother(RetrospectivePlateSmoother):
                     break
 
                 plates = sorted(plates, key=lambda x: x.size)
-                for smaller_plate, bigger_plate in zip(plates, reversed(plates)):
-                    new_plate_selection = (
-                        smaller_plate.selection_vector | bigger_plate.selection_vector
-                    )
-                    new_plate_names[new_plate_selection] = bigger_plate.plate_name
+                halfway = math.floor(len(plates) / 2)
 
-                current_screen = Screen(
-                    treatment_names=current_screen.treatment_names,
-                    treatment_doses=current_screen.treatment_doses,
-                    observations=current_screen.observations,
-                    sample_names=current_screen.sample_names,
-                    plate_names=new_plate_names,
-                    control_treatment_name=current_screen.control_treatment_name,
-                    observation_mask=current_screen.observation_mask,
-                )
+                for smaller_plate, bigger_plate in zip(
+                    plates[:halfway], list(reversed(plates))[:halfway]
+                ):
+                    bigger_plate.merge(smaller_plate)
 
         return current_screen
 
@@ -413,6 +407,9 @@ class FixedSizeSmoother(RetrospectivePlateSmoother):
         self.plate_size = plate_size
 
     def _smooth_plates(self, screen: Screen, rng: np.random.BitGenerator):
+        logger.info(
+            "Applying FixedSizeSmoother with plate_size={}".format(self.plate_size)
+        )
         results = []
 
         for plate in screen.plates:
@@ -420,16 +417,23 @@ class FixedSizeSmoother(RetrospectivePlateSmoother):
                 logger.info("Dropping plate of size {}".format(plate.size))
                 continue
             elif plate.size == self.plate_size:
-                results.append(plate.to_screen())
+                results.append(plate)
             elif plate.size > self.plate_size:
-                # create a boolean selection vector of size plate.size() with threshold_size True values
-                selection_vector = np.zeros(plate.size, dtype=bool)
-                selection_vector[: self.plate_size] = True
-                selection_vector = rng.permutation(selection_vector)
+                new_indices = rng.choice(
+                    np.arange(screen.size)[plate.selection_vector],
+                    self.plate_size,
+                    replace=False,
+                )
+                new_selection_vector = np.isin(np.arange(screen.size), new_indices)
 
-                results.append(plate.to_screen().subset(selection_vector).to_screen())
+                results.append(Plate(screen, new_selection_vector))
 
-        return Screen.concat(results)
+        final_selection_vector = np.zeros(screen.size, dtype=bool)
+
+        for plate in results:
+            final_selection_vector = final_selection_vector | plate.selection_vector
+
+        return screen.subset(final_selection_vector).to_screen()
 
 
 class OptimalSizeSmoother(RetrospectivePlateSmoother):
@@ -444,10 +448,13 @@ class OptimalSizeSmoother(RetrospectivePlateSmoother):
     """
 
     def _smooth_plates(self, screen: Screen, rng: np.random.BitGenerator):
+        logger.info("Applying OptimalSizeSmoother")
         # Find optimal plate size
         plate_sizes = np.sort(np.array([plate.size for plate in screen.plates]))
         i = np.argmax(plate_sizes * (len(plate_sizes) - np.arange(len(plate_sizes))))
         optimal_size = plate_sizes[i]
+
+        logger.info("Optimal plate size is {}".format(optimal_size))
 
         results = []
 
@@ -456,16 +463,23 @@ class OptimalSizeSmoother(RetrospectivePlateSmoother):
                 logger.info("Dropping plate of size {}".format(plate.size))
                 continue
             elif plate.size == optimal_size:
-                results.append(plate.to_screen())
+                results.append(plate)
             elif plate.size > optimal_size:
-                # create a boolean selection vector of size plate.size() with threshold_size True values
-                selection_vector = np.zeros(plate.size, dtype=bool)
-                selection_vector[:optimal_size] = True
-                selection_vector = rng.permutation(selection_vector)
+                new_indices = rng.choice(
+                    np.arange(screen.size)[plate.selection_vector],
+                    optimal_size,
+                    replace=False,
+                )
+                new_selection_vector = np.isin(np.arange(screen.size), new_indices)
 
-                results.append(plate.to_screen().subset(selection_vector).to_screen())
+                results.append(Plate(screen, new_selection_vector))
 
-        return Screen.concat(results)
+        final_selection_vector = np.zeros(screen.size, dtype=bool)
+
+        for plate in results:
+            final_selection_vector = final_selection_vector | plate.selection_vector
+
+        return screen.subset(final_selection_vector).to_screen()
 
 
 class NPlatePerCellLineSmoother(RetrospectivePlateSmoother):
@@ -486,6 +500,11 @@ class NPlatePerCellLineSmoother(RetrospectivePlateSmoother):
         return plate.unique_sample_ids[0]
 
     def _smooth_plates(self, screen: Screen, rng: np.random.BitGenerator):
+        logger.info(
+            "Applying NPlatePerCellLineSmoother with min_n_cell_line_plates={}".format(
+                self.min_n_cell_line_plates
+            )
+        )
         plate_counts = defaultdict(lambda: 0)
 
         for plate in screen.plates:
