@@ -11,11 +11,15 @@ from batchie.core import (
     RetrospectivePlateGenerator,
     RetrospectivePlateSmoother,
 )
-from batchie.data import Screen
+from batchie.data import (
+    Screen,
+    filter_dataset_to_treatments_that_appear_in_at_least_one_combo,
+)
 from batchie.retrospective import reveal_plates, mask_screen
 from typing import Optional
 import logging
 import numpy as np
+
 
 logger = logging.getLogger(__name__)
 
@@ -151,6 +155,15 @@ def main():
 
     screen = Screen.load_h5(args.data)
 
+    filtered_screen = filter_dataset_to_treatments_that_appear_in_at_least_one_combo(
+        screen
+    )
+    logger.info(
+        "Screen size dropped from {} -> {} after removing "
+        "spurious single treatment experiments that do not "
+        "appear in any combo experiment".format(screen.size, filtered_screen.size)
+    )
+
     rng = get_prng_from_seed_argument(args)
 
     plate_generator: RetrospectivePlateGenerator = args.plate_generator_cls(
@@ -165,10 +178,10 @@ def main():
         )
 
         initialized_screen = initial_plate_generator.generate_and_unmask_initial_plate(
-            screen=screen, rng=rng
+            screen=filtered_screen, rng=rng
         )
     else:
-        initialized_screen = mask_screen(screen=screen)
+        initialized_screen = mask_screen(screen=filtered_screen)
 
     initialized_screen_with_generated_plates = plate_generator.generate_plates(
         screen=initialized_screen, rng=rng
@@ -196,7 +209,7 @@ def main():
 
         logger.warning("Will reveal plate {}".format(random_first_plate))
         initialized_screen_with_generated_plates = reveal_plates(
-            observed_screen=screen,
+            observed_screen=filtered_screen,
             masked_screen=initialized_screen_with_generated_plates,
             plate_ids=[random_first_plate.plate_id],
         )

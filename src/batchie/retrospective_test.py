@@ -153,11 +153,27 @@ def test_create_sparse_cover_plate():
         control_treatment_name="control",
     )
 
-    inital_plate_generator = retrospective.SparseCoverPlateGenerator()
+    initial_plate_generator = retrospective.SparseCoverPlateGenerator(
+        reveal_single_treatment_experiments=True
+    )
 
-    result = inital_plate_generator.generate_and_unmask_initial_plate(test_dataset, rng)
+    result = initial_plate_generator.generate_and_unmask_initial_plate(
+        test_dataset, rng
+    )
 
-    assert result.unique_plate_ids.size == 2
+    assert result.n_plates == 2
+    assert result.observation_mask.sum() > 0
+    assert "z" in result.subset_observed().to_screen().sample_names
+
+    initial_plate_generator = retrospective.SparseCoverPlateGenerator(
+        reveal_single_treatment_experiments=False
+    )
+
+    result = initial_plate_generator.generate_and_unmask_initial_plate(
+        test_dataset, rng
+    )
+
+    assert result.n_plates == 2
     assert result.observation_mask.sum() > 0
     assert "z" in result.subset_observed().to_screen().sample_names
 
@@ -173,6 +189,91 @@ def test_pairwise_plate_generator(anchor_size, unobserved_dataset):
     result = plate_generator.generate_plates(unobserved_dataset, rng)
 
     assert result.size == unobserved_dataset.size
+    for plate in result.plates:
+        assert plate.n_unique_samples == 1
+
+
+def test_pairwise_plate_generator_chokes_on_non_combo_single_treatment_exps():
+    test_dataset = Screen(
+        observations=np.array([0.1, 0.2, 0.3, 0.4, 0.1, 0.2, 0.3, 0.4]),
+        observation_mask=np.array(
+            [False, False, False, False, False, False, False, False]
+        ),
+        sample_names=np.array(["a", "b", "c", "d", "a", "b", "x", "y"], dtype=str),
+        plate_names=np.array(["a", "a", "b", "b", "a", "a", "x", "y"], dtype=str),
+        treatment_names=np.array(
+            [
+                ["a", "b"],
+                ["a", "b"],
+                ["a", "b"],
+                ["a", "b"],
+                ["a", "b"],
+                ["a", "b"],
+                ["a", "control"],
+                ["control", "b"],
+            ],
+            dtype=str,
+        ),
+        treatment_doses=np.array(
+            [
+                [2.0, 2.0],
+                [2.0, 2.0],
+                [2.0, 2.0],
+                [2.0, 2.0],
+                [2.0, 2.0],
+                [2.0, 2.0],
+                [2.0, 2.0],
+                [2.0, 2.0],
+            ]
+        ),
+        control_treatment_name="control",
+    )
+
+    plate_generator = retrospective.PairwisePlateGenerator(subset_size=1, anchor_size=1)
+    with pytest.raises(ValueError):
+        plate_generator.generate_plates(test_dataset, np.random.default_rng(0))
+
+
+def test_pairwise_plate_generator_assigns_single_treatment_experiments():
+    test_dataset = Screen(
+        observations=np.array([0.1, 0.2, 0.3, 0.4, 0.1, 0.2, 0.3, 0.4]),
+        observation_mask=np.array(
+            [False, False, False, False, False, False, False, False]
+        ),
+        sample_names=np.array(["a", "b", "c", "d", "a", "b", "b", "a"], dtype=str),
+        plate_names=np.array(["a", "a", "b", "b", "a", "a", "y", "x"], dtype=str),
+        treatment_names=np.array(
+            [
+                ["a", "b"],
+                ["a", "b"],
+                ["a", "b"],
+                ["a", "b"],
+                ["a", "b"],
+                ["a", "b"],
+                ["a", "control"],
+                ["control", "b"],
+            ],
+            dtype=str,
+        ),
+        treatment_doses=np.array(
+            [
+                [2.0, 2.0],
+                [2.0, 2.0],
+                [2.0, 2.0],
+                [2.0, 2.0],
+                [2.0, 2.0],
+                [2.0, 2.0],
+                [2.0, 2.0],
+                [2.0, 2.0],
+            ]
+        ),
+        control_treatment_name="control",
+    )
+
+    plate_generator = retrospective.PairwisePlateGenerator(subset_size=1, anchor_size=1)
+
+    result = plate_generator.generate_plates(test_dataset, np.random.default_rng(0))
+
     for plate in result.plates:
         assert plate.n_unique_samples == 1
 
