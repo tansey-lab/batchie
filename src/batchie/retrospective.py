@@ -319,6 +319,9 @@ class MergeMinPlateSmoother(RetrospectivePlateSmoother):
         return plate.unique_sample_ids[0]
 
     def _smooth_plates(self, screen: Screen, rng: np.random.BitGenerator):
+        logger.info(
+            "Applying MergeMinPlateSmoother with min_size={}".format(self.min_size)
+        )
         current_screen = screen
 
         for sample_id in current_screen.unique_sample_ids:
@@ -365,6 +368,11 @@ class MergeTopBottomPlateSmoother(RetrospectivePlateSmoother):
         return plate.unique_sample_ids[0]
 
     def _smooth_plates(self, screen: Screen, rng: np.random.BitGenerator):
+        logger.info(
+            "Applying MergeTopBottomPlateSmoother with n_iterations={}".format(
+                self.n_iterations
+            )
+        )
         current_screen = screen
 
         for sample_id in current_screen.unique_sample_ids:
@@ -399,6 +407,9 @@ class FixedSizeSmoother(RetrospectivePlateSmoother):
         self.plate_size = plate_size
 
     def _smooth_plates(self, screen: Screen, rng: np.random.BitGenerator):
+        logger.info(
+            "Applying FixedSizeSmoother with plate_size={}".format(self.plate_size)
+        )
         results = []
 
         for plate in screen.plates:
@@ -437,10 +448,13 @@ class OptimalSizeSmoother(RetrospectivePlateSmoother):
     """
 
     def _smooth_plates(self, screen: Screen, rng: np.random.BitGenerator):
+        logger.info("Applying OptimalSizeSmoother")
         # Find optimal plate size
         plate_sizes = np.sort(np.array([plate.size for plate in screen.plates]))
         i = np.argmax(plate_sizes * (len(plate_sizes) - np.arange(len(plate_sizes))))
         optimal_size = plate_sizes[i]
+
+        logger.info("Optimal plate size is {}".format(optimal_size))
 
         results = []
 
@@ -486,6 +500,11 @@ class NPlatePerCellLineSmoother(RetrospectivePlateSmoother):
         return plate.unique_sample_ids[0]
 
     def _smooth_plates(self, screen: Screen, rng: np.random.BitGenerator):
+        logger.info(
+            "Applying NPlatePerCellLineSmoother with min_n_cell_line_plates={}".format(
+                self.min_n_cell_line_plates
+            )
+        )
         plate_counts = defaultdict(lambda: 0)
 
         for plate in screen.plates:
