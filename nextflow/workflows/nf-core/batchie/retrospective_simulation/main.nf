@@ -27,7 +27,7 @@ process WRITE_REMAINING_PLATES {
 workflow RETROSPECTIVE_SIMULATION {
     def prepared_input = null
 
-    if (params.masked_screen == null || params.simulation_tracker == null) {
+    if (params.simulation_tracker == null) {
         def input_tuple = tuple([id:params.simulation_name], file(params.screen))
         def input_value_channel = Channel.fromList( [input_tuple] )
         PREPARE_RETROSPECTIVE_SIMULATION( input_value_channel )
