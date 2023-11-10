@@ -83,7 +83,7 @@ def unobserved_dataset():
 @pytest.fixture
 def masked_dataset():
     return Screen(
-        observations=np.array([0.1, 0.2, 0.3, 0.4, 0.1, 0.2, 0, 0]),
+        observations=np.array([0.1, 0.2, 0.3, 0.4, 0.1, 0.2, 0.3, 0.4]),
         observation_mask=np.array([True, True, True, True, True, True, False, False]),
         sample_names=np.array(["a", "b", "c", "d", "a", "b", "c", "d"], dtype=str),
         plate_names=np.array(["a", "a", "b", "b", "c", "c", "d", "d"], dtype=str),
@@ -291,12 +291,9 @@ def test_randomly_sample_plates(unobserved_dataset, force_include_plate_names):
     assert list(result.plate_names) != list(unobserved_dataset.plate_names)
 
 
-def test_reveal_plates(test_dataset, masked_dataset):
-    full_dataset = test_dataset
-
+def test_reveal_plates(masked_dataset):
     result = retrospective.reveal_plates(
-        observed_screen=full_dataset,
-        masked_screen=masked_dataset,
+        screen=masked_dataset,
         plate_ids=[3],
     )
 
@@ -306,9 +303,7 @@ def test_reveal_plates(test_dataset, masked_dataset):
     )
 
 
-def test_calculate_mse(test_dataset, masked_dataset):
-    full_dataset = test_dataset
-
+def test_calculate_mse(test_dataset):
     model = mock.MagicMock(BayesianModel)
     model.predict.return_value = 1.0
 
@@ -316,13 +311,14 @@ def test_calculate_mse(test_dataset, masked_dataset):
     samples_holder.n_thetas = 10
 
     result = retrospective.calculate_mse(
-        masked_screen=masked_dataset,
-        observed_screen=full_dataset,
+        observed_screen=test_dataset,
         thetas=samples_holder,
         model=model,
     )
 
-    assert result == np.mean((np.array([1.0, 1.0]) - np.array([0.3, 0.4])) ** 2)
+    assert result == np.mean(
+        (np.ones(test_dataset.size) - test_dataset.observations) ** 2
+    )
 
 
 def test_sample_segregating_permutation_plate_generator():

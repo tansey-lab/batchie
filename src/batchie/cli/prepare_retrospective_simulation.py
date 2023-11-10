@@ -221,8 +221,7 @@ def main():
 
         logger.warning("Will reveal plate {}".format(random_first_plate.plate_id))
         initialized_screen_with_generated_plates = reveal_plates(
-            observed_screen=filtered_screen,
-            masked_screen=initialized_screen_with_generated_plates,
+            screen=initialized_screen_with_generated_plates,
             plate_ids=[random_first_plate.plate_id],
         )
 
