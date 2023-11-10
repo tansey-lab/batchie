@@ -585,11 +585,60 @@ def mask_screen(screen: Screen) -> Screen:
     return Screen(
         treatment_names=screen.treatment_names,
         treatment_doses=screen.treatment_doses,
-        observations=np.zeros(screen.size, dtype=FloatingPointType),
+        observations=screen.observations,
         sample_names=screen.sample_names,
         plate_names=screen.plate_names,
         control_treatment_name=screen.control_treatment_name,
         observation_mask=np.zeros(screen.size, dtype=bool),
+    )
+
+
+def unmask_screen(screen: Screen) -> Screen:
+    return Screen(
+        treatment_names=screen.treatment_names,
+        treatment_doses=screen.treatment_doses,
+        observations=screen.observations,
+        sample_names=screen.sample_names,
+        plate_names=screen.plate_names,
+        control_treatment_name=screen.control_treatment_name,
+        observation_mask=np.ones(screen.size, dtype=bool),
+    )
+
+
+def create_holdout_set(
+    screen: Screen, fraction: float, rng: np.random.BitGenerator
+) -> (Screen, Screen):
+    """
+    Create a holdout set for a screen
+
+    :param screen: The screen to create a holdout set for
+    :param fraction: The fraction of the screen to hold out
+    :return: A tuple of (training_screen, holdout_screen)
+    """
+    if fraction < 0 or fraction > 1:
+        raise ValueError("fraction must be between 0 and 1")
+
+    selection_vector = np.zeros(screen.size, dtype=bool)
+
+    for plate in screen.plates:
+        plate_indices = np.arange(screen.size)[plate.selection_vector]
+
+        if plate.is_observed:
+            selection_vector[plate_indices] = True
+            continue
+
+        n_sample = math.ceil(plate.size * fraction)
+
+        downsampled_indices = rng.choice(
+            plate_indices,
+            n_sample,
+            replace=False,
+        )
+
+        selection_vector[downsampled_indices] = True
+
+    return screen.subset(~selection_vector).to_screen(), unmask_screen(
+        screen.subset(selection_vector).to_screen()
     )
 
 

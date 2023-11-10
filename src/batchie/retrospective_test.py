@@ -690,3 +690,49 @@ def test_batchie_ensemble_plate_smoother():
     result = smoother.smooth_plates(input_screen, rng=np.random.default_rng(0))
     assert result.n_plates == 3
     assert result.size == 6
+
+
+def test_create_holdout_set():
+    input_screen = Screen(
+        observations=np.array([0.1, 0.2, 0.3, 0.4, 0.1, 0.2, 0.3, 0.4]),
+        observation_mask=np.array(
+            [False, False, False, False, False, False, False, False]
+        ),
+        sample_names=np.array(["a", "a", "b", "b", "b", "b", "b", "b"], dtype=str),
+        plate_names=np.array(["a", "a", "b", "b", "a", "a", "b", "b"], dtype=str),
+        treatment_names=np.array(
+            [
+                ["a", "b"],
+                ["a", "b"],
+                ["a", "b"],
+                ["a", "b"],
+                ["a", "b"],
+                ["a", "b"],
+                ["a", "b"],
+                ["a", "b"],
+            ],
+            dtype=str,
+        ),
+        treatment_doses=np.array(
+            [
+                [2.0, 2.0],
+                [2.0, 2.0],
+                [2.0, 2.0],
+                [2.0, 2.0],
+                [2.0, 2.0],
+                [2.0, 2.0],
+                [2.0, 2.0],
+                [2.0, 2.0],
+            ]
+        ),
+    )
+
+    training, test = retrospective.create_holdout_set(
+        input_screen, fraction=0.25, rng=np.random.default_rng(0)
+    )
+
+    assert training.size == 6
+    assert test.size == 2
+    assert training.n_plates == 2
+    assert test.n_plates == 2
+    assert test.is_observed
