@@ -84,6 +84,8 @@ def run_nextflow_step(
     n_chains,
     extra_args,
 ):
+    os.makedirs(output_dir, exist_ok=True)
+
     experiment_name, _ = os.path.splitext(os.path.basename(screen))
     # list all directories in output directory
     contents_of_output_directory = glob.glob(output_dir + "/*")
@@ -118,9 +120,9 @@ def run_nextflow_step(
                 workflow_path,
                 "-entry",
                 WORKFLOW_NAME,
-                "--experiment_name",
+                "--simulation_name",
                 experiment_name,
-                "--unmasked_experiment",
+                "--screen",
                 screen,
                 "--n_chunks",
                 str(n_chunks),
