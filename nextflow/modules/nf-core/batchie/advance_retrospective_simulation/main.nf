@@ -6,7 +6,7 @@ process ADVANCE_RETROSPECTIVE_SIMULATION {
         'docker.io/jeffquinnmsk/batchie:latest' }"
 
     input:
-    tuple val(meta), path(data_masked), path(data_unmasked), path(thetas), path(batch_selection), path(simulation_tracker)
+    tuple val(meta), path(training_screen), path(test_screen), path(thetas), path(batch_selection), path(simulation_tracker)
 
     output:
     tuple val(meta), path("${prefix}/advanced_screen.h5"), emit: advanced_screen
@@ -24,8 +24,8 @@ process ADVANCE_RETROSPECTIVE_SIMULATION {
     mkdir -p "${prefix}"
     advance_retrospective_simulation \
         --thetas ${thetas} \
-        --masked-screen ${data_masked} \
-        --unmasked-screen ${data_unmasked} \
+        --training-screen ${training_screen} \
+        --test-screen ${test_screen} \
         --batch-selection ${batch_selection} \
         --simulation-tracker-output ${prefix}/simulation_tracker_output.json \
         --simulation-tracker-input ${simulation_tracker} \

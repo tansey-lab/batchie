@@ -11,7 +11,7 @@ from batchie.common import SELECTED_PLATES_KEY
 
 
 @pytest.fixture
-def test_masked_dataset():
+def training_dataset():
     return Screen(
         observations=np.array([0.1, 0.2, 0, 0, 0, 0]),
         observation_mask=np.array([True, True, False, False, False, False]),
@@ -28,7 +28,7 @@ def test_masked_dataset():
 
 
 @pytest.fixture
-def test_unmasked_dataset():
+def test_dataset():
     return Screen(
         observations=np.array([0.1, 0.2, 0.3, 0.4, 0.5, 0.6]),
         observation_mask=np.array([True, True, True, True, True, True]),
@@ -44,7 +44,7 @@ def test_unmasked_dataset():
     )
 
 
-def test_main(mocker, test_masked_dataset, test_unmasked_dataset):
+def test_main(mocker, training_dataset, test_dataset):
     tmpdir = tempfile.mkdtemp()
     command_line_args = [
         "advance_retrospective_simulation",
@@ -52,10 +52,10 @@ def test_main(mocker, test_masked_dataset, test_unmasked_dataset):
         "SparseDrugCombo",
         "--model-param",
         "n_embedding_dimensions=2",
-        "--unmasked-screen",
-        os.path.join(tmpdir, "unmasked_screen.h5"),
-        "--masked-screen",
-        os.path.join(tmpdir, "masked_screen.h5"),
+        "--test-screen",
+        os.path.join(tmpdir, "test.screen.h5"),
+        "--training-screen",
+        os.path.join(tmpdir, "training.screen.h5"),
         "--thetas",
         os.path.join(tmpdir, "samples.h5"),
         "--simulation-tracker-input",
@@ -68,12 +68,12 @@ def test_main(mocker, test_masked_dataset, test_unmasked_dataset):
         os.path.join(tmpdir, "advanced_screen.h5"),
     ]
 
-    test_masked_dataset.save_h5(os.path.join(tmpdir, "masked_screen.h5"))
-    test_masked_dataset.save_h5(os.path.join(tmpdir, "unmasked_screen.h5"))
+    training_dataset.save_h5(os.path.join(tmpdir, "training.screen.h5"))
+    test_dataset.save_h5(os.path.join(tmpdir, "test.screen.h5"))
     results_holder = SparseDrugComboResults(
         n_thetas=10,
-        n_unique_samples=test_masked_dataset.n_unique_samples,
-        n_unique_treatments=test_masked_dataset.n_unique_treatments,
+        n_unique_samples=training_dataset.n_unique_samples,
+        n_unique_treatments=training_dataset.n_unique_treatments,
         n_embedding_dimensions=5,
     )
 

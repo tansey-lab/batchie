@@ -18,19 +18,19 @@ logger = logging.getLogger(__name__)
 def get_parser():
     parser = argparse.ArgumentParser(
         description="This is a utility for revealing plates in a retrospective simulation,"
-        "calculating the prediction error on the un-revealed plates thus far,"
+        "calculating the prediction error on a holdout test set,"
         "and saving the results."
     )
     log_config.add_logging_args(parser)
     parser.add_argument(
-        "--unmasked-screen",
-        help="A batchie Screen in hdf5 format with all experiments observed.",
+        "--training-screen",
+        help="A batchie Screen in hdf5 format with some plates observed.",
         type=str,
         required=True,
     )
     parser.add_argument(
-        "--masked-screen",
-        help="The same batchie Screen in hdf5 format with some experiments masked.",
+        "--test-screen",
+        help="A batchie Screen in hdf5 format with all plates observed.",
         type=str,
         required=True,
     )
@@ -108,16 +108,16 @@ def main():
     args = get_args()
     log_config.configure_logging(args)
 
-    masked_screen = Screen.load_h5(args.masked_screen)
+    training_screen = Screen.load_h5(args.training_screen)
 
-    args.model_params[N_UNIQUE_SAMPLES] = masked_screen.n_unique_samples
-    args.model_params[N_UNIQUE_TREATMENTS] = masked_screen.n_unique_treatments
+    args.model_params[N_UNIQUE_SAMPLES] = training_screen.n_unique_samples
+    args.model_params[N_UNIQUE_TREATMENTS] = training_screen.n_unique_treatments
 
     model: BayesianModel = args.model_cls(**args.model_params)
     theta_holder: ThetaHolder = model.get_results_holder(n_samples=1)
     thetas = theta_holder.concat([theta_holder.load_h5(x) for x in args.thetas])
 
-    unmasked_screen = Screen.load_h5(args.unmasked_screen)
+    test_screen = Screen.load_h5(args.test_screen)
 
     if args.simulation_tracker_input and os.path.exists(args.simulation_tracker_input):
         simulation_tracker = SimulationTracker.load(args.simulation_tracker_input)
@@ -126,8 +126,7 @@ def main():
         simulation_tracker = SimulationTracker(plate_ids_selected=[], losses=[], seed=0)
 
     mse = calculate_mse(
-        observed_screen=unmasked_screen,
-        masked_screen=masked_screen,
+        observed_screen=test_screen,
         thetas=thetas,
         model=model,
     )
@@ -138,7 +137,7 @@ def main():
         next_batch = json.load(f)
 
     plates_to_reveal = next_batch[SELECTED_PLATES_KEY]
-    advanced_screen = reveal_plates(unmasked_screen, masked_screen, plates_to_reveal)
+    advanced_screen = reveal_plates(training_screen, plates_to_reveal)
 
     simulation_tracker.plate_ids_selected.append(plates_to_reveal)
 

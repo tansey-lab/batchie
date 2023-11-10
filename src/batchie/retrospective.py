@@ -585,7 +585,7 @@ def mask_screen(screen: Screen) -> Screen:
     return Screen(
         treatment_names=screen.treatment_names,
         treatment_doses=screen.treatment_doses,
-        observations=np.zeros(screen.size, dtype=FloatingPointType),
+        observations=screen.observations,
         sample_names=screen.sample_names,
         plate_names=screen.plate_names,
         control_treatment_name=screen.control_treatment_name,
@@ -593,31 +593,80 @@ def mask_screen(screen: Screen) -> Screen:
     )
 
 
+def unmask_screen(screen: Screen) -> Screen:
+    return Screen(
+        treatment_names=screen.treatment_names,
+        treatment_doses=screen.treatment_doses,
+        observations=screen.observations,
+        sample_names=screen.sample_names,
+        plate_names=screen.plate_names,
+        control_treatment_name=screen.control_treatment_name,
+        observation_mask=np.ones(screen.size, dtype=bool),
+    )
+
+
+def create_holdout_set(
+    screen: Screen, fraction: float, rng: np.random.BitGenerator
+) -> (Screen, Screen):
+    """
+    Create a holdout set for a screen
+
+    :param screen: The screen to create a holdout set for
+    :param fraction: The fraction of the screen to hold out
+    :return: A tuple of (training_screen, holdout_screen)
+    """
+    if fraction < 0 or fraction > 1:
+        raise ValueError("fraction must be between 0 and 1")
+
+    selection_vector = np.zeros(screen.size, dtype=bool)
+
+    for plate in screen.plates:
+        plate_indices = np.arange(screen.size)[plate.selection_vector]
+
+        if plate.is_observed:
+            continue
+
+        n_sample = math.ceil(plate.size * fraction)
+
+        downsampled_indices = rng.choice(
+            plate_indices,
+            n_sample,
+            replace=False,
+        )
+
+        selection_vector[downsampled_indices] = True
+
+    return screen.subset(~selection_vector).to_screen(), unmask_screen(
+        screen.subset(selection_vector).to_screen()
+    )
+
+
 def reveal_plates(
-    observed_screen: Screen,
-    masked_screen: Screen,
+    screen: Screen,
     plate_ids: list[int],
 ) -> Screen:
     """
     Utility function to reveal observations in the masked screen from the observed screen.
 
-    :param observed_screen: A :py:class:`batchie.data.Screen` that is fully observed
-    :param masked_screen: The same :py:class:`batchie.data.Screen` that is partially observed
+    :param screen: A :py:class:`batchie.data.Screen` that is partially masked, but with real observations
+        present in the internal observation array
     :param plate_ids: The plate ids to reveal
     """
-    selection_mask = np.isin(masked_screen.plate_ids, plate_ids)
+    reveal_mask = np.isin(screen.plate_ids, plate_ids)
 
-    masked_screen.set_observed(
-        selection_mask,
-        observed_screen.observations[selection_mask],
+    return Screen(
+        treatment_names=screen.treatment_names,
+        treatment_doses=screen.treatment_doses,
+        observations=screen.observations,
+        sample_names=screen.sample_names,
+        plate_names=screen.plate_names,
+        control_treatment_name=screen.control_treatment_name,
+        observation_mask=screen.observation_mask | reveal_mask,
     )
-
-    return masked_screen
 
 
 def calculate_mse(
     observed_screen: Screen,
-    masked_screen: Screen,
     model: BayesianModel,
     thetas: ThetaHolder,
 ) -> float:
@@ -625,19 +674,14 @@ def calculate_mse(
     Calculate the mean squared error between the masked observations and the unmasked observations
 
     :param observed_screen: A :py:class:`Screen` that is fully observed
-    :param masked_screen: The same :py:class:`Screen` that is partially observed
     :param model: The model to use for prediction
     :param thetas: The set of model parameters to use for prediction
     :return: The average mean squared error between predicted and observed values
     """
     preds = predict_avg(
         model=model,
-        screen=masked_screen,
+        screen=observed_screen,
         thetas=thetas,
     )
 
-    masked_obs = observed_screen.observations[~masked_screen.observation_mask]
-
-    prediction_of_masked_obs = preds[~masked_screen.observation_mask]
-
-    return np.mean((masked_obs - prediction_of_masked_obs) ** 2)
+    return np.mean((preds - observed_screen.observations) ** 2)

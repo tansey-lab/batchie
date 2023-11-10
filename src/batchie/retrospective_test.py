@@ -1,4 +1,5 @@
 import numpy as np
+import numpy.testing
 import pytest
 from batchie.data import Screen
 from batchie import retrospective
@@ -83,7 +84,7 @@ def unobserved_dataset():
 @pytest.fixture
 def masked_dataset():
     return Screen(
-        observations=np.array([0.1, 0.2, 0.3, 0.4, 0.1, 0.2, 0, 0]),
+        observations=np.array([0.1, 0.2, 0.3, 0.4, 0.1, 0.2, 0.3, 0.4]),
         observation_mask=np.array([True, True, True, True, True, True, False, False]),
         sample_names=np.array(["a", "b", "c", "d", "a", "b", "c", "d"], dtype=str),
         plate_names=np.array(["a", "a", "b", "b", "c", "c", "d", "d"], dtype=str),
@@ -291,12 +292,9 @@ def test_randomly_sample_plates(unobserved_dataset, force_include_plate_names):
     assert list(result.plate_names) != list(unobserved_dataset.plate_names)
 
 
-def test_reveal_plates(test_dataset, masked_dataset):
-    full_dataset = test_dataset
-
+def test_reveal_plates(masked_dataset):
     result = retrospective.reveal_plates(
-        observed_screen=full_dataset,
-        masked_screen=masked_dataset,
+        screen=masked_dataset,
         plate_ids=[3],
     )
 
@@ -306,9 +304,7 @@ def test_reveal_plates(test_dataset, masked_dataset):
     )
 
 
-def test_calculate_mse(test_dataset, masked_dataset):
-    full_dataset = test_dataset
-
+def test_calculate_mse(test_dataset):
     model = mock.MagicMock(BayesianModel)
     model.predict.return_value = 1.0
 
@@ -316,13 +312,14 @@ def test_calculate_mse(test_dataset, masked_dataset):
     samples_holder.n_thetas = 10
 
     result = retrospective.calculate_mse(
-        masked_screen=masked_dataset,
-        observed_screen=full_dataset,
+        observed_screen=test_dataset,
         thetas=samples_holder,
         model=model,
     )
 
-    assert result == np.mean((np.array([1.0, 1.0]) - np.array([0.3, 0.4])) ** 2)
+    assert result == np.mean(
+        (np.ones(test_dataset.size) - test_dataset.observations) ** 2
+    )
 
 
 def test_sample_segregating_permutation_plate_generator():
@@ -690,3 +687,95 @@ def test_batchie_ensemble_plate_smoother():
     result = smoother.smooth_plates(input_screen, rng=np.random.default_rng(0))
     assert result.n_plates == 3
     assert result.size == 6
+
+
+def test_create_holdout_set():
+    input_screen = Screen(
+        observations=np.array([0.1, 0.2, 0.3, 0.4, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6]),
+        observation_mask=np.array(
+            [False, False, False, False, False, False, False, False, True, True]
+        ),
+        sample_names=np.array(
+            ["a", "a", "b", "b", "b", "b", "b", "b", "a", "b"], dtype=str
+        ),
+        plate_names=np.array(
+            ["a", "a", "b", "b", "a", "a", "b", "b", "init", "init"], dtype=str
+        ),
+        treatment_names=np.array(
+            [
+                ["a", "b"],
+                ["a", "b"],
+                ["a", "b"],
+                ["a", "b"],
+                ["a", "b"],
+                ["a", "b"],
+                ["a", "b"],
+                ["a", "b"],
+                ["a", "b"],
+                ["a", "b"],
+            ],
+            dtype=str,
+        ),
+        treatment_doses=np.array(
+            [
+                [2.0, 2.0],
+                [2.0, 2.0],
+                [2.0, 2.0],
+                [2.0, 2.0],
+                [2.0, 2.0],
+                [2.0, 2.0],
+                [2.0, 2.0],
+                [2.0, 2.0],
+                [2.0, 2.0],
+                [2.0, 2.0],
+            ]
+        ),
+    )
+
+    training, test = retrospective.create_holdout_set(
+        input_screen, fraction=0.25, rng=np.random.default_rng(0)
+    )
+
+    assert training.size == 8
+    assert test.size == 2
+    assert training.n_plates == 3
+    assert test.n_plates == 2
+    assert test.is_observed
+
+
+def test_mask_unmask_screen():
+    input_screen = Screen(
+        observations=np.array([0.1, 0.2, 0.3, 0.4]),
+        observation_mask=np.array([False, False, False, False]),
+        sample_names=np.array(["a", "a", "a", "b"], dtype=str),
+        plate_names=np.array(["c", "d", "e", "f"], dtype=str),
+        treatment_names=np.array(
+            [
+                ["a", "b"],
+                ["a", "b"],
+                ["a", "b"],
+                ["a", "b"],
+            ],
+            dtype=str,
+        ),
+        treatment_doses=np.array(
+            [
+                [2.0, 2.0],
+                [2.0, 2.0],
+                [2.0, 2.0],
+                [2.0, 2.0],
+            ]
+        ),
+    )
+
+    new_screen = retrospective.unmask_screen(input_screen)
+
+    assert new_screen.is_observed
+    numpy.testing.assert_array_equal(new_screen.observations, input_screen.observations)
+
+    masked_screen = retrospective.mask_screen(new_screen)
+
+    assert not masked_screen.is_observed
+    numpy.testing.assert_array_equal(
+        masked_screen.observations, input_screen.observations
+    )
