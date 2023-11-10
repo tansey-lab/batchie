@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 class SparseCoverPlateGenerator(InitialRetrospectivePlateGenerator):
     def __init__(self, reveal_single_treatment_experiments: bool):
-        self.reveal_single_drug_experiments = reveal_single_treatment_experiments
+        self.reveal_single_treatment_experiments = reveal_single_treatment_experiments
 
     def _generate_and_unmask_initial_plate(
         self, screen: Screen, rng: np.random.BitGenerator
@@ -87,7 +87,7 @@ class SparseCoverPlateGenerator(InitialRetrospectivePlateGenerator):
             np.arange(screen.size), chosen_selection_indices
         )
 
-        if self.reveal_single_drug_experiments:
+        if self.reveal_single_treatment_experiments:
             single_drug_experiments = np.any(
                 np.isin(screen.treatment_ids, [CONTROL_SENTINEL_VALUE]), axis=1
             )
