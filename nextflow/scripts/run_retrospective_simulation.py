@@ -105,6 +105,8 @@ def run_nextflow_step(
         "main.nf",
     )
 
+    main_config = os.path.join(get_nextflow_dir(), "config", "main.config")
+
     next_output_dir = os.path.join(output_dir, str(len(output_dirs) + 1))
     current_iteration = len(output_dirs) + 1
     # create next output directory
@@ -130,6 +132,8 @@ def run_nextflow_step(
                 str(n_chains),
                 "--outdir",
                 next_output_dir,
+                "-c",
+                main_config,
                 "-c",
                 nextflow_config_file,
             ]
