@@ -1,7 +1,8 @@
-Batchie
+BATCHIE
 =======
 
-This is batchie
+Welcome to the documentation for the python implementation of BATCHIE
+
 
 Contents
 =========
@@ -10,10 +11,10 @@ Contents
     :maxdepth: 2
 
     install
+    data_format
+    running
     command_line_interface
     api
-
-    🚀 Github <https://github.com/tansey-lab/batchie>
 
 
 Indices and tables
