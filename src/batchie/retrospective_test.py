@@ -1,4 +1,5 @@
 import numpy as np
+import numpy.testing
 import pytest
 from batchie.data import Screen
 from batchie import retrospective
@@ -740,3 +741,41 @@ def test_create_holdout_set():
     assert training.n_plates == 3
     assert test.n_plates == 2
     assert test.is_observed
+
+
+def test_mask_unmask_screen():
+    input_screen = Screen(
+        observations=np.array([0.1, 0.2, 0.3, 0.4]),
+        observation_mask=np.array([False, False, False, False]),
+        sample_names=np.array(["a", "a", "a", "b"], dtype=str),
+        plate_names=np.array(["c", "d", "e", "f"], dtype=str),
+        treatment_names=np.array(
+            [
+                ["a", "b"],
+                ["a", "b"],
+                ["a", "b"],
+                ["a", "b"],
+            ],
+            dtype=str,
+        ),
+        treatment_doses=np.array(
+            [
+                [2.0, 2.0],
+                [2.0, 2.0],
+                [2.0, 2.0],
+                [2.0, 2.0],
+            ]
+        ),
+    )
+
+    new_screen = retrospective.unmask_screen(input_screen)
+
+    assert new_screen.is_observed
+    numpy.testing.assert_array_equal(new_screen.observations, input_screen.observations)
+
+    masked_screen = retrospective.mask_screen(new_screen)
+
+    assert not masked_screen.is_observed
+    numpy.testing.assert_array_equal(
+        masked_screen.observations, input_screen.observations
+    )
