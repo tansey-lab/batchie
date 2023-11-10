@@ -19,12 +19,12 @@ def get_nextflow_dir():
 
 
 def get_args():
-    parser = argparse.ArgumentParser(description="Run retrospective experiment")
+    parser = argparse.ArgumentParser(description="Run retrospective simulation")
     parser.add_argument(
-        "--unmasked-screen",
+        "--screen",
         type=str,
         required=True,
-        help="Path to unmasked experiment",
+        help="Path to screen",
     )
     parser.add_argument(
         "--output-dir", type=str, required=True, help="Path to output directory"
@@ -78,13 +78,15 @@ def validate_output_dir_and_get_result_files_as_dict(output_dir):
 
 def run_nextflow_step(
     output_dir,
-    unmasked_experiment,
+    screen,
     nextflow_config_file,
     n_chunks,
     n_chains,
     extra_args,
 ):
-    experiment_name, _ = os.path.splitext(os.path.basename(unmasked_experiment))
+    os.makedirs(output_dir, exist_ok=True)
+
+    experiment_name, _ = os.path.splitext(os.path.basename(screen))
     # list all directories in output directory
     contents_of_output_directory = glob.glob(output_dir + "/*")
     # filter to directories
@@ -103,6 +105,8 @@ def run_nextflow_step(
         "main.nf",
     )
 
+    main_config = os.path.join(get_nextflow_dir(), "config", "main.config")
+
     next_output_dir = os.path.join(output_dir, str(len(output_dirs) + 1))
     current_iteration = len(output_dirs) + 1
     # create next output directory
@@ -118,16 +122,18 @@ def run_nextflow_step(
                 workflow_path,
                 "-entry",
                 WORKFLOW_NAME,
-                "--experiment_name",
+                "--simulation_name",
                 experiment_name,
-                "--unmasked_experiment",
-                unmasked_experiment,
+                "--screen",
+                screen,
                 "--n_chunks",
                 str(n_chunks),
                 "--n_chains",
                 str(n_chains),
                 "--outdir",
                 next_output_dir,
+                "-c",
+                main_config,
                 "-c",
                 nextflow_config_file,
             ]
@@ -164,7 +170,7 @@ def run_nextflow_step(
                 "--masked_experiment",
                 latest_result_files["advanced_experiment"],
                 "--unmasked_experiment",
-                unmasked_experiment,
+                screen,
                 "--n_chunks",
                 str(n_chunks),
                 "--n_chains",
@@ -185,7 +191,7 @@ def main():
     while True:
         should_run_again = run_nextflow_step(
             output_dir=os.path.abspath(args.output_dir),
-            unmasked_experiment=os.path.abspath(args.unmasked_experiment),
+            screen=os.path.abspath(args.screen),
             nextflow_config_file=os.path.abspath(args.nextflow_config_file),
             n_chunks=args.n_dist_chunks,
             n_chains=args.n_chains,
