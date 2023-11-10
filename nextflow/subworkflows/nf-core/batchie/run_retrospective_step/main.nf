@@ -16,7 +16,7 @@ def create_parallel_sequence(meta, n_par) {
 
 workflow RUN_RETROSPECTIVE_STEP {
     take:
-    ch_input  // channel: [ val(meta), path(masked_experiment), path(unmasked_experiment), path(experiment_tracker), val(n_chains), val(n_chunks) ]
+    ch_input  // channel: [ val(meta), path(training_screen), path(test_screen), path(experiment_tracker), val(n_chains), val(n_chunks) ]
 
     main:
     ch_input.flatMap { create_parallel_sequence(it[0], it[4]) }.tap { chain_sequence }

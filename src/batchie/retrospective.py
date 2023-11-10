@@ -624,7 +624,6 @@ def create_holdout_set(
         plate_indices = np.arange(screen.size)[plate.selection_vector]
 
         if plate.is_observed:
-            selection_vector[plate_indices] = True
             continue
 
         n_sample = math.ceil(plate.size * fraction)

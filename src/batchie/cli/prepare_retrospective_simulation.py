@@ -15,7 +15,7 @@ from batchie.data import (
     Screen,
     filter_dataset_to_treatments_that_appear_in_at_least_one_combo,
 )
-from batchie.retrospective import reveal_plates, mask_screen
+from batchie.retrospective import reveal_plates, mask_screen, create_holdout_set
 from typing import Optional
 import logging
 import numpy as np
@@ -35,8 +35,14 @@ def get_parser():
         "--data", help="A batchie Screen in hdf5 format.", type=str, required=True
     )
     parser.add_argument(
-        "--output",
-        help="Output batchie Screen in hdf5 format.",
+        "--training-output",
+        help="Output training set batchie Screen in hdf5 format.",
+        type=str,
+        required=True,
+    )
+    parser.add_argument(
+        "--test-output",
+        help="Output test set batchie Screen in hdf5 format.",
         type=str,
         required=True,
     )
@@ -57,7 +63,7 @@ def get_parser():
         "--plate-generator",
         help="Fully qualified name of the RetrospectivePlateGenerator class to use.",
         type=str,
-        required=True,
+        default=None,
     )
     parser.add_argument(
         "--plate-generator-param",
@@ -80,6 +86,13 @@ def get_parser():
         help="Plate smoother parameters",
     )
     parser.add_argument(
+        "--holdout-fraction",
+        help="Fraction of data to holdout for testing "
+        "(proportion of experiments in the test set in the test/train spit).",
+        type=float,
+        default=0.1,
+    )
+    parser.add_argument(
         "--seed",
         help="Seed to use for PRNG.",
         type=int,
@@ -93,22 +106,23 @@ def get_args():
 
     args = parser.parse_args()
 
-    args.plate_generator_cls = introspection.get_class(
-        package_name="batchie",
-        class_name=args.plate_generator,
-        base_class=RetrospectivePlateGenerator,
-    )
-
-    required_args = introspection.get_required_init_args_with_annotations(
-        args.plate_generator_cls
-    )
-
-    if not args.plate_generator_param:
-        args.plate_generator_params = {}
-    else:
-        args.plate_generator_params = cast_dict_to_type(
-            args.plate_generator_param, required_args
+    if args.plate_generator is not None:
+        args.plate_generator_cls = introspection.get_class(
+            package_name="batchie",
+            class_name=args.plate_generator,
+            base_class=RetrospectivePlateGenerator,
         )
+
+        required_args = introspection.get_required_init_args_with_annotations(
+            args.plate_generator_cls
+        )
+
+        if not args.plate_generator_param:
+            args.plate_generator_params = {}
+        else:
+            args.plate_generator_params = cast_dict_to_type(
+                args.plate_generator_param, required_args
+            )
 
     if args.initial_plate_generator is not None:
         args.initial_plate_generator_cls = introspection.get_class(
@@ -166,10 +180,6 @@ def main():
 
     rng = get_prng_from_seed_argument(args)
 
-    plate_generator: RetrospectivePlateGenerator = args.plate_generator_cls(
-        **args.plate_generator_params
-    )
-
     initial_plate_generator: Optional[InitialRetrospectivePlateGenerator] = None
 
     if args.initial_plate_generator is not None:
@@ -183,21 +193,23 @@ def main():
     else:
         initialized_screen = mask_screen(screen=filtered_screen)
 
-    initialized_screen_with_generated_plates = plate_generator.generate_plates(
-        screen=initialized_screen, rng=rng
-    )
+    if args.plate_generator is not None:
+        plate_generator: RetrospectivePlateGenerator = args.plate_generator_cls(
+            **args.plate_generator_params
+        )
+
+        initialized_screen_with_generated_plates = plate_generator.generate_plates(
+            screen=initialized_screen, rng=rng
+        )
+    else:
+        logger.warning(
+            "No plate generator was provided, will use plate ids provided in input screen."
+        )
+        initialized_screen_with_generated_plates = initialized_screen
 
     if initial_plate_generator is None:
         logger.warning(
             "No initial plate generator was provided. Selecting a random plate to reveal."
-        )
-
-        logger.info(
-            [
-                plate
-                for plate in initialized_screen_with_generated_plates.plates
-                if not plate.is_observed
-            ]
         )
         random_first_plate = rng.choice(
             [
@@ -207,7 +219,7 @@ def main():
             ]
         )
 
-        logger.warning("Will reveal plate {}".format(random_first_plate))
+        logger.warning("Will reveal plate {}".format(random_first_plate.plate_id))
         initialized_screen_with_generated_plates = reveal_plates(
             observed_screen=filtered_screen,
             masked_screen=initialized_screen_with_generated_plates,
@@ -243,4 +255,9 @@ def main():
             )
         )
 
-    smoothed_screen.save_h5(args.output)
+    training_screen, test_screen = create_holdout_set(
+        screen=smoothed_screen, fraction=args.holdout_fraction, rng=rng
+    )
+
+    training_screen.save_h5(args.training_output)
+    test_screen.save_h5(args.test_output)
