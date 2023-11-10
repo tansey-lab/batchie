@@ -38,6 +38,8 @@ extensions = [
     "sphinx.ext.mathjax",
 ]
 
+html_theme = "classic"
+
 mathjax_config = {
     "tex2jax": {
         "inlineMath": [["\\(", "\\)"]],
