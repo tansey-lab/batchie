@@ -45,7 +45,7 @@ workflow RETROSPECTIVE_SIMULATION {
             params.n_chains,
             params.n_chunks
             )
-        prepared_input = Channel.fromList( [input_tuple] )
+        prepared_input = Channel.fromList( [intermediate_input_tuple] )
     }
 
     RUN_RETROSPECTIVE_STEP( prepared_input )

@@ -53,25 +53,39 @@ def get_args():
 
 
 def validate_output_dir_and_get_result_files_as_dict(output_dir):
-    experiment_tracker = glob.glob(
-        os.path.join(output_dir, "*", "experiment_tracker_output.json")
+    simulation_tracker = list(
+        glob.glob(os.path.join(output_dir, "*", "simulation_tracker_output.json"))
     )
-    advanced_experiment_glob = glob.glob(
-        os.path.join(output_dir, "*", "advanced_experiment.h5")
+    advanced_screen_glob = list(
+        glob.glob(os.path.join(output_dir, "*", "advanced_screen.h5"))
     )
-    n_remaining_plates = glob.glob(os.path.join(output_dir, "*", "n_remaining_plates"))
+    test_screen_glob = list(
+        glob.glob(os.path.join(output_dir, "..", "1", "*", "test.screen.h5"))
+    )
+    n_remaining_plates = list(
+        glob.glob(os.path.join(output_dir, "*", "n_remaining_plates"))
+    )
 
-    advanced_experiment = list(advanced_experiment_glob)[0]
-    experiment_tracker = list(experiment_tracker)[0]
+    if (
+        len(simulation_tracker) == 0
+        or len(advanced_screen_glob) == 0
+        or len(n_remaining_plates) == 0
+    ):
+        return None
 
-    n_remaining_plates = list(n_remaining_plates)[0]
+    advanced_screen = advanced_screen_glob[0]
+    simulation_tracker = simulation_tracker[0]
+
+    n_remaining_plates = n_remaining_plates[0]
+    test_screen = test_screen_glob[0]
 
     with open(n_remaining_plates, "r") as f:
         n_remaining_plates = int(f.read().strip())
 
     return {
-        "experiment_tracker": experiment_tracker,
-        "advanced_experiment": advanced_experiment,
+        "simulation_tracker": simulation_tracker,
+        "advanced_screen": advanced_screen,
+        "test_screen": test_screen,
         "n_remaining_plates": n_remaining_plates,
     }
 
@@ -107,14 +121,30 @@ def run_nextflow_step(
 
     main_config = os.path.join(get_nextflow_dir(), "config", "main.config")
 
-    next_output_dir = os.path.join(output_dir, str(len(output_dirs) + 1))
-    current_iteration = len(output_dirs) + 1
-    # create next output directory
-    os.mkdir(next_output_dir)
+    current_iteration = 0
+    latest_result_files = None
 
-    logger.info(f"Running iteration {current_iteration}")
+    if len(output_dirs) > 0:
+        latest_results_in_order = sorted(
+            output_dirs, key=lambda x: int(os.path.basename(x)), reverse=True
+        )
 
-    if len(output_dirs) == 0:
+        for latest_result in latest_results_in_order:
+            latest_result_files = validate_output_dir_and_get_result_files_as_dict(
+                latest_result
+            )
+            if latest_result_files is not None:
+                current_iteration = int(os.path.basename(latest_result))
+                break
+
+    current_iteration = current_iteration + 1
+
+    next_output_dir = os.path.join(output_dir, str(current_iteration))
+
+    if latest_result_files is None:
+        os.makedirs(next_output_dir, exist_ok=True)
+        logger.info(f"Running iteration {current_iteration}")
+
         subprocess.check_call(
             [
                 "nextflow",
@@ -143,18 +173,14 @@ def run_nextflow_step(
         return True
 
     else:
-        latest_result = max(output_dirs, key=lambda x: int(os.path.basename(x)))
-
-        latest_result_files = validate_output_dir_and_get_result_files_as_dict(
-            latest_result
-        )
-
         if latest_result_files["n_remaining_plates"] == 0:
             logger.info("No remaining plates, exiting")
             return False
         else:
             logger.info(f"Running iteration {current_iteration}")
             logger.info(f"{latest_result_files['n_remaining_plates']} remaining plates")
+
+        os.makedirs(next_output_dir, exist_ok=True)
 
         subprocess.check_call(
             [
@@ -163,14 +189,14 @@ def run_nextflow_step(
                 workflow_path,
                 "-entry",
                 WORKFLOW_NAME,
-                "--experiment_name",
+                "--simulation_name",
                 experiment_name,
-                "--experiment_tracker",
-                latest_result_files["experiment_tracker"],
-                "--masked_experiment",
-                latest_result_files["advanced_experiment"],
-                "--unmasked_experiment",
-                screen,
+                "--simulation_tracker",
+                latest_result_files["simulation_tracker"],
+                "--training_screen",
+                latest_result_files["advanced_screen"],
+                "--test_screen",
+                latest_result_files["test_screen"],
                 "--n_chunks",
                 str(n_chunks),
                 "--n_chains",
