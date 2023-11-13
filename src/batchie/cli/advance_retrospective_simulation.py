@@ -17,8 +17,8 @@ logger = logging.getLogger(__name__)
 
 def get_parser():
     parser = argparse.ArgumentParser(
-        description="This is a utility for revealing plates in a retrospective simulation,"
-        "calculating the prediction error on a holdout test set,"
+        description="This is a utility for revealing plates in a retrospective simulation, "
+        "calculating the prediction error on a holdout test set, "
         "and saving the results."
     )
     log_config.add_logging_args(parser)
