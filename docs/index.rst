@@ -13,8 +13,10 @@ Contents
     install
     data_format
     running
+    configuration
     command_line_interface
     api
+
 
 
 Indices and tables
