@@ -1,5 +1,5 @@
 - name: run_retrospective_simulation
-  command: python nextflow/scripts/run_retrospective_simulation.py --nextflow-config-file nextflow/tests/config/integration_test_retrospective_simulation.config --screen nextflow/tests/data/unmasked_screen.h5 --output-dir retrospective_sim --n-chains 2 --n-dist-chunks 2
+  command: python nextflow/scripts/run_retrospective_simulation.py --nextflow-config-file nextflow/tests/config/integration_test_retrospective_simulation.config --screen nextflow/tests/data/unmasked_screen.h5 --output-dir retrospective_sim --n-chains 2 --n-dist-chunks 2 -profile docker
   tags:
     - run_retrospective_simulation
   files: []
