@@ -204,6 +204,8 @@ def run_nextflow_step(
                 "--outdir",
                 next_output_dir,
                 "-c",
+                main_config,
+                "-c",
                 nextflow_config_file,
             ]
             + extra_args,
