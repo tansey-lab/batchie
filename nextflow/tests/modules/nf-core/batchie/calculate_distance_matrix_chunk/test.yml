@@ -1,5 +1,5 @@
 - name: calculate_distance_matrix_chunk
-  command: nextflow run ./nextflow/tests/modules/nf-core/batchie/calculate_distance_matrix_chunk -entry calculate_distance_matrix_chunk -c ./nextflow/tests/modules/nf-core/batchie/calculate_distance_matrix_chunk/nextflow.config -c ./nextflow/tests/config/nextflow.config
+  command: nextflow -C ./nextflow/tests/modules/nf-core/batchie/calculate_distance_matrix_chunk/nextflow.config,./nextflow/tests/config/nextflow.config run ./nextflow/tests/modules/nf-core/batchie/calculate_distance_matrix_chunk -entry calculate_distance_matrix_chunk
   tags:
     - calculate_distance_matrix_chunk
   files: []

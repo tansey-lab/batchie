@@ -1,5 +1,5 @@
 - name: run_retrospective_step
-  command: nextflow run ./nextflow/tests/subworkflows/nf-core/batchie/run_retrospective_step -entry run_retrospective_step -c ./nextflow/tests/subworkflows/nf-core/batchie/run_retrospective_step/nextflow.config -c ./nextflow/tests/config/nextflow.config
+  command: nextflow -C ./nextflow/tests/subworkflows/nf-core/batchie/run_retrospective_step/nextflow.config,./nextflow/tests/config/nextflow.config run ./nextflow/tests/subworkflows/nf-core/batchie/run_retrospective_step -entry run_retrospective_step
   tags:
     - run_retrospective_step
   files: []

@@ -1,5 +1,5 @@
 - name: retrospective_simulation_initial
-  command: nextflow run ./nextflow/tests/workflows/nf-core/batchie/retrospective_simulation -entry retrospective_simulation_test -c ./nextflow/tests/workflows/nf-core/batchie/retrospective_simulation/nextflow.config -c ./nextflow/tests/config/nextflow.config
+  command: nextflow -C ./nextflow/tests/workflows/nf-core/batchie/retrospective_simulation/nextflow.config,./nextflow/tests/config/nextflow.config run ./nextflow/tests/workflows/nf-core/batchie/retrospective_simulation -entry retrospective_simulation_test
   tags:
     - retrospective_simulation
   files: []
