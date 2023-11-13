@@ -58,4 +58,4 @@ jobs:
 
       - name: Run pytest-workflow
         working-directory: ./nextflow
-        run: TMPDIR=~ PROFILE=${{ matrix.profile }} pytest --symlink --kwdof --git-aware --color=yes
+        run: TMPDIR=~ PROFILE=docker pytest --symlink --kwdof --git-aware --color=yes
