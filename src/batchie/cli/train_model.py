@@ -25,7 +25,12 @@ def get_parser():
         type=str,
         required=True,
     )
-    parser.add_argument("--model", type=str, required=True)
+    parser.add_argument(
+        "--model",
+        help="Fully qualified name of the BayesianModel class to use.",
+        type=str,
+        required=True,
+    )
     parser.add_argument(
         "--model-param",
         nargs=1,
