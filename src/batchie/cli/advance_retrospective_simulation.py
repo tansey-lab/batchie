@@ -17,8 +17,8 @@ logger = logging.getLogger(__name__)
 
 def get_parser():
     parser = argparse.ArgumentParser(
-        description="This is a utility for revealing plates in a retrospective simulation,"
-        "calculating the prediction error on a holdout test set,"
+        description="This is a utility for revealing plates in a retrospective simulation, "
+        "calculating the prediction error on a holdout test set, "
         "and saving the results."
     )
     log_config.add_logging_args(parser)
@@ -80,6 +80,12 @@ def get_parser():
         metavar="KEY=VALUE",
         help="Model parameters",
     )
+    parser.add_argument(
+        "--seed",
+        help="Seed to use for PRNG.",
+        type=int,
+        default=0,
+    )
     return parser
 
 
@@ -123,7 +129,9 @@ def main():
         simulation_tracker = SimulationTracker.load(args.simulation_tracker_input)
     else:
         logger.warning("No simulation tracker provided, will create blank one.")
-        simulation_tracker = SimulationTracker(plate_ids_selected=[], losses=[], seed=0)
+        simulation_tracker = SimulationTracker(
+            plate_ids_selected=[], losses=[], seed=args.seed
+        )
 
     mse = calculate_mse(
         observed_screen=test_screen,

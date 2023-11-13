@@ -7,19 +7,31 @@ import logging
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
-WORKFLOW_NAME = "RETROSPECTIVE_SIMULATION"
-
 
 def get_script_location():
-    return os.path.dirname(os.path.realpath(__file__))
+    return os.path.abspath(os.path.dirname(os.path.realpath(__file__)))
 
 
 def get_nextflow_dir():
-    return os.path.join(get_script_location(), "..")
+    return os.path.abspath(os.path.join(get_script_location(), ".."))
+
+
+def get_base_config():
+    return os.path.abspath(os.path.join(get_nextflow_dir(), "..", "nextflow.config"))
+
+
+def get_repository_root():
+    return os.path.abspath(os.path.join(get_script_location(), "..", ".."))
+
+
+def get_main_nf_file():
+    return os.path.abspath(os.path.join(get_repository_root(), "main.nf"))
 
 
 def get_args():
-    parser = argparse.ArgumentParser(description="Run retrospective simulation")
+    parser = argparse.ArgumentParser(
+        description="Run retrospective simulation, all arguments are passed to nextflow"
+    )
     parser.add_argument(
         "--screen",
         type=str,
@@ -27,25 +39,7 @@ def get_args():
         help="Path to screen",
     )
     parser.add_argument(
-        "--output-dir", type=str, required=True, help="Path to output directory"
-    )
-    parser.add_argument(
-        "--n-dist-chunks",
-        type=int,
-        required=True,
-        help="Number chunks to parallelize pairwise distance computation over",
-    )
-    parser.add_argument(
-        "--n-chains",
-        type=int,
-        required=True,
-        help="Number of chains to use for MCMC sampling",
-    )
-    parser.add_argument(
-        "--nextflow-config-file",
-        type=str,
-        required=True,
-        help="Path to nextflow config file",
+        "--outdir", type=str, required=True, help="Path to output directory"
     )
     args, remaining_args = parser.parse_known_args()
 
@@ -93,9 +87,6 @@ def validate_output_dir_and_get_result_files_as_dict(output_dir):
 def run_nextflow_step(
     output_dir,
     screen,
-    nextflow_config_file,
-    n_chunks,
-    n_chains,
     extra_args,
 ):
     os.makedirs(output_dir, exist_ok=True)
@@ -109,17 +100,6 @@ def run_nextflow_step(
         for x in contents_of_output_directory
         if os.path.isdir(x) and os.path.basename(x).isdigit()
     ]
-
-    workflow_path = os.path.join(
-        get_nextflow_dir(),
-        "workflows",
-        "nf-core",
-        "batchie",
-        "retrospective_simulation",
-        "main.nf",
-    )
-
-    main_config = os.path.join(get_nextflow_dir(), "config", "main.config")
 
     current_iteration = 0
     latest_result_files = None
@@ -149,26 +129,20 @@ def run_nextflow_step(
             [
                 "nextflow",
                 "run",
-                workflow_path,
-                "-entry",
-                WORKFLOW_NAME,
-                "--simulation_name",
-                experiment_name,
+                get_main_nf_file(),
+                "--mode",
+                "retrospective",
                 "--screen",
                 screen,
-                "--n_chunks",
-                str(n_chunks),
-                "--n_chains",
-                str(n_chains),
+                "--name",
+                experiment_name,
                 "--outdir",
                 next_output_dir,
-                "-c",
-                main_config,
-                "-c",
-                nextflow_config_file,
+                "-work-dir",
+                os.path.join(next_output_dir, "work"),
             ]
             + extra_args,
-            cwd=next_output_dir,
+            cwd=get_repository_root(),
         )
         return True
 
@@ -186,9 +160,9 @@ def run_nextflow_step(
             [
                 "nextflow",
                 "run",
-                workflow_path,
-                "-entry",
-                WORKFLOW_NAME,
+                get_main_nf_file(),
+                "--mode",
+                "retrospective",
                 "--simulation_name",
                 experiment_name,
                 "--simulation_tracker",
@@ -197,19 +171,13 @@ def run_nextflow_step(
                 latest_result_files["advanced_screen"],
                 "--test_screen",
                 latest_result_files["test_screen"],
-                "--n_chunks",
-                str(n_chunks),
-                "--n_chains",
-                str(n_chains),
                 "--outdir",
                 next_output_dir,
-                "-c",
-                main_config,
-                "-c",
-                nextflow_config_file,
+                "-work-dir",
+                os.path.join(next_output_dir, "work"),
             ]
             + extra_args,
-            cwd=next_output_dir,
+            cwd=get_repository_root(),
         )
         return True
 
@@ -218,11 +186,8 @@ def main():
     args, remaining_args = get_args()
     while True:
         should_run_again = run_nextflow_step(
-            output_dir=os.path.abspath(args.output_dir),
+            output_dir=os.path.abspath(args.outdir),
             screen=os.path.abspath(args.screen),
-            nextflow_config_file=os.path.abspath(args.nextflow_config_file),
-            n_chunks=args.n_dist_chunks,
-            n_chains=args.n_chains,
             extra_args=remaining_args,
         )
 

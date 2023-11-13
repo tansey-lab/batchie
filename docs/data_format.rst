@@ -1,9 +1,9 @@
 .. _data-format:
 
-Batchie Data Format
+BATCHIE Data Format
 ===================
 
-The main data format for batchie is the :py:class:`batchie.data.Screen` object.
+The main data format for BATCHIE is the :py:class:`batchie.data.Screen` object.
 
 Example
 -------

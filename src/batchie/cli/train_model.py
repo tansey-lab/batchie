@@ -25,7 +25,12 @@ def get_parser():
         type=str,
         required=True,
     )
-    parser.add_argument("--model", type=str, required=True)
+    parser.add_argument(
+        "--model",
+        help="Fully qualified name of the BayesianModel class to use.",
+        type=str,
+        required=True,
+    )
     parser.add_argument(
         "--model-param",
         nargs=1,
@@ -113,6 +118,19 @@ def main():
     model: BayesianModel = args.model_cls(**args.model_params)
 
     samples_holder: ThetaHolder = model.get_results_holder(n_samples=args.n_samples)
+
+    observed_subset = data.subset_observed()
+
+    if observed_subset is not None:
+        logger.info(
+            "Will train model on {} observed experiments".format(observed_subset.size)
+        )
+        model.add_observations(observed_subset)
+    else:
+        logger.warning(
+            "No observed experiments found. Model will be trained on no data "
+            "(check your input screen if this is unexpected)"
+        )
 
     results: ThetaHolder = sampling.sample(
         model=model,

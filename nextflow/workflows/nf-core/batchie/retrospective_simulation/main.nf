@@ -24,11 +24,13 @@ process WRITE_REMAINING_PLATES {
     """
 }
 
-workflow RETROSPECTIVE_SIMULATION {
+workflow RETROSPECTIVE {
+    def name = params.name == null ? "batchie" : params.name
+
     def prepared_input = null
 
     if (params.simulation_tracker == null) {
-        def input_tuple = tuple([id:params.simulation_name], file(params.screen))
+        def input_tuple = tuple([id:name], file(params.screen))
         def input_value_channel = Channel.fromList( [input_tuple] )
         PREPARE_RETROSPECTIVE_SIMULATION( input_value_channel )
 
