@@ -48,6 +48,8 @@ def select_next_batch(
     selected_plates = []
 
     for i in range(batch_size):
+        logger.info(f"Selecting plate {i+1} of {batch_size}")
+
         if policy is None:
             eligible_plates = unobserved_plates
         else:
