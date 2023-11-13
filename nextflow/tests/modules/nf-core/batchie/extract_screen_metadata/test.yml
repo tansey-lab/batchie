@@ -1,5 +1,5 @@
 - name: extract_screen_metadata
-  command: nextflow run ./nextflow/tests/modules/nf-core/batchie/extract_screen_metadata -entry extract_screen_metadata -c ./nextflow/tests/modules/nf-core/batchie/extract_screen_metadata/nextflow.config -c ./nextflow/tests/config/nextflow.config
+  command: nextflow -C ./nextflow/tests/modules/nf-core/batchie/extract_screen_metadata/nextflow.config,./nextflow/tests/config/nextflow.config run ./nextflow/tests/modules/nf-core/batchie/extract_screen_metadata -entry extract_screen_metadata
   tags:
     - extract_screen_metadata
   files: []
