@@ -11,7 +11,7 @@ from batchie.core import BayesianModel, Theta, ThetaHolder
 from batchie.data import ScreenBase
 from batchie.fast_mvn import sample_mvn_from_precision
 from numpy.random import Generator
-from scipy.special import logit
+from scipy.special import logit, expit
 
 logger = logging.getLogger(__name__)
 
@@ -295,7 +295,9 @@ class SparseDrugCombo(BayesianModel):
                 "received a {} treatment dataset".format(data.treatment_arity)
             )
 
-        self.y = np.concatenate([self.y, data.observations])
+        y = logit(np.clip(data.observations, a_min=0.01, a_max=0.99))
+
+        self.y = np.concatenate([self.y, y])
         self.sample_ids = np.concatenate([self.sample_ids, data.sample_ids])
         self.treatment_1 = np.concatenate([self.treatment_1, data.treatment_ids[:, 0]])
         self.treatment_2 = np.concatenate([self.treatment_2, data.treatment_ids[:, 1]])
@@ -804,7 +806,7 @@ def predict(mcmc_sample: SparseDrugComboMCMCSample, data: ScreenBase):
         )
     )
     Mu = intercept + interaction1 + interaction2
-    return Mu
+    return np.clip(expit(Mu), a_min=0.01, a_max=0.99)
 
 
 def predict_single_drug(mcmc_sample: SparseDrugComboMCMCSample, data: ScreenBase):
@@ -823,7 +825,7 @@ def predict_single_drug(mcmc_sample: SparseDrugComboMCMCSample, data: ScreenBase
         )
     )
     Mu = intercept + interaction1
-    return Mu
+    return np.clip(expit(Mu), a_min=0.01, a_max=0.99)
 
 
 def bliss(mcmc_sample: SparseDrugComboMCMCSample, data: ScreenBase):
