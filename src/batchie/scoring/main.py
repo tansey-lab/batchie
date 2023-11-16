@@ -71,7 +71,7 @@ def select_next_batch(
             distance_matrix=distance_matrix,
         )
 
-        best_plate_id = max(scores, key=scores.get)
+        best_plate_id = min(scores, key=scores.get)
 
         # move best plate from unobserved to selected
         selected_plates.append(

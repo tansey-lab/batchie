@@ -351,7 +351,7 @@ class Scorer:
     instances.
 
     The score should represent how desirable it is to observe the given plate, with
-    a higher score being more desirable.
+    a lower score being more desirable.
     """
 
     def score(

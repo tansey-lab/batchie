@@ -65,4 +65,4 @@ def test_select_next_batch_without_policy(test_experiment):
     )
 
     assert len(next_batch) == 1
-    assert next_batch[0].plate_id == 1
+    assert next_batch[0].plate_id == 2
