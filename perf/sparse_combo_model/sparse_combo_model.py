@@ -62,19 +62,23 @@ def run_benchmark():
         n_unique_samples=data.n_unique_samples,
         n_unique_treatments=data.n_unique_treatments,
         n_embedding_dimensions=12,
-        n_thetas=10,
+        n_thetas=100,
     )
 
-    sampling.sample(
+    res = sampling.sample(
         model=model,
         results=results,
         seed=0,
         n_chains=1,
         chain_index=0,
-        n_burnin=100,
-        thin=1,
+        n_burnin=400,
+        thin=2,
         progress_bar=True,
     )
+
+    model.set_model_state(res.get_theta(99))
+
+    print(model.predict(data))
 
 
 if __name__ == "__main__":
