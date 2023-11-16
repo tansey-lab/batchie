@@ -806,7 +806,7 @@ def predict(mcmc_sample: SparseDrugComboMCMCSample, data: ScreenBase):
         )
     )
     Mu = intercept + interaction1 + interaction2
-    return expit(Mu)
+    return np.clip(expit(Mu), a_min=0.01, a_max=0.99)
 
 
 def predict_single_drug(mcmc_sample: SparseDrugComboMCMCSample, data: ScreenBase):
@@ -825,7 +825,7 @@ def predict_single_drug(mcmc_sample: SparseDrugComboMCMCSample, data: ScreenBase
         )
     )
     Mu = intercept + interaction1
-    return expit(Mu)
+    return np.clip(expit(Mu), a_min=0.01, a_max=0.99)
 
 
 def bliss(mcmc_sample: SparseDrugComboMCMCSample, data: ScreenBase):
