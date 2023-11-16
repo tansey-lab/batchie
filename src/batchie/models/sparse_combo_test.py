@@ -77,6 +77,9 @@ def test_predict_and_set_model_state(
     prediction = model.predict(test_dataset)
 
     assert prediction.shape == (test_dataset.size,)
+    if not predict_interactions:
+        assert np.all(prediction >= 0.0)
+        assert np.all(prediction <= 1.0)
 
     model.reset_model()
     model.set_model_state(sample)
