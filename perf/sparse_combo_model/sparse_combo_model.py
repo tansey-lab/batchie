@@ -3,6 +3,7 @@ from batchie.data import Screen
 import numpy as np
 
 from batchie import sampling
+from batchie.retrospective import calculate_mse
 
 
 def generate_data(
@@ -76,9 +77,9 @@ def run_benchmark():
         progress_bar=True,
     )
 
-    model.set_model_state(res.get_theta(99))
+    mse = calculate_mse(model=model, observed_screen=data, thetas=res)
 
-    print(model.predict(data))
+    print(mse)
 
 
 if __name__ == "__main__":

@@ -423,7 +423,7 @@ class SparseDrugCombo(BayesianModel):
 
     def _W0_step(self):
         for sample_id in range(self.n_unique_samples):
-            cidx = self.sample_ids == 1
+            cidx = self.sample_ids == sample_id
             if cidx.sum() == 0:
                 # sample from prior
                 stddev = 1.0 / np.sqrt(self.tau0)
