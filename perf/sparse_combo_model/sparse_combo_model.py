@@ -7,7 +7,7 @@ from batchie.retrospective import calculate_mse
 
 
 def generate_data(
-    n_obs=10_000,
+    n_obs=100_000,
     n_unique_treatments=5,
     n_unique_samples=5,
     n_unique_doses=5,
@@ -43,13 +43,11 @@ def generate_data(
 
 
 def run_benchmark():
-    data = generate_data(
-        n_unique_treatments=10,
-        n_unique_samples=10,
-        n_unique_doses=5,
-    )
+    data = Screen.load_h5("/Users/jquinn/Documents/test.screen.h5")
 
     print("Generated {} observations".format(data.size))
+    print("Unique samples: {}".format(data.n_unique_samples))
+    print("Unique treatments: {}".format(data.n_unique_treatments))
 
     model = SparseDrugCombo(
         n_embedding_dimensions=12,
@@ -80,6 +78,7 @@ def run_benchmark():
     mse = calculate_mse(model=model, observed_screen=data, thetas=res)
 
     print(mse)
+    print(res.get_theta(0))
 
 
 if __name__ == "__main__":

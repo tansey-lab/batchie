@@ -6,12 +6,17 @@ from typing import Optional
 import h5py
 import numpy as np
 
-from batchie.common import ArrayType, copy_array_with_control_treatments_set_to_zero
+from batchie.common import (
+    ArrayType,
+    copy_array_with_control_treatments_set_to_zero,
+    FloatingPointType,
+)
 from batchie.core import BayesianModel, Theta, ThetaHolder
 from batchie.data import ScreenBase
 from batchie.fast_mvn import sample_mvn_from_precision
 from numpy.random import Generator
 from scipy.special import logit, expit
+from scipy.linalg import LinAlgError
 
 logger = logging.getLogger(__name__)
 
@@ -44,33 +49,33 @@ class SparseDrugComboResults(ThetaHolder):
 
         self.V2 = np.zeros(
             (n_thetas, self.n_unique_treatments, self.n_embedding_dimensions),
-            dtype=np.float32,
+            dtype=FloatingPointType,
         )
         self.V1 = np.zeros(
             (n_thetas, self.n_unique_treatments, self.n_embedding_dimensions),
-            dtype=np.float32,
+            dtype=FloatingPointType,
         )
         self.W = np.zeros(
             (n_thetas, self.n_unique_samples, self.n_embedding_dimensions),
-            dtype=np.float32,
+            dtype=FloatingPointType,
         )
         self.V0 = np.zeros(
             (
                 n_thetas,
                 self.n_unique_treatments,
             ),
-            np.float32,
+            FloatingPointType,
         )
         self.W0 = np.zeros(
             (
                 n_thetas,
                 self.n_unique_samples,
             ),
-            np.float32,
+            FloatingPointType,
         )
 
-        self.alpha = np.zeros((n_thetas,), np.float32)
-        self.precision = np.zeros((n_thetas,), np.float32)
+        self.alpha = np.zeros((n_thetas,), FloatingPointType)
+        self.precision = np.zeros((n_thetas,), FloatingPointType)
 
     def combine(self, other):
         if type(self) != type(other):
@@ -213,12 +218,12 @@ class SparseDrugCombo(BayesianModel):
         self.mult_gamma_proc = mult_gamma_proc
 
         # data holders
-        self.y = np.array([], dtype=np.float64)
+        self.y = np.array([], dtype=FloatingPointType)
 
         # indicators for each entry AND sparse query of specific combos
-        self.sample_ids = np.array([], dtype=np.int32)
-        self.treatment_1 = np.array([], dtype=np.int32)
-        self.treatment_2 = np.array([], dtype=np.int32)
+        self.sample_ids = np.array([], dtype=int)
+        self.treatment_1 = np.array([], dtype=int)
+        self.treatment_2 = np.array([], dtype=int)
 
         # hyperpriors
         self.a0 = a0  # inverse gamma param 1 for prec
@@ -236,38 +241,41 @@ class SparseDrugCombo(BayesianModel):
         # If changing the initialization make sure the last entry of the
         # V's stay at zero because it's used for single controls.
         self.V2 = np.zeros(
-            (self.n_unique_treatments, self.n_embedding_dimensions), dtype=np.float32
+            (self.n_unique_treatments, self.n_embedding_dimensions),
+            dtype=FloatingPointType,
         )
         self.V1 = np.zeros(
-            (self.n_unique_treatments, self.n_embedding_dimensions), dtype=np.float32
+            (self.n_unique_treatments, self.n_embedding_dimensions),
+            dtype=FloatingPointType,
         )
         self.W = np.zeros(
-            (self.n_unique_samples, self.n_embedding_dimensions), dtype=np.float32
+            (self.n_unique_samples, self.n_embedding_dimensions),
+            dtype=FloatingPointType,
         )
-        self.V0 = np.zeros((self.n_unique_treatments,), np.float32)
-        self.W0 = np.zeros((self.n_unique_samples,), np.float32)
+        self.V0 = np.zeros((self.n_unique_treatments,), FloatingPointType)
+        self.W0 = np.zeros((self.n_unique_samples,), FloatingPointType)
 
         # parameters for horseshoe priors
         self.phi2 = 100.0 * np.ones_like(self.V2)
         self.phi1 = 100.0 * np.ones_like(self.V1)
         self.phi0 = 100.0 * np.ones_like(self.V0)
-        self.eta2 = np.ones(self.n_embedding_dimensions, dtype=np.float32)
-        self.eta1 = np.ones(self.n_embedding_dimensions, dtype=np.float32)
+        self.eta2 = np.ones(self.n_embedding_dimensions, dtype=FloatingPointType)
+        self.eta1 = np.ones(self.n_embedding_dimensions, dtype=FloatingPointType)
         self.eta0 = 1.0
 
         # shrinkage
-        self.tau = 100.0 * np.ones(self.n_embedding_dimensions, np.float32)
+        self.tau = 100.0 * np.ones(self.n_embedding_dimensions, FloatingPointType)
         self.tau0 = 100.0
 
         if mult_gamma_proc:
-            self.gam = np.ones(self.n_embedding_dimensions, np.float32)
+            self.gam = np.ones(self.n_embedding_dimensions, FloatingPointType)
 
         # intercept and overall precision
         self.alpha = 0.0
         self.precision = 100.0
 
         # holder for model prediction during fit and for eval
-        self.Mu = np.zeros(0, np.float32)
+        self.Mu = np.zeros(0, FloatingPointType)
 
     @property
     def rng(self) -> np.random.Generator:
@@ -310,7 +318,19 @@ class SparseDrugCombo(BayesianModel):
         self.V0 = self.V0 * 0.0
         self.alpha = 0.0
         self.precision = 100.0
-        self.Mu = np.zeros(0, np.float32)
+        self.Mu = np.zeros(0, FloatingPointType)
+        self.phi2 = 100.0 * np.ones_like(self.V2)
+        self.phi1 = 100.0 * np.ones_like(self.V1)
+        self.phi0 = 100.0 * np.ones_like(self.V0)
+        self.eta2 = np.ones(self.n_embedding_dimensions, dtype=FloatingPointType)
+        self.eta1 = np.ones(self.n_embedding_dimensions, dtype=FloatingPointType)
+        self.eta0 = 1.0
+        self.tau = 100.0 * np.ones(self.n_embedding_dimensions, FloatingPointType)
+        self.tau0 = 100.0
+        self.gam = np.ones(self.n_embedding_dimensions, FloatingPointType)
+        self.alpha = 0.0
+        self.precision = 100.0
+        self.Mu = np.zeros(0, FloatingPointType)
 
     def set_model_state(self, model_state: SparseDrugComboMCMCSample):
         self.W = model_state.W
@@ -418,7 +438,7 @@ class SparseDrugCombo(BayesianModel):
 
                 # update Mu
                 self.Mu[cidx] += X @ self.W[sample_id] - old_contrib
-            except:
+            except LinAlgError:
                 warnings.warn("Numeric instability in Gibbs W-step...")
 
     def _W0_step(self):
@@ -456,7 +476,7 @@ class SparseDrugCombo(BayesianModel):
             if idx1.sum() == 0:
                 resid1 = []
                 old_contrib1 = []
-                X1 = np.array([], dtype=np.float32).reshape(
+                X1 = np.array([], dtype=FloatingPointType).reshape(
                     0, self.n_embedding_dimensions
                 )
             else:
@@ -472,7 +492,7 @@ class SparseDrugCombo(BayesianModel):
             if idx2.sum() == 0:
                 resid2 = []
                 old_contrib2 = []
-                X2 = np.array([], dtype=np.float32).reshape(
+                X2 = np.array([], dtype=FloatingPointType).reshape(
                     0, self.n_embedding_dimensions
                 )
             else:
@@ -505,7 +525,7 @@ class SparseDrugCombo(BayesianModel):
                 )
                 # self.V2[treatment_id] = np.clip(self.V2[treatment_id], -10.0, 10.0)
                 self.Mu[idx] += X @ self.V2[treatment_id] - old_contrib
-            except:
+            except LinAlgError:
                 warnings.warn("Numeric instability in Gibbs V-step...")
 
     def _V1_step(self) -> None:
@@ -527,7 +547,7 @@ class SparseDrugCombo(BayesianModel):
             if idx1.sum() == 0:
                 resid1 = []
                 old_contrib1 = []
-                X1 = np.array([], dtype=np.float32).reshape(
+                X1 = np.array([], dtype=FloatingPointType).reshape(
                     0, self.n_embedding_dimensions
                 )
             else:
@@ -538,7 +558,7 @@ class SparseDrugCombo(BayesianModel):
             if idx2.sum() == 0:
                 resid2 = []
                 old_contrib2 = []
-                X2 = np.array([], dtype=np.float32).reshape(
+                X2 = np.array([], dtype=FloatingPointType).reshape(
                     0, self.n_embedding_dimensions
                 )
             else:
@@ -564,7 +584,7 @@ class SparseDrugCombo(BayesianModel):
                 )
                 # self.V1[treatment_id] = np.clip(self.V1[treatment_id], -10.0, 10.0)
                 self.Mu[idx] += X @ self.V1[treatment_id] - old_contrib
-            except:
+            except LinAlgError:
                 warnings.warn("Numeric instability in Gibbs V-step...")
 
     def _V0_step(self) -> None:
