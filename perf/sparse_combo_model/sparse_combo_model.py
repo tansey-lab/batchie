@@ -7,7 +7,7 @@ from batchie.retrospective import calculate_mse
 
 
 def generate_data(
-    n_obs=100_000,
+    n_obs=10_000,
     n_unique_treatments=5,
     n_unique_samples=5,
     n_unique_doses=5,
@@ -43,7 +43,7 @@ def generate_data(
 
 
 def run_benchmark():
-    data = Screen.load_h5("/Users/jquinn/Documents/test.screen.h5")
+    data = generate_data()
 
     print("Generated {} observations".format(data.size))
     print("Unique samples: {}".format(data.n_unique_samples))
