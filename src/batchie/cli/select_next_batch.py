@@ -190,6 +190,7 @@ def main():
         samples=thetas,
         batch_size=args.batch_size,
         rng=rng,
+        progress_bar=args.progress,
     )
 
     result_object = {

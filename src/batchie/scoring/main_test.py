@@ -46,6 +46,7 @@ def test_select_next_batch_with_policy(test_experiment):
         screen=test_experiment,
         distance_matrix=mock.MagicMock(ChunkedDistanceMatrix),
         policy=policy,
+        progress_bar=True,
     )
 
     assert len(next_batch) == 1
