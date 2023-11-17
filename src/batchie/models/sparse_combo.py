@@ -404,22 +404,16 @@ class SparseDrugCombo(BayesianModel):
                 stddev = 1.0 / np.sqrt(self.tau)
                 self.W[sample_id] = self.rng.normal(0.0, stddev)
                 continue
-            tmp1 = (
-                copy_array_with_control_treatments_set_to_zero(
-                    self.V2, self.treatment_1
-                )[cidx]
-                * copy_array_with_control_treatments_set_to_zero(
-                    self.V2, self.treatment_2
-                )[cidx]
+            tmp1 = copy_array_with_control_treatments_set_to_zero(
+                self.V2, self.treatment_1[cidx]
+            ) * copy_array_with_control_treatments_set_to_zero(
+                self.V2, self.treatment_2[cidx]
             )
 
-            tmp2 = (
-                copy_array_with_control_treatments_set_to_zero(
-                    self.V1, self.treatment_1
-                )[cidx]
-                * copy_array_with_control_treatments_set_to_zero(
-                    self.V1, self.treatment_2
-                )[cidx]
+            tmp2 = copy_array_with_control_treatments_set_to_zero(
+                self.V1, self.treatment_1[cidx]
+            ) * copy_array_with_control_treatments_set_to_zero(
+                self.V1, self.treatment_2[cidx]
             )
 
             X = tmp1 + tmp2
@@ -480,11 +474,10 @@ class SparseDrugCombo(BayesianModel):
                     0, self.n_embedding_dimensions
                 )
             else:
-                X1 = (
-                    self.W[self.sample_ids[idx1]]
-                    * copy_array_with_control_treatments_set_to_zero(
-                        self.V2, self.treatment_2
-                    )[idx1]
+                X1 = self.W[
+                    self.sample_ids[idx1]
+                ] * copy_array_with_control_treatments_set_to_zero(
+                    self.V2, self.treatment_2[idx1]
                 )
                 old_contrib1 = X1 @ self.V2[treatment_id]
                 resid1 = self.y[idx1] - self.Mu[idx1] + old_contrib1
@@ -496,11 +489,10 @@ class SparseDrugCombo(BayesianModel):
                     0, self.n_embedding_dimensions
                 )
             else:
-                X2 = (
-                    self.W[self.sample_ids[idx2]]
-                    * copy_array_with_control_treatments_set_to_zero(
-                        self.V2, self.treatment_1
-                    )[idx2]
+                X2 = self.W[
+                    self.sample_ids[idx2]
+                ] * copy_array_with_control_treatments_set_to_zero(
+                    self.V2, self.treatment_1[idx2]
                 )
                 old_contrib2 = X2 @ self.V2[treatment_id]
                 resid2 = self.y[idx2] - self.Mu[idx2] + old_contrib2
