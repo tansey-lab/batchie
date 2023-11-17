@@ -461,13 +461,19 @@ class SparseDrugCombo(BayesianModel):
             idx1 = self.treatment_1 == treatment_id
             # slice where treatment_id, k appears as drug2
             idx2 = self.treatment_2 == treatment_id
-            if idx1.sum() + idx2.sum() == 0:
+            idx = idx1 | idx2
+
+            idx1_count = np.count_nonzero(idx1)
+            idx2_count = np.count_nonzero(idx2)
+            idx_total = np.count_nonzero(idx)
+
+            if idx_total == 0:
                 # no data seen yet, sample from prior
                 stddev = 1.0 / np.sqrt(self.phi2[treatment_id] * self.eta2)
                 self.V2[treatment_id] = self.rng.normal(0, stddev)
                 continue
 
-            if idx1.sum() == 0:
+            if idx1_count == 0:
                 resid1 = []
                 old_contrib1 = []
                 X1 = np.array([], dtype=FloatingPointType).reshape(
@@ -482,7 +488,7 @@ class SparseDrugCombo(BayesianModel):
                 old_contrib1 = X1 @ self.V2[treatment_id]
                 resid1 = self.y[idx1] - self.Mu[idx1] + old_contrib1
 
-            if idx2.sum() == 0:
+            if idx2_count == 0:
                 resid2 = []
                 old_contrib2 = []
                 X2 = np.array([], dtype=FloatingPointType).reshape(
@@ -500,12 +506,9 @@ class SparseDrugCombo(BayesianModel):
             # combine slices of data
             X = np.concatenate([X1, X2])
             resid = np.concatenate([resid1, resid2])
-            # resid = np.clip(resid, -10.0, 10.0)
             old_contrib = np.concatenate([old_contrib1, old_contrib2])
-            idx = idx1 | idx2
 
             # sample form posterior
-            # X = np.clip(X, -10.0, 10.0)
             Xt = X.transpose()
             mu_part = (Xt @ resid) * self.precision
             Q = (Xt @ X) * self.precision
@@ -515,7 +518,6 @@ class SparseDrugCombo(BayesianModel):
                 self.V2[treatment_id] = sample_mvn_from_precision(
                     Q, mu_part=mu_part, rng=self.rng
                 )
-                # self.V2[treatment_id] = np.clip(self.V2[treatment_id], -10.0, 10.0)
                 self.Mu[idx] += X @ self.V2[treatment_id] - old_contrib
             except LinAlgError:
                 warnings.warn("Numeric instability in Gibbs V-step...")
@@ -530,13 +532,19 @@ class SparseDrugCombo(BayesianModel):
             idx1 = self.treatment_1 == treatment_id
             # slice where treatment_id, k appears as drug2
             idx2 = self.treatment_2 == treatment_id
-            if idx1.sum() + idx2.sum() == 0:
+            idx = idx1 | idx2
+
+            idx1_count = np.count_nonzero(idx1)
+            idx2_count = np.count_nonzero(idx2)
+            idx_total = np.count_nonzero(idx)
+
+            if idx_total == 0:
                 # no data seen yet, sample from prior
                 stddev = 1.0 / np.sqrt(self.phi1[treatment_id] * self.eta1)
                 self.V1[treatment_id] = self.rng.normal(0, stddev)
                 continue
 
-            if idx1.sum() == 0:
+            if idx1_count == 0:
                 resid1 = []
                 old_contrib1 = []
                 X1 = np.array([], dtype=FloatingPointType).reshape(
@@ -547,7 +555,7 @@ class SparseDrugCombo(BayesianModel):
                 old_contrib1 = X1 @ self.V1[treatment_id]
                 resid1 = self.y[idx1] - self.Mu[idx1] + old_contrib1
 
-            if idx2.sum() == 0:
+            if idx2_count == 0:
                 resid2 = []
                 old_contrib2 = []
                 X2 = np.array([], dtype=FloatingPointType).reshape(
@@ -562,7 +570,6 @@ class SparseDrugCombo(BayesianModel):
             X = np.concatenate([X1, X2])
             resid = np.concatenate([resid1, resid2])
             old_contrib = np.concatenate([old_contrib1, old_contrib2])
-            idx = idx1 | idx2
 
             # sample form posterior
             Xt = X.transpose()
@@ -574,7 +581,6 @@ class SparseDrugCombo(BayesianModel):
                 self.V1[treatment_id] = sample_mvn_from_precision(
                     Q, mu_part=mu_part, rng=self.rng
                 )
-                # self.V1[treatment_id] = np.clip(self.V1[treatment_id], -10.0, 10.0)
                 self.Mu[idx] += X @ self.V1[treatment_id] - old_contrib
             except LinAlgError:
                 warnings.warn("Numeric instability in Gibbs V-step...")
@@ -585,8 +591,13 @@ class SparseDrugCombo(BayesianModel):
             idx1 = self.treatment_1 == treatment_id
             # slice where treatment_id, k appears as drug2
             idx2 = self.treatment_2 == treatment_id
+            idx = idx1 | idx2
 
-            if (idx1.sum() + idx2.sum()) == 0:
+            idx1_count = np.count_nonzero(idx1)
+            idx2_count = np.count_nonzero(idx2)
+            idx_total = np.count_nonzero(idx)
+
+            if idx_total == 0:
                 # no data seen yet, sample from prior
                 stddev = 1.0 / np.sqrt(self.phi0[treatment_id] * self.eta0)
                 self.V0[treatment_id] = self.rng.normal(0, stddev)
@@ -594,28 +605,27 @@ class SparseDrugCombo(BayesianModel):
 
             old_value = self.V0[treatment_id]
 
-            if idx1.sum() == 0:
+            if idx1_count == 0:
                 resid1 = []
             else:
                 resid1 = self.y[idx1] - self.Mu[idx1] + old_value
 
             # slice where treatment_id, k appears as drug2
-            if idx2.sum() == 0:
+            if idx2_count == 0:
                 resid2 = []
             else:
                 resid2 = self.y[idx2] - self.Mu[idx2] + old_value
 
             # combine slices of data
             resid = np.concatenate([resid1, resid2])
-            idx = idx1 | idx2
-            N = idx.sum()
+
             mean = (
                 self.precision
                 * resid.sum()
-                / (self.precision * N + self.phi0[treatment_id] * self.eta0)
+                / (self.precision * idx_total + self.phi0[treatment_id] * self.eta0)
             )
             stddev = 1.0 / np.sqrt(
-                self.precision * N + self.phi0[treatment_id] * self.eta0
+                self.precision * idx_total + self.phi0[treatment_id] * self.eta0
             )
             self.V0[treatment_id] = self.rng.normal(mean, stddev)
             self.Mu[idx] += self.V0[treatment_id] - old_value
