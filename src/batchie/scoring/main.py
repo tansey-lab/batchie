@@ -2,6 +2,9 @@ from typing import Optional
 
 import numpy as np
 import logging
+
+import tqdm
+
 from batchie.core import (
     Scorer,
     PlatePolicy,
@@ -10,7 +13,7 @@ from batchie.core import (
 )
 from batchie.distance_calculation import ChunkedDistanceMatrix
 from batchie.data import Screen, Plate
-
+from tqdm import trange
 
 logger = logging.getLogger(__name__)
 
@@ -24,6 +27,7 @@ def select_next_batch(
     policy: Optional[PlatePolicy],
     batch_size: int = 1,
     rng: Optional[np.random.Generator] = None,
+    progress_bar: bool = False,
 ) -> list[Plate]:
     """
     Select the next batch of :py:class:`batchie.data.Plate`s to observe
@@ -36,6 +40,7 @@ def select_next_batch(
     :param policy: The policy to use for plate selection
     :param batch_size: The number of plates to select
     :param rng: PRNG to use for sampling
+    :param progress_bar: Whether to show a progress bar
     :return: A list of plates to observe
     """
     if rng is None:
@@ -47,7 +52,7 @@ def select_next_batch(
 
     selected_plates = []
 
-    for i in range(batch_size):
+    for i in trange(batch_size, disable=not progress_bar, desc="Batch", position=0):
         logger.info(f"Selecting plate {i+1} of {batch_size}")
 
         if policy is None:
