@@ -15,7 +15,11 @@ from batchie.data import (
     Screen,
     filter_dataset_to_treatments_that_appear_in_at_least_one_combo,
 )
-from batchie.retrospective import reveal_plates, mask_screen, create_holdout_set
+from batchie.retrospective import (
+    reveal_plates,
+    mask_screen,
+    create_plate_balanced_holdout_set_among_masked_plates,
+)
 from typing import Optional
 import logging
 import numpy as np
@@ -254,7 +258,10 @@ def main():
             )
         )
 
-    training_screen, test_screen = create_holdout_set(
+    (
+        training_screen,
+        test_screen,
+    ) = create_plate_balanced_holdout_set_among_masked_plates(
         screen=smoothed_screen, fraction=args.holdout_fraction, rng=rng
     )
 

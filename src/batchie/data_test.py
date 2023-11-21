@@ -38,7 +38,7 @@ def test_encode_treatment_arrays_with_controls_to_0_indexed_ids():
     assert np.sort(result).tolist() == [-1, -1, 0, 1]
 
 
-def test_experiment_props():
+def test_screen_props():
     experiment = Screen(
         observations=np.array([0.1, 0.2, 0, 0]),
         observation_mask=np.array([True, True, False, False]),
@@ -106,7 +106,76 @@ def test_experiment_props():
     assert experiment.subset_unobserved().size == 2
 
 
-def test_experiment_subset_props():
+def test_screen_hardcode_ids():
+    screen = Screen(
+        observations=np.array([0.1, 0.2, 0, 0]),
+        observation_mask=np.array([True, True, False, False]),
+        sample_names=np.array(["a", "b", "c", "d"], dtype=str),
+        plate_names=np.array(["a", "a", "b", "b"], dtype=str),
+        treatment_names=np.array(
+            [["a", "b"], ["a", "b"], ["a", "b"], ["a", "b"]], dtype=str
+        ),
+        treatment_doses=np.array([[2.0, 2.0], [1.0, 2.0], [2.0, 1.0], [2.0, 0]]),
+        treatment_ids=np.array([[0, 1], [0, 9], [0, 1], [0, 1]]),
+        sample_ids=np.array([0, 1, 4, 5]),
+        plate_ids=np.array([0, 0, 2, 2]),
+    )
+
+    np.testing.assert_array_equal(
+        screen.treatment_ids, np.array([[0, 1], [0, 9], [0, 1], [0, 1]])
+    )
+
+    np.testing.assert_array_equal(screen.sample_ids, np.array([0, 1, 4, 5]))
+
+    np.testing.assert_array_equal(screen.plate_ids, np.array([0, 0, 2, 2]))
+
+    with pytest.raises(ValueError):
+        Screen(
+            observations=np.array([0.1, 0.2, 0, 0]),
+            observation_mask=np.array([True, True, False, False]),
+            sample_names=np.array(["a", "b", "c", "d"], dtype=str),
+            plate_names=np.array(["a", "a", "b", "b"], dtype=str),
+            treatment_names=np.array(
+                [["a", "b"], ["a", "b"], ["a", "b"], ["a", "b"]], dtype=str
+            ),
+            treatment_doses=np.array([[2.0, 2.0], [1.0, 2.0], [2.0, 1.0], [2.0, 0]]),
+            treatment_ids=np.array([[0, 1], [0, 9], [0, 1], [0, 1]]),
+            sample_ids=np.array([0, 1, 4]),
+            plate_ids=np.array([0, 0, 2, 2]),
+        )
+
+    with pytest.raises(ValueError):
+        Screen(
+            observations=np.array([0.1, 0.2, 0, 0]),
+            observation_mask=np.array([True, True, False, False]),
+            sample_names=np.array(["a", "b", "c", "d"], dtype=str),
+            plate_names=np.array(["a", "a", "b", "b"], dtype=str),
+            treatment_names=np.array(
+                [["a", "b"], ["a", "b"], ["a", "b"], ["a", "b"]], dtype=str
+            ),
+            treatment_doses=np.array([[2.0, 2.0], [1.0, 2.0], [2.0, 1.0], [2.0, 0]]),
+            treatment_ids=np.array([[0, 1], [0, 9], [0, 1], [0, 1]]),
+            sample_ids=np.array([0, 1, 4, 3]),
+            plate_ids=np.array([0, 0, 2]),
+        )
+
+    with pytest.raises(ValueError):
+        Screen(
+            observations=np.array([0.1, 0.2, 0, 0]),
+            observation_mask=np.array([True, True, False, False]),
+            sample_names=np.array(["a", "b", "c", "d"], dtype=str),
+            plate_names=np.array(["a", "a", "b", "b"], dtype=str),
+            treatment_names=np.array(
+                [["a", "b"], ["a", "b"], ["a", "b"], ["a", "b"]], dtype=str
+            ),
+            treatment_doses=np.array([[2.0, 2.0], [1.0, 2.0], [2.0, 1.0]]),
+            treatment_ids=np.array([[0, 1], [0, 9], [0, 1], [0, 1]]),
+            sample_ids=np.array([0, 1, 4, 3]),
+            plate_ids=np.array([0, 0, 2, 2]),
+        )
+
+
+def test_screen_subset_props():
     experiment = Screen(
         observations=np.array([0.1, 0.2, 0, 0]),
         observation_mask=np.array([True, True, False, False]),
@@ -159,7 +228,7 @@ def test_plate_merge():
     numpy.testing.assert_array_equal(screen.plate_ids, np.array([0, 0, 1, 1]))
 
 
-def test_experiment_subset_combine_and_concat():
+def test_screen_subset_combine_and_concat():
     experiment = Screen(
         observations=np.array([0.1, 0.2, 0, 0]),
         observation_mask=np.array([True, True, False, False]),
@@ -183,7 +252,7 @@ def test_experiment_subset_combine_and_concat():
     assert Plate.concat([experiment_subset1, experiment_subset2]).size == 4
 
 
-def test_experiment_validates_observation_mask():
+def test_screen_validates_observation_mask():
     with pytest.raises(ValueError):
         Screen(
             observations=np.array([0.1, 0.2, 0, 0]),
@@ -197,7 +266,7 @@ def test_experiment_validates_observation_mask():
         )
 
 
-def test_experiment_initialization_succeeds_under_correct_condition():
+def test_screen_initialization_succeeds_under_correct_condition():
     result = Screen(
         observations=np.array([0.1, 0.2, 0.3, 0.4]),
         sample_names=np.array(["a", "b", "c", "d"], dtype=str),
@@ -216,7 +285,7 @@ def test_experiment_initialization_succeeds_under_correct_condition():
     )
 
 
-def test_experiment_serialization():
+def test_screen_serialization():
     dset = Screen(
         observations=np.array([0.1, 0.2, 0.3, 0.4]),
         sample_names=np.array(["a", "b", "c", "d"], dtype=str),
@@ -276,7 +345,7 @@ def test_filter_dataset_to_treatments_that_appear_in_at_least_one_combo():
     assert result.treatment_arity == 2
 
 
-def test_experiment_subset():
+def test_screen_subset():
     test_experiment = Screen(
         observations=np.array([0.1, 0.2, 0.3, 0.4]),
         sample_names=np.array(["a", "b", "c", "d"], dtype=str),

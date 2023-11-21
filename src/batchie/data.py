@@ -501,6 +501,9 @@ class Screen(ScreenBase):
         observations: Optional[ArrayType] = None,
         observation_mask: Optional[ArrayType] = None,
         control_treatment_name="",
+        treatment_ids: Optional[ArrayType] = None,
+        sample_ids: Optional[ArrayType] = None,
+        plate_ids: Optional[ArrayType] = None,
     ):
         self.control_treatment_name = control_treatment_name
         if (
@@ -593,11 +596,37 @@ class Screen(ScreenBase):
             control_treatment_name=self.control_treatment_name,
         )
 
-        self._treatment_ids = np.vstack(
-            np.split(all_dose_class_combos_encoded, treatment_names.shape[1])
-        ).T
-        self._sample_ids = encode_1d_array_to_0_indexed_ids(sample_names)
-        self._plate_ids = encode_1d_array_to_0_indexed_ids(plate_names)
+        if treatment_ids is not None:
+            if treatment_ids.shape != treatment_names.shape:
+                raise ValueError(
+                    "treatment_ids must have same shape as treatment_names"
+                )
+            if not np.issubdtype(treatment_ids.dtype, int):
+                raise ValueError("treatment_ids must be ints")
+            self._treatment_ids = treatment_ids
+        else:
+            self._treatment_ids = np.vstack(
+                np.split(all_dose_class_combos_encoded, treatment_names.shape[1])
+            ).T
+
+        if sample_ids is not None:
+            if sample_ids.shape != sample_names.shape:
+                raise ValueError("sample_ids must have same shape as sample_names")
+            if not np.issubdtype(sample_ids.dtype, int):
+                raise ValueError("sample_ids must be ints")
+            self._sample_ids = sample_ids
+        else:
+            self._sample_ids = encode_1d_array_to_0_indexed_ids(sample_names)
+
+        if plate_ids is not None:
+            if plate_ids.shape != plate_names.shape:
+                raise ValueError("plate_ids must have same shape as plate_names")
+            if not np.issubdtype(plate_ids.dtype, int):
+                raise ValueError("plate_ids must be ints")
+            self._plate_ids = plate_ids
+        else:
+            self._plate_ids = encode_1d_array_to_0_indexed_ids(plate_names)
+
         self._observations = observations
         self._observation_mask = observation_mask
         self.sample_names = sample_names
