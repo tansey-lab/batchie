@@ -44,6 +44,7 @@ def generate_data(
 
 def run_benchmark():
     data = generate_data()
+    data = Screen.load_h5("/Users/jquinn/Documents/test.screen.h5")
 
     print("Generated {} observations".format(data.size))
     print("Unique samples: {}".format(data.n_unique_samples))

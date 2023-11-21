@@ -306,9 +306,13 @@ class SparseDrugCombo(BayesianModel):
         y = logit(np.clip(data.observations, a_min=0.01, a_max=0.99))
 
         self.y = np.concatenate([self.y, y])
+        self.y.flags.writeable = False
         self.sample_ids = np.concatenate([self.sample_ids, data.sample_ids])
+        self.sample_ids.flags.writeable = False
         self.treatment_1 = np.concatenate([self.treatment_1, data.treatment_ids[:, 0]])
+        self.treatment_1.flags.writeable = False
         self.treatment_2 = np.concatenate([self.treatment_2, data.treatment_ids[:, 1]])
+        self.treatment_2.flags.writeable = False
 
     def reset_model(self):
         self.W = self.W * 0.0
@@ -328,8 +332,6 @@ class SparseDrugCombo(BayesianModel):
         self.tau = 100.0 * np.ones(self.n_embedding_dimensions, FloatingPointType)
         self.tau0 = 100.0
         self.gam = np.ones(self.n_embedding_dimensions, FloatingPointType)
-        self.alpha = 0.0
-        self.precision = 100.0
         self.Mu = np.zeros(0, FloatingPointType)
 
     def set_model_state(self, model_state: SparseDrugComboMCMCSample):
@@ -399,7 +401,9 @@ class SparseDrugCombo(BayesianModel):
         and solve the linear problem"""
         for sample_id in range(self.n_unique_samples):
             cidx = self.sample_ids == sample_id
-            if cidx.sum() == 0:
+            cidx_len = np.count_nonzero(cidx)
+
+            if cidx_len == 0:
                 # no data seen yet, sample from prior
                 stddev = 1.0 / np.sqrt(self.tau)
                 self.W[sample_id] = self.rng.normal(0.0, stddev)
@@ -438,14 +442,16 @@ class SparseDrugCombo(BayesianModel):
     def _W0_step(self):
         for sample_id in range(self.n_unique_samples):
             cidx = self.sample_ids == sample_id
-            if cidx.sum() == 0:
+            cidx_len = np.count_nonzero(cidx)
+
+            if cidx_len == 0:
                 # sample from prior
                 stddev = 1.0 / np.sqrt(self.tau0)
                 self.W0[sample_id] = self.rng.normal(0.0, stddev)
             else:
                 resid = self.y[cidx] - self.Mu[cidx] + self.W0[sample_id]
                 old_contrib = self.W0[sample_id]
-                N = cidx.sum()
+                N = cidx_len
                 mean = self.precision * resid.sum() / (self.precision * N + self.tau0)
                 stddev = 1.0 / np.sqrt(self.precision * N + self.tau0)
                 self.W0[sample_id] = self.rng.normal(mean, stddev)
@@ -648,10 +654,16 @@ class SparseDrugCombo(BayesianModel):
             bn = phiaux2 + 0.5 * self.eta2 * self.V2**2
             self.phi2 = self.rng.gamma(1.0, 1.0 / (bn + 1e-3))
             N1 = np.array(
-                [(self.treatment_1 == c).sum() for c in range(self.n_unique_treatments)]
+                [
+                    np.count_nonzero(self.treatment_1 == c)
+                    for c in range(self.n_unique_treatments)
+                ]
             )
             N2 = np.array(
-                [(self.treatment_2 == c).sum() for c in range(self.n_unique_treatments)]
+                [
+                    np.count_nonzero(self.treatment_2 == c)
+                    for c in range(self.n_unique_treatments)
+                ]
             )
             C = 1.0 / np.sqrt(1.0 + N1 + N2)
             self.phi2 = np.clip(self.phi2, C[:, None], 1e6)
@@ -669,10 +681,16 @@ class SparseDrugCombo(BayesianModel):
             bn = phiaux1 + 0.5 * self.eta1 * self.V1**2
             self.phi1 = self.rng.gamma(1.0, 1.0 / (bn + 1e-3))
             N1 = np.array(
-                [(self.treatment_1 == c).sum() for c in range(self.n_unique_treatments)]
+                [
+                    np.count_nonzero(self.treatment_1 == c)
+                    for c in range(self.n_unique_treatments)
+                ]
             )
             N2 = np.array(
-                [(self.treatment_2 == c).sum() for c in range(self.n_unique_treatments)]
+                [
+                    np.count_nonzero(self.treatment_2 == c)
+                    for c in range(self.n_unique_treatments)
+                ]
             )
             C = 1.0 / np.sqrt(1.0 + N1 + N2)
             self.phi1 = np.clip(self.phi1, C[:, None], 1e6)
@@ -690,10 +708,16 @@ class SparseDrugCombo(BayesianModel):
             bn = phiaux0 + 0.5 * self.eta0 * self.V0**2
             self.phi0 = self.rng.gamma(1.0, 1.0 / (bn + 1e-3))  # +0.01 for stability
             N1 = np.array(
-                [(self.treatment_1 == c).sum() for c in range(self.n_unique_treatments)]
+                [
+                    np.count_nonzero(self.treatment_1 == c)
+                    for c in range(self.n_unique_treatments)
+                ]
             )
             N2 = np.array(
-                [(self.treatment_2 == c).sum() for c in range(self.n_unique_treatments)]
+                [
+                    np.count_nonzero(self.treatment_2 == c)
+                    for c in range(self.n_unique_treatments)
+                ]
             )
             C = 1.0 / np.sqrt(1.0 + N1 + N2)
             self.phi0 = np.clip(self.phi0, C, 1e6)
