@@ -1,4 +1,6 @@
 import numpy as np
+import tqdm
+
 from batchie.common import ArrayType
 from batchie.core import (
     Scorer,
@@ -176,12 +178,15 @@ class GaussianDBALScorer(Scorer):
         distance_matrix: ChunkedDistanceMatrix,
         samples: ThetaHolder,
         rng: np.random.Generator,
+        progress_bar: bool,
     ) -> dict[int, float]:
         variances = np.array([samples.get_variance(i) for i in range(samples.n_thetas)])
 
         n_subs = np.ceil(len(plates) / self.max_chunk)
         plate_subgroups = np.array_split(np.arange(len(plates)), n_subs)
         dense_distance_matrix = distance_matrix.to_dense()
+
+        progress_bar = tqdm.tqdm(total=len(plate_subgroups), disable=not progress_bar)
 
         result = {}
         for plate_subgroup in plate_subgroups:
@@ -207,6 +212,7 @@ class GaussianDBALScorer(Scorer):
                 rng=rng,
             )
             result.update(dict(zip([x.plate_id for x in current_plates], vals)))
+            progress_bar.update(len(current_plates))
 
         if len(result) != len(plates):
             raise ValueError(

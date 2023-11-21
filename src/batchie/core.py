@@ -361,6 +361,7 @@ class Scorer:
         distance_matrix: DistanceMatrix,
         samples: ThetaHolder,
         rng: np.random.Generator,
+        progress_bar: bool,
     ) -> dict[int, FloatingPointType]:
         raise NotImplementedError
 
@@ -522,4 +523,28 @@ class RetrospectivePlateSmoother(ABC):
 
     @abstractmethod
     def _smooth_plates(self, screen: Screen, rng: np.random.BitGenerator) -> Screen:
+        raise NotImplementedError
+
+
+class ScoresHolder(ABC):
+    """
+    This class represents a set of scores for a set of plates.
+    """
+
+    def get_score(self, plate_id: int) -> float:
+        """
+        Get the score for a given plate.
+
+        :param plate_id: The plate id to get the score for.
+        :return: The score for the given plate.
+        """
+        raise NotImplementedError
+
+    def add_score(self, plate_id: int, score: float):
+        """
+        Add a score for a given plate.
+
+        :param plate_id: The plate id to add the score for.
+        :param score: The score to add.
+        """
         raise NotImplementedError
