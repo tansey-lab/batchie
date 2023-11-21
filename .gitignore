@@ -145,3 +145,6 @@ output/
 work/
 .nextflow*
 coverage.json
+
+# profiler output
+.prof
