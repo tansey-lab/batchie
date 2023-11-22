@@ -1,5 +1,4 @@
 import argparse
-import json
 import logging
 
 from batchie import introspection
@@ -9,7 +8,6 @@ from batchie.cli.argument_parsing import (
     cast_dict_to_type,
     get_prng_from_seed_argument,
 )
-from batchie.common import SELECTED_PLATES_KEY
 from batchie.core import (
     PlatePolicy,
 )
@@ -52,7 +50,7 @@ def get_parser():
 
     parser.add_argument(
         "--output",
-        help="Location of output json file which will contain the plate ids selected.",
+        help="Location of output file which will contain the plate id selected",
         type=str,
         required=True,
     )
@@ -117,9 +115,10 @@ def main():
         rng=rng,
     )
 
-    result_object = {
-        SELECTED_PLATES_KEY: [int(next_plate.plate_id)],
-    }
-
-    with open(args.output, "w") as f:
-        json.dump(result_object, f, indent=4)
+    if next_plate is not None:
+        with open(args.output, "w") as f:
+            f.write(str(next_plate.plate_id))
+    else:
+        logger.info(f"No plate eligible for selection")
+        with open(args.output, "w"):
+            pass

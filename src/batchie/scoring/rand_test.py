@@ -50,6 +50,7 @@ def test_random_scorer(test_dataset):
         samples=mock.MagicMock(),
         rng=rng,
         distance_matrix=mock.MagicMock(),
+        progress_bar=False,
     )
 
     assert len(result) == len(test_dataset.unique_plate_ids)

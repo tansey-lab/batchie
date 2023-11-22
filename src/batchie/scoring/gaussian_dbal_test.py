@@ -217,4 +217,5 @@ def test_gaussian_dbal_scorer(unobserved_dataset, chunked_distance_matrix):
         distance_matrix=chunked_distance_matrix,
         samples=theta_holder,
         rng=rng,
+        progress_bar=False,
     )
