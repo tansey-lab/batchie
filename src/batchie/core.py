@@ -548,3 +548,11 @@ class ScoresHolder(ABC):
         :param score: The score to add.
         """
         raise NotImplementedError
+
+    def plate_id_with_minimum_score(self) -> int:
+        """
+        Get the plate id with the minimum score.
+
+        :return: The plate id with the minimum score.
+        """
+        raise NotImplementedError

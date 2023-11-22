@@ -8,7 +8,6 @@ from batchie.common import FloatingPointType
 from batchie.core import Scorer, PlatePolicy, BayesianModel, ThetaHolder, ScoresHolder
 from batchie.distance_calculation import ChunkedDistanceMatrix
 from batchie.data import Screen, Plate
-from tqdm import trange
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +26,9 @@ class ChunkedScoresHolder(ScoresHolder):
 
     def get_score(self, plate_id: int) -> FloatingPointType:
         return self.scores[self.plate_ids == plate_id][0]
+
+    def plate_id_with_minimum_score(self) -> int:
+        return self.plate_ids[self.scores.argmin()]
 
     def combine(self, other: ScoresHolder):
         self.scores = np.concatenate((other.scores, self.scores))
@@ -64,33 +66,19 @@ class ChunkedScoresHolder(ScoresHolder):
         return scores_holder
 
 
-def select_next_batch(
-    model: BayesianModel,
-    scorer: Scorer,
-    samples: ThetaHolder,
+def select_next_plate(
+    scores: ScoresHolder,
     screen: Screen,
-    distance_matrix: ChunkedDistanceMatrix,
     policy: Optional[PlatePolicy],
-    batch_size: int = 1,
     rng: Optional[np.random.Generator] = None,
-    progress_bar: bool = False,
-    n_chunks: int = 1,
-    chunk_index: int = 0,
-) -> list[Plate]:
+) -> Optional[Plate]:
     """
-    Select the next batch of :py:class:`batchie.data.Plate`s to observe
+    Select the next :py:class:`batchie.data.Plate` to observe
 
-    :param model: The model to use for prediction
-    :param scorer: The scorer to use for plate scoring
-    :param samples: The set of model parameters to use for prediction
+    :param scores: The scores for each plate
     :param screen: The screen which defines the set of plates to choose from
-    :param distance_matrix: The distance matrix between model parameterizations
     :param policy: The policy to use for plate selection
-    :param batch_size: The number of plates to select
     :param rng: PRNG to use for sampling
-    :param progress_bar: Whether to show a progress bar
-    :param n_chunks: The number of chunks to split the scoring calculation into
-    :param chunk_index: The index of the chunk to run
     :return: A list of plates to observe
     """
     if rng is None:
@@ -102,52 +90,30 @@ def select_next_batch(
 
     unobserved_plates = sorted(unobserved_plates, key=lambda p: p.plate_id)
 
-    chunk_plates = np.array_split(unobserved_plates, n_chunks)[chunk_index]
+    if policy is None:
+        eligible_plates = unobserved_plates
+    else:
+        eligible_plates = policy.filter_eligible_plates(
+            observed_plates=observed_plates,
+            unobserved_plates=unobserved_plates,
+            rng=rng,
+        )
+
+    if not eligible_plates:
+        logger.warning("No eligible plates remaining, exiting early.")
+        return
+
+    best_plate_id = scores.plate_id_with_minimum_score()
+    best_plate = screen.get_plate(best_plate_id)
+    best_plate_name = best_plate.plate_name
 
     logger.info(
-        "Scoring chunk {chunk_index} of {n_chunks}, with {len(chunk_plates)} plates"
+        "Best plate: {} (id: {}). Size: {}".format(
+            best_plate_name, best_plate_id, best_plate.size
+        )
     )
 
-    selected_plates = []
-
-    for i in trange(batch_size, disable=not progress_bar, desc="Batch", position=0):
-        logger.info(f"Selecting plate {i+1} of {batch_size}")
-
-        if policy is None:
-            eligible_plates = unobserved_plates
-        else:
-            eligible_plates = policy.filter_eligible_plates(
-                observed_plates=observed_plates,
-                unobserved_plates=unobserved_plates,
-                rng=rng,
-            )
-
-        if not eligible_plates:
-            logger.warning("No eligible plates remaining, exiting early.")
-            break
-
-        scores: dict[int, float] = scorer.score(
-            plates=eligible_plates,
-            model=model,
-            samples=samples,
-            rng=rng,
-            distance_matrix=distance_matrix,
-        )
-
-        best_plate_id = min(scores, key=scores.get)
-
-        # move best plate from unobserved to selected
-        selected_plates.append(
-            unobserved_plates.pop(
-                next(
-                    i
-                    for i, plate in enumerate(unobserved_plates)
-                    if plate.plate_id == best_plate_id
-                )
-            )
-        )
-
-    return selected_plates
+    return best_plate
 
 
 def score_chunk(
@@ -171,10 +137,8 @@ def score_chunk(
     chunk_plates = np.array_split(unobserved_plates, n_chunks)[chunk_index].tolist()
 
     logger.info(
-        "Scoring chunk {chunk_index} of {n_chunks}, with {len(chunk_plates)} plates"
+        f"Scoring chunk {chunk_index+1} of {n_chunks}, with {len(chunk_plates)} plates"
     )
-
-    selected_plates = []
 
     scores_holder = ChunkedScoresHolder(len(chunk_plates))
 
@@ -189,3 +153,5 @@ def score_chunk(
 
     for k, v in scores.items():
         scores_holder.add_score(k, v)
+
+    return scores_holder

@@ -1,28 +1,26 @@
 import argparse
-from itertools import combinations
-import json
+from itertools import product
+
 import numpy as np
 from batchie import introspection
 from batchie import log_config
-from batchie.cli.argument_parsing import (
-    KVAppendAction,
-    cast_dict_to_type,
-    get_prng_from_seed_argument,
-)
-from batchie.core import (
-    BayesianModel,
-    ThetaHolder,
-    Scorer,
-    PlatePolicy,
+from batchie.cli.argument_parsing import KVAppendAction, cast_dict_to_type
+from batchie.common import N_UNIQUE_SAMPLES, N_UNIQUE_TREATMENTS
+from batchie.core import DistanceMetric, BayesianModel, ThetaHolder, Scorer
+from batchie.data import Screen
+from batchie.scoring.main import score_chunk
+from batchie.distance_calculation import (
+    calculate_pairwise_distance_matrix_on_predictions,
 )
 from batchie.distance_calculation import ChunkedDistanceMatrix
-from batchie.data import Screen
-from batchie.scoring.main import select_next_batch
-from batchie.common import N_UNIQUE_SAMPLES, N_UNIQUE_TREATMENTS, SELECTED_PLATES_KEY
+
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def get_parser():
-    parser = argparse.ArgumentParser(description="calculate_distance_matrix.py")
+    parser = argparse.ArgumentParser(description="calculate_scores.py")
     log_config.add_logging_args(parser)
     parser.add_argument(
         "--data",
@@ -45,10 +43,17 @@ def get_parser():
         nargs="+",
     )
     parser.add_argument(
-        "--batch-size",
-        help="Number of plates to select in this batch.",
+        "--n-chunks",
+        help="Number of chunks to parallelize scoring over.",
         type=int,
-        default=4,
+        default=1,
+    )
+
+    parser.add_argument(
+        "--chunk-index",
+        help="Which of the n chunks to calculate in this invocation.",
+        type=int,
+        default=0,
     )
 
     parser.add_argument(
@@ -80,21 +85,8 @@ def get_parser():
     )
 
     parser.add_argument(
-        "--policy",
-        help="Fully qualified name of the PlatePolicy class to use.",
-        type=str,
-    )
-    parser.add_argument(
-        "--policy-param",
-        nargs=1,
-        action=KVAppendAction,
-        metavar="KEY=VALUE",
-        help="Policy parameters",
-    )
-
-    parser.add_argument(
         "--output",
-        help="Location of output json file which will contain the plate ids selected.",
+        help="Location of output h5 file where scores will be saved.",
         type=str,
         required=True,
     )
@@ -138,23 +130,6 @@ def get_args():
     else:
         args.scorer_params = cast_dict_to_type(args.scorer_param, required_args)
 
-    if args.policy is not None:
-        args.policy_cls = introspection.get_class(
-            package_name="batchie", class_name=args.policy, base_class=PlatePolicy
-        )
-
-        required_args = introspection.get_required_init_args_with_annotations(
-            args.policy_cls
-        )
-
-        if not args.policy_param:
-            args.policy_params = {}
-        else:
-            args.policy_params = cast_dict_to_type(args.policy_param, required_args)
-    else:
-        args.policy_cls = None
-        args.policy_params = {}
-
     return args
 
 
@@ -168,34 +143,35 @@ def main():
     args.model_params[N_UNIQUE_TREATMENTS] = screen.n_unique_treatments
 
     model: BayesianModel = args.model_cls(**args.model_params)
+
     scorer: Scorer = args.scorer_cls(**args.scorer_params)
-    theta_holder: ThetaHolder = model.get_results_holder(n_samples=1)
-    thetas = theta_holder.concat([theta_holder.load_h5(x) for x in args.thetas])
+
+    thetas_holder: ThetaHolder = model.get_results_holder(n_samples=1)
+
+    thetas = thetas_holder.concat([thetas_holder.load_h5(x) for x in args.thetas])
+
+    n_plates = sum([1 for p in screen.plates if not p.is_observed])
+
+    logger.info(
+        f"Calculating chunk {args.chunk_index + 1} of {args.n_chunks} "
+        f"over {n_plates} unobserved plates."
+    )
 
     distance_matrix = ChunkedDistanceMatrix.concat(
         [ChunkedDistanceMatrix.load(x) for x in args.distance_matrix]
     )
-    policy = None
-    if args.policy is not None:
-        policy = args.policy_cls(**args.policy_params)
 
-    rng = get_prng_from_seed_argument(args)
-
-    next_batch = select_next_batch(
+    result = score_chunk(
         model=model,
         scorer=scorer,
-        screen=screen,
         distance_matrix=distance_matrix,
-        policy=policy,
         samples=thetas,
-        batch_size=args.batch_size,
-        rng=rng,
+        screen=screen,
+        chunk_index=args.chunk_index,
+        n_chunks=args.n_chunks,
         progress_bar=args.progress,
     )
 
-    result_object = {
-        SELECTED_PLATES_KEY: [int(x.plate_id) for x in next_batch],
-    }
+    logger.info("Saving results to {}".format(args.output))
 
-    with open(args.output, "w") as f:
-        json.dump(result_object, f, indent=4)
+    result.save_h5(args.output)

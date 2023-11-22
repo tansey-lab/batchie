@@ -31,7 +31,7 @@ def test_experiment():
 
 
 def test_select_next_batch_with_policy(test_experiment):
-    scorer = mock.MagicMock(Scorer)
+    scorer = mock.MagicMock(spec=Scorer)
     scorer.score.return_value = {
         1: 0.1,
     }
@@ -40,7 +40,7 @@ def test_select_next_batch_with_policy(test_experiment):
     policy.filter_eligible_plates.return_value = [test_experiment.get_plate(1)]
 
     next_batch = main.select_next_batch(
-        model=mock.MagicMock(BayesianModel),
+        model=mock.MagicMock(spec=BayesianModel),
         scorer=scorer,
         samples=mock.MagicMock(ThetaHolder),
         screen=test_experiment,
@@ -54,10 +54,10 @@ def test_select_next_batch_with_policy(test_experiment):
 
 
 def test_select_next_batch_without_policy(test_experiment):
-    scorer = mock.MagicMock(Scorer)
+    scorer = mock.MagicMock(spec=Scorer)
     scorer.score.return_value = {1: 0.1, 2: 0.01}
     next_batch = main.select_next_batch(
-        model=mock.MagicMock(BayesianModel),
+        model=mock.MagicMock(spec=BayesianModel),
         scorer=scorer,
         samples=mock.MagicMock(ThetaHolder),
         screen=test_experiment,
@@ -67,3 +67,34 @@ def test_select_next_batch_without_policy(test_experiment):
 
     assert len(next_batch) == 1
     assert next_batch[0].plate_id == 2
+
+
+def test_score_chunk(test_experiment):
+    scorer = mock.MagicMock(spec=Scorer)
+    scorer.score.return_value = {0: 0.1}
+    result = main.score_chunk(
+        model=mock.MagicMock(spec=BayesianModel),
+        scorer=scorer,
+        samples=mock.MagicMock(ThetaHolder),
+        screen=test_experiment,
+        distance_matrix=mock.MagicMock(ChunkedDistanceMatrix),
+        progress_bar=True,
+        chunk_index=0,
+        n_chunks=3,
+    )
+
+    assert result.scores.shape == (1,)
+
+    scorer.score.return_value = {0: 0.1, 1: 0.2}
+    result = main.score_chunk(
+        model=mock.MagicMock(spec=BayesianModel),
+        scorer=scorer,
+        samples=mock.MagicMock(ThetaHolder),
+        screen=test_experiment,
+        distance_matrix=mock.MagicMock(ChunkedDistanceMatrix),
+        progress_bar=True,
+        chunk_index=0,
+        n_chunks=1,
+    )
+
+    assert result.scores.shape == (2,)
