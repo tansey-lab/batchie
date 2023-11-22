@@ -1,0 +1,5 @@
+- name: calculate_score_chunk
+  command: nextflow -C ./nextflow/tests/modules/nf-core/batchie/calculate_score_chunk/nextflow.config,./nextflow/tests/config/nextflow.config run ./nextflow/tests/modules/nf-core/batchie/calculate_score_chunk -entry calculate_score_chunk
+  tags:
+    - calculate_score_chunk
+  files: []
