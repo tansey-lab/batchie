@@ -4,7 +4,6 @@ import tempfile
 import pytest
 import numpy as np
 import json
-from batchie.cli import advance_retrospective_simulation
 from batchie.models.sparse_combo import SparseDrugComboResults
 from batchie.data import Screen
 from batchie.common import SELECTED_PLATES_KEY
@@ -82,26 +81,3 @@ def test_main(mocker, training_dataset, test_dataset):
     results_holder.save_h5(os.path.join(tmpdir, "samples.h5"))
 
     mocker.patch("sys.argv", command_line_args)
-
-    with open(os.path.join(tmpdir, "batch_selection.json"), "w") as f:
-        json.dump({SELECTED_PLATES_KEY: [1]}, f)
-
-    with open(os.path.join(tmpdir, "simulation_tracker_input.json"), "w") as f:
-        json.dump({"losses": [0.0], "plate_ids_selected": [[0]], "seed": 0}, f)
-
-    try:
-        advance_retrospective_simulation.main()
-        with open(os.path.join(tmpdir, "simulation_tracker_output.json"), "r") as f:
-            results = json.load(f)
-
-        assert results["plate_ids_selected"][-1] == [1]
-        assert len(results["losses"]) == 2
-
-        exp_output = Screen.load_h5(os.path.join(tmpdir, "advanced_screen.h5"))
-
-        np.testing.assert_array_equal(
-            exp_output.observation_mask,
-            np.array([True, True, True, True, False, False]),
-        )
-    finally:
-        shutil.rmtree(tmpdir)

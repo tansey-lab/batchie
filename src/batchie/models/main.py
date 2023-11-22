@@ -1,7 +1,55 @@
 import numpy as np
+import h5py
 from batchie.core import BayesianModel, ThetaHolder
 from batchie.data import ScreenBase
-from batchie.common import FloatingPointType
+from batchie.common import FloatingPointType, ArrayType
+
+
+class ModelEvaluation:
+    def __init__(
+        self, predictions: ArrayType, observations: ArrayType, chain_ids: ArrayType
+    ):
+        if not np.issubdtype(predictions.dtype, FloatingPointType):
+            raise ValueError("predictions must be floats")
+
+        if not np.issubdtype(observations.dtype, FloatingPointType):
+            raise ValueError("observations must be floats")
+
+        if not np.issubdtype(chain_ids.dtype, int):
+            raise ValueError("chain_ids must be ints")
+
+        if not predictions.shape[0] == observations.shape[0]:
+            raise ValueError(
+                "predictions and observations must have the same number of samples"
+            )
+
+        if not len(predictions.shape) == 2:
+            raise ValueError(
+                "Predictions must be a matrix (one prediction per theta per experiment)"
+            )
+
+        if not chain_ids.shape[0] == predictions.shape[1]:
+            raise ValueError("chain_ids must have one entry per theta")
+
+        self.predictions = predictions
+        self.observations = observations
+        self.chain_ids = chain_ids
+
+    def save_h5(self, fn):
+        with h5py.File(fn, "w") as f:
+            f.create_dataset("predictions", data=self.predictions, compression="gzip")
+            f.create_dataset("observations", data=self.observations, compression="gzip")
+            f.create_dataset("chain_ids", data=self.chain_ids, compression="gzip")
+
+    @classmethod
+    def load_h5(cls, fn):
+        with h5py.File(fn, "r") as f:
+            predictions = f["predictions"][:]
+            observations = f["observations"][:]
+            chain_ids = f["chain_ids"][:]
+            return cls(
+                predictions=predictions, observations=observations, chain_ids=chain_ids
+            )
 
 
 def predict_all(model: BayesianModel, screen: ScreenBase, thetas: ThetaHolder):
