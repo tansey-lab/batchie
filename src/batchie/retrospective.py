@@ -605,14 +605,67 @@ def unmask_screen(screen: Screen) -> Screen:
     )
 
 
-def create_holdout_set(
+def create_random_holdout(
     screen: Screen, fraction: float, rng: np.random.BitGenerator
 ) -> (Screen, Screen):
     """
-    Create a holdout set for a screen
+    Create a random subset of a screen, of size fraction of the original screen.
 
     :param screen: The screen to create a holdout set for
     :param fraction: The fraction of the screen to hold out
+    :return: A tuple of (training_screen, holdout_screen)
+    """
+    if fraction < 0 or fraction > 1:
+        raise ValueError("fraction must be between 0 and 1")
+
+    selection_vector = np.zeros(screen.size, dtype=bool)
+
+    indices = rng.choice(
+        np.arange(screen.size),
+        math.ceil(screen.size * fraction),
+        replace=False,
+    )
+    selection_vector[indices] = True
+
+    keep_screen = Screen(
+        treatment_names=screen.treatment_names[~selection_vector],
+        treatment_doses=screen.treatment_doses[~selection_vector],
+        observations=screen.observations[~selection_vector],
+        sample_names=screen.sample_names[~selection_vector],
+        plate_names=screen.plate_names[~selection_vector],
+        control_treatment_name=screen.control_treatment_name,
+        observation_mask=screen.observation_mask[~selection_vector],
+        treatment_ids=screen.treatment_ids[~selection_vector],
+        sample_ids=screen.sample_ids[~selection_vector],
+        plate_ids=screen.plate_ids[~selection_vector],
+    )
+
+    holdout_screen = Screen(
+        treatment_names=screen.treatment_names[selection_vector],
+        treatment_doses=screen.treatment_doses[selection_vector],
+        observations=screen.observations[selection_vector],
+        sample_names=screen.sample_names[selection_vector],
+        plate_names=screen.plate_names[selection_vector],
+        control_treatment_name=screen.control_treatment_name,
+        observation_mask=np.ones(np.count_nonzero(selection_vector), dtype=bool),
+        treatment_ids=screen.treatment_ids[selection_vector],
+        sample_ids=screen.sample_ids[selection_vector],
+        plate_ids=screen.plate_ids[selection_vector],
+    )
+
+    return keep_screen, holdout_screen
+
+
+def create_plate_balanced_holdout_set_among_masked_plates(
+    screen: Screen, fraction: float, rng: np.random.BitGenerator
+) -> (Screen, Screen):
+    """
+    Create a holdout set from a retrospective screen (where all data
+    is observed but some plates are artificially masked) by sampling
+    a fraction of each unobserved plate.
+
+    :param screen: The screen to create a holdout set for
+    :param fraction: The fraction of each unobserved plate to hold out
     :return: A tuple of (training_screen, holdout_screen)
     """
     if fraction < 0 or fraction > 1:
@@ -636,9 +689,33 @@ def create_holdout_set(
 
         selection_vector[downsampled_indices] = True
 
-    return screen.subset(~selection_vector).to_screen(), unmask_screen(
-        screen.subset(selection_vector).to_screen()
+    keep_screen = Screen(
+        treatment_names=screen.treatment_names[~selection_vector],
+        treatment_doses=screen.treatment_doses[~selection_vector],
+        observations=screen.observations[~selection_vector],
+        sample_names=screen.sample_names[~selection_vector],
+        plate_names=screen.plate_names[~selection_vector],
+        control_treatment_name=screen.control_treatment_name,
+        observation_mask=screen.observation_mask[~selection_vector],
+        treatment_ids=screen.treatment_ids[~selection_vector],
+        sample_ids=screen.sample_ids[~selection_vector],
+        plate_ids=screen.plate_ids[~selection_vector],
     )
+
+    holdout_screen = Screen(
+        treatment_names=screen.treatment_names[selection_vector],
+        treatment_doses=screen.treatment_doses[selection_vector],
+        observations=screen.observations[selection_vector],
+        sample_names=screen.sample_names[selection_vector],
+        plate_names=screen.plate_names[selection_vector],
+        control_treatment_name=screen.control_treatment_name,
+        observation_mask=np.ones(np.count_nonzero(selection_vector), dtype=bool),
+        treatment_ids=screen.treatment_ids[selection_vector],
+        sample_ids=screen.sample_ids[selection_vector],
+        plate_ids=screen.plate_ids[selection_vector],
+    )
+
+    return keep_screen, holdout_screen
 
 
 def reveal_plates(

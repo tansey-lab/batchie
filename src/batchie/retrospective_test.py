@@ -689,7 +689,55 @@ def test_batchie_ensemble_plate_smoother():
     assert result.size == 6
 
 
-def test_create_holdout_set():
+def test_create_random_holdout():
+    input_screen = Screen(
+        observations=np.array([0.1, 0.2, 0.3, 0.4, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6]),
+        sample_names=np.array(
+            ["a", "a", "b", "b", "b", "b", "b", "b", "a", "b"], dtype=str
+        ),
+        plate_names=np.array(
+            ["a", "a", "b", "b", "a", "a", "b", "b", "init", "init"], dtype=str
+        ),
+        treatment_names=np.array(
+            [
+                ["a", "b"],
+                ["a", "b"],
+                ["a", "b"],
+                ["a", "b"],
+                ["a", "b"],
+                ["a", "b"],
+                ["a", "b"],
+                ["a", "b"],
+                ["a", "b"],
+                ["a", "b"],
+            ],
+            dtype=str,
+        ),
+        treatment_doses=np.array(
+            [
+                [2.0, 2.0],
+                [2.0, 2.0],
+                [2.0, 2.0],
+                [2.0, 2.0],
+                [2.0, 2.0],
+                [2.0, 2.0],
+                [2.0, 2.0],
+                [2.0, 2.0],
+                [2.0, 2.0],
+                [2.0, 2.0],
+            ]
+        ),
+    )
+
+    training, test = retrospective.create_random_holdout(
+        input_screen, fraction=0.25, rng=np.random.default_rng(0)
+    )
+
+    assert training.size == 7
+    assert test.size == 3
+
+
+def test_create_plate_balanced_holdout_set_among_masked_plates():
     input_screen = Screen(
         observations=np.array([0.1, 0.2, 0.3, 0.4, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6]),
         observation_mask=np.array(
@@ -732,7 +780,10 @@ def test_create_holdout_set():
         ),
     )
 
-    training, test = retrospective.create_holdout_set(
+    (
+        training,
+        test,
+    ) = retrospective.create_plate_balanced_holdout_set_among_masked_plates(
         input_screen, fraction=0.25, rng=np.random.default_rng(0)
     )
 

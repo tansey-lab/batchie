@@ -6,7 +6,7 @@ from batchie.data import Screen
 import numpy as np
 
 from batchie import sampling
-from batchie.retrospective import calculate_mse
+from batchie.retrospective import calculate_mse, create_random_holdout
 
 
 def generate_data(
@@ -46,7 +46,7 @@ def generate_data(
 
 
 def run_benchmark():
-    data = Screen.load_h5("/Users/jquinn/Documents/test.screen.h5")
+    data = generate_data()
 
     print("Generated {} observations".format(data.size))
     print("Unique samples: {}".format(data.n_unique_samples))
@@ -73,7 +73,7 @@ def run_benchmark():
         seed=0,
         n_chains=1,
         chain_index=0,
-        n_burnin=1000,
+        n_burnin=500,
         thin=2,
         progress_bar=True,
     )
