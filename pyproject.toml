@@ -44,14 +44,15 @@ test = ["pytest", "pytest-mock", "tox", "coverage"]
 "Source" = "https://github.com/tansey-lab/batchie"
 
 [project.scripts]
-train_model = "batchie.cli.train_model:main"
-extract_screen_metadata = "batchie.cli.extract_screen_metadata:main"
-calculate_distance_matrix = "batchie.cli.calculate_distance_matrix:main"
 advance_retrospective_simulation = "batchie.cli.advance_retrospective_simulation:main"
+calculate_distance_matrix = "batchie.cli.calculate_distance_matrix:main"
+calculate_scores = "batchie.cli.calculate_scores:main"
+evaluate_model = "batchie.cli.evaluate_model:main"
+extract_screen_metadata = "batchie.cli.extract_screen_metadata:main"
 prepare_retrospective_simulation = "batchie.cli.prepare_retrospective_simulation:main"
 reveal_plate = "batchie.cli.reveal_plate:main"
 select_next_plate = "batchie.cli.select_next_plate:main"
-calculate_scores = "batchie.cli.calculate_scores:main"
+train_model = "batchie.cli.train_model:main"
 
 [build-system]
 requires = ["setuptools>=43.0.0", "wheel"]
