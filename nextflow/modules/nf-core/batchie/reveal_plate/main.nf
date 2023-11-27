@@ -24,7 +24,7 @@ process REVEAL_PLATE {
     mkdir -p "${prefix}"
     reveal_plate \
         --screen ${screen} \
-        --plate-ids ${plate_ids_joined} \
+        --plate-id ${plate_ids_joined} \
         --output ${prefix}/advanced_screen.h5 \
         ${args}
 
