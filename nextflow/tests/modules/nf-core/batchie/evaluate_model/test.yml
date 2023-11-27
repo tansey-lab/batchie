@@ -1,0 +1,5 @@
+- name: evaluate_model
+  command: nextflow -C ./nextflow/tests/modules/nf-core/batchie/evaluate_model/nextflow.config,./nextflow/tests/config/nextflow.config run ./nextflow/tests/modules/nf-core/batchie/evaluate_model -entry evaluate_model
+  tags:
+    - evaluate_model
+  files: []
