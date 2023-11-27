@@ -1,9 +1,12 @@
+import heapq
+import logging
+from collections import defaultdict
 from typing import Optional
 
-import numpy as np
 import math
-from batchie.common import CONTROL_SENTINEL_VALUE, FloatingPointType
-from batchie.data import Screen, Plate
+import numpy as np
+
+from batchie.common import CONTROL_SENTINEL_VALUE
 from batchie.core import (
     BayesianModel,
     ThetaHolder,
@@ -11,10 +14,8 @@ from batchie.core import (
     RetrospectivePlateGenerator,
     RetrospectivePlateSmoother,
 )
+from batchie.data import Screen, Plate
 from batchie.models.main import predict_avg
-import logging
-from collections import defaultdict
-import heapq
 
 logger = logging.getLogger(__name__)
 

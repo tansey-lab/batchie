@@ -1,6 +1,7 @@
 from collections import defaultdict
 
 import numpy as np
+
 from batchie.core import PlatePolicy
 from batchie.data import Plate
 

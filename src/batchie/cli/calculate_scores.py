@@ -1,20 +1,14 @@
 import argparse
-from itertools import product
+import logging
 
-import numpy as np
 from batchie import introspection
 from batchie import log_config
 from batchie.cli.argument_parsing import KVAppendAction, cast_dict_to_type
 from batchie.common import N_UNIQUE_SAMPLES, N_UNIQUE_TREATMENTS
-from batchie.core import DistanceMetric, BayesianModel, ThetaHolder, Scorer
+from batchie.core import BayesianModel, ThetaHolder, Scorer
 from batchie.data import Screen
-from batchie.scoring.main import score_chunk
-from batchie.distance_calculation import (
-    calculate_pairwise_distance_matrix_on_predictions,
-)
 from batchie.distance_calculation import ChunkedDistanceMatrix
-
-import logging
+from batchie.scoring.main import score_chunk
 
 logger = logging.getLogger(__name__)
 

@@ -1,5 +1,6 @@
 import numpy as np
 import tqdm
+from scipy.special import logsumexp, comb
 
 from batchie.common import ArrayType
 from batchie.core import (
@@ -7,10 +8,9 @@ from batchie.core import (
     BayesianModel,
     ThetaHolder,
 )
+from batchie.data import Plate
 from batchie.distance_calculation import ChunkedDistanceMatrix
 from batchie.models.main import predict_all
-from batchie.data import Plate
-from scipy.special import logsumexp, comb
 
 
 def generate_combination_at_sorted_index(index, n, k):

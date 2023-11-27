@@ -1,9 +1,11 @@
+from unittest import mock
+
 import numpy as np
 import pytest
-from batchie.scoring import gaussian_dbal
-from unittest import mock
+
 from batchie.core import BayesianModel, Screen, ThetaHolder
 from batchie.distance_calculation import ChunkedDistanceMatrix
+from batchie.scoring import gaussian_dbal
 
 
 @pytest.fixture

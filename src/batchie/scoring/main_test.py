@@ -1,19 +1,20 @@
+import os
+import shutil
+import tempfile
 from unittest import mock
 
 import numpy as np
 import pytest
-import tempfile
-import shutil
-import os
+
 from batchie.core import (
     BayesianModel,
     ThetaHolder,
     Scorer,
     PlatePolicy,
 )
+from batchie.data import Screen
 from batchie.distance_calculation import ChunkedDistanceMatrix
 from batchie.scoring import main
-from batchie.data import Screen
 
 
 @pytest.fixture()

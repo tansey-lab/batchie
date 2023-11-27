@@ -1,10 +1,11 @@
+import json
+import logging
 from abc import ABC, abstractmethod
 
-import json
 import numpy as np
+
 from batchie.common import ArrayType, FloatingPointType
 from batchie.data import ScreenBase, Plate, Screen
-import logging
 
 logger = logging.getLogger(__name__)
 

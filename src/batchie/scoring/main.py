@@ -1,13 +1,13 @@
+import logging
 from typing import Optional
 
-import numpy as np
-import logging
 import h5py
+import numpy as np
 
 from batchie.common import FloatingPointType
 from batchie.core import Scorer, PlatePolicy, BayesianModel, ThetaHolder, ScoresHolder
-from batchie.distance_calculation import ChunkedDistanceMatrix
 from batchie.data import Screen, Plate
+from batchie.distance_calculation import ChunkedDistanceMatrix
 
 logger = logging.getLogger(__name__)
 

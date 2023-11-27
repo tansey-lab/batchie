@@ -1,12 +1,13 @@
-import numpy as np
-import tempfile
 import os
 import shutil
+import tempfile
 
-from batchie.models import main
+import numpy as np
+
 from batchie.common import FloatingPointType
-from batchie.core import BayesianModel, ThetaHolder, ScreenBase
+from batchie.core import BayesianModel, ThetaHolder
 from batchie.data import Screen
+from batchie.models import main
 
 
 def test_model_evaluation():

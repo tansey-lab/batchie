@@ -1,12 +1,14 @@
 import os.path
 import shutil
 import tempfile
-import pytest
+
 import numpy as np
-from batchie.models.sparse_combo import SparseDrugComboResults
-from batchie.models.main import ModelEvaluation
-from batchie.data import Screen
+import pytest
+
 from batchie.cli import evaluate_model
+from batchie.data import Screen
+from batchie.models.main import ModelEvaluation
+from batchie.models.sparse_combo import SparseDrugComboResults
 
 
 @pytest.fixture

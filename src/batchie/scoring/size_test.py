@@ -2,6 +2,7 @@ from unittest import mock
 
 import numpy as np
 import pytest
+
 from batchie.data import Screen
 from batchie.scoring import size
 

@@ -9,8 +9,9 @@ process SELECT_NEXT_PLATE {
     tuple val(meta), path(data), path(scores)
 
     output:
-    tuple val(meta), env(SELECTED_PLATE), emit: selected_plate
-    path  "versions.yml"                , emit: versions
+    tuple val(meta), env(SELECTED_PLATE)             , emit: selected_plate
+    tuple val(meta), file("${prefix}/selected_plate"), emit: selected_plate_file
+    path  "versions.yml"                             , emit: versions
 
 
     when:

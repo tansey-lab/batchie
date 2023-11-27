@@ -1,8 +1,10 @@
 import os.path
 import shutil
 import tempfile
-import pytest
+
 import numpy as np
+import pytest
+
 from batchie.cli import reveal_plate
 from batchie.data import Screen
 

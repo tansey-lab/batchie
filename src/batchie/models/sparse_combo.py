@@ -5,6 +5,9 @@ from typing import Optional
 
 import h5py
 import numpy as np
+from numpy.random import Generator
+from scipy.linalg import LinAlgError
+from scipy.special import logit, expit
 
 from batchie.common import (
     ArrayType,
@@ -14,9 +17,6 @@ from batchie.common import (
 from batchie.core import BayesianModel, Theta, ThetaHolder
 from batchie.data import ScreenBase
 from batchie.fast_mvn import sample_mvn_from_precision
-from numpy.random import Generator
-from scipy.special import logit, expit
-from scipy.linalg import LinAlgError
 
 logger = logging.getLogger(__name__)
 

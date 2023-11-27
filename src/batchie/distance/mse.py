@@ -1,7 +1,8 @@
 import numpy as np
+from scipy.special import expit
+
 from batchie.common import ArrayType
 from batchie.core import DistanceMetric
-from scipy.special import expit
 
 
 class MSEDistance(DistanceMetric):

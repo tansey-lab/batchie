@@ -1,11 +1,13 @@
 import os.path
 import shutil
 import tempfile
-import pytest
+
 import numpy as np
+import pytest
+
 from batchie.cli import select_next_plate
-from batchie.scoring.main import ChunkedScoresHolder
 from batchie.data import Screen
+from batchie.scoring.main import ChunkedScoresHolder
 
 
 @pytest.fixture

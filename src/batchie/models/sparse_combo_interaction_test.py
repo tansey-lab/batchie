@@ -2,6 +2,7 @@ import tempfile
 
 import numpy as np
 import pytest
+
 from batchie.data import Screen
 from batchie.models import sparse_combo_interaction
 

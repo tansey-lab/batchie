@@ -1,7 +1,9 @@
-import numpy.random
-from batchie.core import BayesianModel, ThetaHolder
-from tqdm import trange
 import logging
+
+import numpy.random
+from tqdm import trange
+
+from batchie.core import BayesianModel, ThetaHolder
 
 logger = logging.getLogger(__name__)
 

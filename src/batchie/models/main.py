@@ -1,9 +1,9 @@
-import numpy as np
 import h5py
+import numpy as np
+
+from batchie.common import FloatingPointType, ArrayType
 from batchie.core import BayesianModel, ThetaHolder
 from batchie.data import ScreenBase
-from batchie.common import FloatingPointType, ArrayType
-import scipy
 
 
 class ModelEvaluation:

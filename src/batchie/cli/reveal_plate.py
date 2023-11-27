@@ -1,16 +1,9 @@
 import argparse
-import json
-import os.path
 import logging
 
-from batchie import introspection
 from batchie import log_config
-from batchie.cli.argument_parsing import KVAppendAction, cast_dict_to_type
-from batchie.core import BayesianModel, ThetaHolder, SimulationTracker
 from batchie.data import Screen
-from batchie.common import SELECTED_PLATES_KEY, N_UNIQUE_SAMPLES, N_UNIQUE_TREATMENTS
-from batchie.retrospective import reveal_plates, calculate_mse
-
+from batchie.retrospective import reveal_plates
 
 logger = logging.getLogger(__name__)
 
