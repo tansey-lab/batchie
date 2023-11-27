@@ -9,4 +9,8 @@ workflow {
     if (params.mode == 'prospective') {
         PROSPECTIVE (  )
     }
+
+    if (params.mode == 'next_plate') {
+        SELECT_NEXT_BATCH_PLATE (  )
+    }
 }

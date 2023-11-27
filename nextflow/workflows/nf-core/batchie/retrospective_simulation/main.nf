@@ -29,7 +29,7 @@ workflow RETROSPECTIVE {
 
     def prepared_input = null
 
-    if (params.initialize == true) {
+    if (params.initialize == "true") {
         def input_tuple = tuple([id:name], file(params.screen))
         def input_value_channel = Channel.fromList( [input_tuple] )
         PREPARE_RETROSPECTIVE_SIMULATION( input_value_channel )

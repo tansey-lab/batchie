@@ -39,6 +39,12 @@ def get_args():
         help="Path to screen",
     )
     parser.add_argument(
+        "--batch-size",
+        type=int,
+        default=1,
+        help="How many plates to select each iteration (using the same trained model)",
+    )
+    parser.add_argument(
         "--outdir", type=str, required=True, help="Path to output directory"
     )
     args, remaining_args = parser.parse_known_args()
@@ -47,9 +53,6 @@ def get_args():
 
 
 def validate_output_dir_and_get_result_files_as_dict(output_dir):
-    simulation_tracker = list(
-        glob.glob(os.path.join(output_dir, "*", "simulation_tracker_output.json"))
-    )
     advanced_screen_glob = list(
         glob.glob(os.path.join(output_dir, "*", "advanced_screen.h5"))
     )
@@ -60,15 +63,10 @@ def validate_output_dir_and_get_result_files_as_dict(output_dir):
         glob.glob(os.path.join(output_dir, "*", "n_remaining_plates"))
     )
 
-    if (
-        len(simulation_tracker) == 0
-        or len(advanced_screen_glob) == 0
-        or len(n_remaining_plates) == 0
-    ):
+    if len(advanced_screen_glob) == 0 or len(n_remaining_plates) == 0:
         return None
 
     advanced_screen = advanced_screen_glob[0]
-    simulation_tracker = simulation_tracker[0]
 
     n_remaining_plates = n_remaining_plates[0]
     test_screen = test_screen_glob[0]
@@ -77,18 +75,13 @@ def validate_output_dir_and_get_result_files_as_dict(output_dir):
         n_remaining_plates = int(f.read().strip())
 
     return {
-        "simulation_tracker": simulation_tracker,
         "advanced_screen": advanced_screen,
         "test_screen": test_screen,
         "n_remaining_plates": n_remaining_plates,
     }
 
 
-def run_nextflow_step(
-    output_dir,
-    screen,
-    extra_args,
-):
+def run_nextflow_step(output_dir, screen, extra_args, batch_size):
     os.makedirs(output_dir, exist_ok=True)
 
     experiment_name, _ = os.path.splitext(os.path.basename(screen))
@@ -119,67 +112,99 @@ def run_nextflow_step(
 
     current_iteration = current_iteration + 1
 
-    next_output_dir = os.path.join(output_dir, str(current_iteration))
+    next_output_dir = os.path.join(output_dir, f"iter_{current_iteration}")
 
-    if latest_result_files is None:
-        os.makedirs(next_output_dir, exist_ok=True)
-        logger.info(f"Running iteration {current_iteration}")
+    for i in range(batch_size):
+        sub_output_dir = os.path.join(output_dir, f"plate_{i}")
+        os.makedirs(sub_output_dir, exist_ok=True)
+        logger.info(f"Running iteration {current_iteration}, plate {i}")
 
-        subprocess.check_call(
-            [
-                "nextflow",
-                "run",
-                get_main_nf_file(),
-                "--mode",
-                "retrospective",
-                "--screen",
-                screen,
-                "--name",
-                experiment_name,
-                "--outdir",
-                next_output_dir,
-                "-work-dir",
-                os.path.join(next_output_dir, "work"),
-            ]
-            + extra_args,
-            cwd=get_repository_root(),
-        )
-        return True
+        if i == 0:
+            if latest_result_files is None:
+                os.makedirs(next_output_dir, exist_ok=True)
 
-    else:
-        if latest_result_files["n_remaining_plates"] == 0:
-            logger.info("No remaining plates, exiting")
-            return False
+                subprocess.check_call(
+                    [
+                        "nextflow",
+                        "run",
+                        get_main_nf_file(),
+                        "--mode",
+                        "retrospective",
+                        "--screen",
+                        screen,
+                        "--name",
+                        experiment_name,
+                        "--outdir",
+                        next_output_dir,
+                        "--initialize",
+                        "true",
+                        "-work-dir",
+                        os.path.join(sub_output_dir, "work"),
+                    ]
+                    + extra_args,
+                    cwd=get_repository_root(),
+                )
+                return True
+
+            else:
+                if latest_result_files["n_remaining_plates"] == 0:
+                    logger.info("No remaining plates, exiting")
+                    return False
+                else:
+                    logger.info(f"Running iteration {current_iteration}")
+                    logger.info(
+                        f"{latest_result_files['n_remaining_plates']} remaining plates"
+                    )
+
+                os.makedirs(next_output_dir, exist_ok=True)
+
+                subprocess.check_call(
+                    [
+                        "nextflow",
+                        "run",
+                        get_main_nf_file(),
+                        "--mode",
+                        "retrospective",
+                        "--simulation_name",
+                        experiment_name,
+                        "--simulation_tracker",
+                        latest_result_files["simulation_tracker"],
+                        "--training_screen",
+                        latest_result_files["advanced_screen"],
+                        "--test_screen",
+                        latest_result_files["test_screen"],
+                        "--outdir",
+                        next_output_dir,
+                        "--initialize",
+                        "false",
+                        "-work-dir",
+                        os.path.join(sub_output_dir, "work"),
+                    ]
+                    + extra_args,
+                    cwd=get_repository_root(),
+                )
+                return True
         else:
-            logger.info(f"Running iteration {current_iteration}")
-            logger.info(f"{latest_result_files['n_remaining_plates']} remaining plates")
-
-        os.makedirs(next_output_dir, exist_ok=True)
-
-        subprocess.check_call(
-            [
-                "nextflow",
-                "run",
-                get_main_nf_file(),
-                "--mode",
-                "retrospective",
-                "--simulation_name",
-                experiment_name,
-                "--simulation_tracker",
-                latest_result_files["simulation_tracker"],
-                "--training_screen",
-                latest_result_files["advanced_screen"],
-                "--test_screen",
-                latest_result_files["test_screen"],
-                "--outdir",
-                next_output_dir,
-                "-work-dir",
-                os.path.join(next_output_dir, "work"),
-            ]
-            + extra_args,
-            cwd=get_repository_root(),
-        )
-        return True
+            logger.info(f"Running plate {i}")
+            subprocess.check_call(
+                [
+                    "nextflow",
+                    "run",
+                    get_main_nf_file(),
+                    "--mode",
+                    "next_plate",
+                    "--screen",
+                    screen,
+                    "--name",
+                    experiment_name,
+                    "--outdir",
+                    sub_output_dir,
+                    "-work-dir",
+                    os.path.join(sub_output_dir, "work"),
+                ]
+                + extra_args,
+                cwd=get_repository_root(),
+            )
 
 
 def main():
@@ -189,6 +214,7 @@ def main():
             output_dir=os.path.abspath(args.outdir),
             screen=os.path.abspath(args.screen),
             extra_args=remaining_args,
+            batch_size=args.batch_size,
         )
 
         if not should_run_again:
