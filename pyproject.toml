@@ -44,7 +44,6 @@ test = ["pytest", "pytest-mock", "tox", "coverage"]
 "Source" = "https://github.com/tansey-lab/batchie"
 
 [project.scripts]
-advance_retrospective_simulation = "batchie.cli.advance_retrospective_simulation:main"
 calculate_distance_matrix = "batchie.cli.calculate_distance_matrix:main"
 calculate_scores = "batchie.cli.calculate_scores:main"
 evaluate_model = "batchie.cli.evaluate_model:main"

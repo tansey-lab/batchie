@@ -34,18 +34,19 @@ workflow RUN_RETROSPECTIVE_STEP {
 
     CALCULATE_DISTANCE_MATRIX_CHUNK( meta_exp_theta_chunk_idx_n_chunks )
 
-    meta_exp_theta_dist = ch_input.map { tuple(it[0], it[1]) }
+    ch_input.map { tuple(it[0], it[1]) }
         .join(TRAIN_MODEL.out.thetas.groupTuple())
         .join(CALCULATE_DISTANCE_MATRIX_CHUNK.out.distance_matrix_chunk.groupTuple())
-        .tap { meta_exp_theta_dist }
+        .combine(dist_input, by: 0)
+        .tap { score_chunk_input }
 
-    SELECT_NEXT_BATCH( meta_exp_theta_dist )
+    CALCULATE_SCORE_CHUNK( score_chunk_input )
 
-    advance_retrospective_simulation_input = ch_input.map { tuple(it[0], it[1], it[2]) }
-        .join(TRAIN_MODEL.out.thetas.groupTuple())
-        .join(SELECT_NEXT_BATCH.out.selected_plates)
-        .join(ch_input.map { tuple(it[0], it[3]) })
-        .tap { advance_retrospective_simulation_input }
+    ch_input.map { tuple(it[0], it[1]) }
+        .join(CALCULATE_SCORE_CHUNK.out.score_chunk.groupTuple())
+        .tap { select_next_plate_input }
+
+    SELECT_NEXT_PLATE( select_next_plate_input )
 
     ADVANCE_RETROSPECTIVE_SIMULATION( advance_retrospective_simulation_input )
 
