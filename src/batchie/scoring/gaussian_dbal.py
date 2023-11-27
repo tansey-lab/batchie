@@ -180,6 +180,9 @@ class GaussianDBALScorer(Scorer):
         rng: np.random.Generator,
         progress_bar: bool,
     ) -> dict[int, float]:
+        if not len(plates):
+            return {}
+
         variances = np.array([samples.get_variance(i) for i in range(samples.n_thetas)])
 
         n_subs = np.ceil(len(plates) / self.max_chunk)
