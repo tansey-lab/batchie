@@ -21,13 +21,13 @@ workflow RUN_RETROSPECTIVE_STEP {
     ch_input  // channel: [ val(meta), path(training_screen), path(test_screen), val(n_chains), val(n_chunks) ]
 
     main:
-    ch_input.flatMap { create_parallel_sequence(it[0], it[4]) }.tap { chain_sequence }
+    ch_input.flatMap { create_parallel_sequence(it[0], it[3]) }.tap { chain_sequence }
 
     ch_input.map { tuple(it[0], it[1]) }.combine(chain_sequence, by: 0).tap { train_model_input }
 
     TRAIN_MODEL( train_model_input )
 
-    ch_input.flatMap { create_parallel_sequence(it[0], it[5]) }.tap { dist_input }
+    ch_input.flatMap { create_parallel_sequence(it[0], it[4]) }.tap { dist_input }
 
     ch_input
         .map { tuple(it[0], it[1], it[2]) }
