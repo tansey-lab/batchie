@@ -1,7 +1,9 @@
 include { CALCULATE_DISTANCE_MATRIX_CHUNK } from '../../../../modules/nf-core/batchie/calculate_distance_matrix_chunk/main'
-include { SELECT_NEXT_BATCH } from '../../../../modules/nf-core/batchie/select_next_batch/main'
+include { CALCULATE_SCORE_CHUNK } from '../../../../modules/nf-core/batchie/calculate_score_chunk/main'
+include { EVALUATE_MODEL } from '../../../../modules/nf-core/batchie/evaluate_model/main'
+include { REVEAL_PLATE } from '../../../../modules/nf-core/batchie/reveal_plate/main'
+include { SELECT_NEXT_PLATE } from '../../../../modules/nf-core/batchie/select_next_plate/main'
 include { TRAIN_MODEL } from '../../../../modules/nf-core/batchie/train_model/main'
-include { ADVANCE_RETROSPECTIVE_SIMULATION } from '../../../../modules/nf-core/batchie/advance_retrospective_simulation/main'
 
 
 def create_parallel_sequence(meta, n_par) {
@@ -16,7 +18,7 @@ def create_parallel_sequence(meta, n_par) {
 
 workflow RUN_RETROSPECTIVE_STEP {
     take:
-    ch_input  // channel: [ val(meta), path(training_screen), path(test_screen), path(experiment_tracker), val(n_chains), val(n_chunks) ]
+    ch_input  // channel: [ val(meta), path(training_screen), path(test_screen), val(n_chains), val(n_chunks) ]
 
     main:
     ch_input.flatMap { create_parallel_sequence(it[0], it[4]) }.tap { chain_sequence }
@@ -28,11 +30,18 @@ workflow RUN_RETROSPECTIVE_STEP {
     ch_input.flatMap { create_parallel_sequence(it[0], it[5]) }.tap { dist_input }
 
     ch_input
+        .map { tuple(it[0], it[1], it[2]) }
+        .join(TRAIN_MODEL.out.thetas.groupTuple())
+        .tap { evaluate_model_input }
+
+    EVALUATE_MODEL( evaluate_model_input )
+
+    ch_input
         .map { tuple(it[0], it[1]) }
         .join(TRAIN_MODEL.out.thetas.groupTuple())
-        .combine(dist_input, by: 0).tap { meta_exp_theta_chunk_idx_n_chunks }
+        .combine(dist_input, by: 0).tap { calculate_distance_matrix_chunk_input }
 
-    CALCULATE_DISTANCE_MATRIX_CHUNK( meta_exp_theta_chunk_idx_n_chunks )
+    CALCULATE_DISTANCE_MATRIX_CHUNK( calculate_distance_matrix_chunk_input )
 
     ch_input.map { tuple(it[0], it[1]) }
         .join(TRAIN_MODEL.out.thetas.groupTuple())
@@ -48,14 +57,12 @@ workflow RUN_RETROSPECTIVE_STEP {
 
     SELECT_NEXT_PLATE( select_next_plate_input )
 
-    ADVANCE_RETROSPECTIVE_SIMULATION( advance_retrospective_simulation_input )
+    ch_input.map { tuple(it[0], it[1]) }
+        .join(SELECT_NEXT_PLATE.out.selected_plate.groupTuple())
+        .tap { reveal_plate_input }
 
-    ADVANCE_RETROSPECTIVE_SIMULATION.out.advanced_screen
-        .join(ch_input.map { tuple(it[0], it[2]) })
-        .join(ADVANCE_RETROSPECTIVE_SIMULATION.out.simulation_tracker)
-        .join(ch_input.map { tuple(it[0], it[4], it[5]) })
-        .tap { output_channel }
+    REVEAL_PLATE( reveal_plate_input )
 
     emit:
-    ch_output       = output_channel
+    ch_output       = REVEAL_PLATE.out.advanced_screen
 }
