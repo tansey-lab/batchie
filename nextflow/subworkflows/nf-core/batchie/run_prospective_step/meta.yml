@@ -5,19 +5,20 @@ keywords:
 
 components:
   - batchie/calculate_distance_metric_chunk
-  - batchie/select_next_batch
+  - batchie/select_next_plate
   - batchie/train_model
+  - batchie/calculate_score_chunk
 
 input:
   - ch_input:
       description: |
         An input channel containing experiment and up-to-date series of batch selections and losses
-        Structure: [  val(meta), path(experiment), val(n_chains), val(n_chunks) ]
+        Structure: [ val(meta), path(experiment), val(n_chains), val(n_chunks) ]
 
 output:
   - ch_output:
       description: |
-        The selected plates to run next (json file describing the plate selection)
-        Structure: [ val(meta), path(selected_plates) ]
+        The selected plates to run next
+        Structure: [ val(meta), val(selected_plates) ]
 authors:
   - "@jeffquinn-msk"

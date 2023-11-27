@@ -30,9 +30,9 @@ workflow RUN_PROSPECTIVE_STEP {
     ch_input
         .map { tuple(it[0], it[1]) }
         .join(TRAIN_MODEL.out.thetas.groupTuple())
-        .combine(dist_input, by: 0).tap { meta_exp_theta_chunk_idx_n_chunks }
+        .combine(dist_input, by: 0).tap { calculate_distance_matrix_chunk_input }
 
-    CALCULATE_DISTANCE_MATRIX_CHUNK( meta_exp_theta_chunk_idx_n_chunks )
+    CALCULATE_DISTANCE_MATRIX_CHUNK( calculate_distance_matrix_chunk_input )
 
     ch_input.map { tuple(it[0], it[1]) }
         .join(TRAIN_MODEL.out.thetas.groupTuple())
