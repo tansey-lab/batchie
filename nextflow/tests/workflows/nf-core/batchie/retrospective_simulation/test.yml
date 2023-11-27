@@ -3,3 +3,8 @@
   tags:
     - retrospective_simulation
   files: []
+- name: retrospective_simulation_iter
+  command: nextflow -C ./nextflow/tests/workflows/nf-core/batchie/retrospective_simulation/iter.config,./nextflow/tests/config/nextflow.config run ./nextflow/tests/workflows/nf-core/batchie/retrospective_simulation -entry retrospective_simulation_test
+  tags:
+    - retrospective_simulation
+  files: []

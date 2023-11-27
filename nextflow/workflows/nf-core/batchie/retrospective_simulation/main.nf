@@ -29,21 +29,20 @@ workflow RETROSPECTIVE {
 
     def prepared_input = null
 
-    if (params.simulation_tracker == null) {
+    if (params.initialize == true) {
         def input_tuple = tuple([id:name], file(params.screen))
         def input_value_channel = Channel.fromList( [input_tuple] )
         PREPARE_RETROSPECTIVE_SIMULATION( input_value_channel )
 
         prepared_input = PREPARE_RETROSPECTIVE_SIMULATION.out.training_screen
             .join(PREPARE_RETROSPECTIVE_SIMULATION.out.test_screen)
-            .map { tuple(it[0], it[1], it[2], [], params.n_chains, params.n_chunks) }
+            .map { tuple(it[0], it[1], it[2], params.n_chains, params.n_chunks) }
             .collect()
     } else {
         def intermediate_input_tuple = tuple(
             [id:params.simulation_name],
             file(params.training_screen),
             file(params.test_screen),
-            file(params.simulation_tracker),
             params.n_chains,
             params.n_chunks
             )
