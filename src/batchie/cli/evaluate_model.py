@@ -117,8 +117,12 @@ def main():
         model=model,
     ).T
 
-    ModelEvaluation(
+    me = ModelEvaluation(
         observations=test_screen.observations,
         predictions=predictions,
         chain_ids=chain_ids,
     )
+
+    logger.info(f"Saving ModelEvaluation to {args.output}")
+
+    me.save_h5(args.output)

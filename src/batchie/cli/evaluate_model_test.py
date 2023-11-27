@@ -3,10 +3,10 @@ import shutil
 import tempfile
 import pytest
 import numpy as np
-import json
 from batchie.models.sparse_combo import SparseDrugComboResults
+from batchie.models.main import ModelEvaluation
 from batchie.data import Screen
-from batchie.common import SELECTED_PLATES_KEY
+from batchie.cli import evaluate_model
 
 
 @pytest.fixture
@@ -46,38 +46,41 @@ def test_dataset():
 def test_main(mocker, training_dataset, test_dataset):
     tmpdir = tempfile.mkdtemp()
     command_line_args = [
-        "advance_retrospective_simulation",
+        "evaluate_model",
         "--model",
         "SparseDrugCombo",
         "--model-param",
-        "n_embedding_dimensions=2",
+        "n_embedding_dimensions=5",
         "--test-screen",
         os.path.join(tmpdir, "test.screen.h5"),
         "--training-screen",
         os.path.join(tmpdir, "training.screen.h5"),
         "--thetas",
         os.path.join(tmpdir, "samples.h5"),
-        "--simulation-tracker-input",
-        os.path.join(tmpdir, "simulation_tracker_input.json"),
-        "--simulation-tracker-output",
-        os.path.join(tmpdir, "simulation_tracker_output.json"),
-        "--batch-selection",
-        os.path.join(tmpdir, "batch_selection.json"),
-        "--screen-output",
-        os.path.join(tmpdir, "advanced_screen.h5"),
+        "--output",
+        os.path.join(tmpdir, "model_evaluation.h5"),
     ]
 
     training_dataset.save_h5(os.path.join(tmpdir, "training.screen.h5"))
     test_dataset.save_h5(os.path.join(tmpdir, "test.screen.h5"))
+
+    n_thetas = 10
     results_holder = SparseDrugComboResults(
-        n_thetas=10,
+        n_thetas=n_thetas,
         n_unique_samples=training_dataset.n_unique_samples,
         n_unique_treatments=training_dataset.n_unique_treatments,
         n_embedding_dimensions=5,
     )
 
-    results_holder._cursor = 10
+    results_holder._cursor = n_thetas
 
     results_holder.save_h5(os.path.join(tmpdir, "samples.h5"))
 
     mocker.patch("sys.argv", command_line_args)
+
+    try:
+        evaluate_model.main()
+        me = ModelEvaluation.load_h5(os.path.join(tmpdir, "model_evaluation.h5"))
+        assert me.predictions.shape == (test_dataset.size, n_thetas)
+    finally:
+        shutil.rmtree(tmpdir)

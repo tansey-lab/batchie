@@ -3,6 +3,7 @@ import h5py
 from batchie.core import BayesianModel, ThetaHolder
 from batchie.data import ScreenBase
 from batchie.common import FloatingPointType, ArrayType
+import scipy
 
 
 class ModelEvaluation:

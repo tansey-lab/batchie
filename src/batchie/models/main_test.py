@@ -21,7 +21,12 @@ def test_model_evaluation():
             predictions=preds, observations=obs, chain_ids=chain_ids
         )
         me.save_h5(os.path.join(tmpdir, "model_evaluation.h5"))
-        main.ModelEvaluation.load_h5(os.path.join(tmpdir, "model_evaluation.h5"))
+        new_me = main.ModelEvaluation.load_h5(
+            os.path.join(tmpdir, "model_evaluation.h5")
+        )
+
+        assert np.allclose(me.predictions, new_me.predictions)
+        assert np.allclose(me.observations, new_me.observations)
     finally:
         shutil.rmtree(tmpdir)
 
