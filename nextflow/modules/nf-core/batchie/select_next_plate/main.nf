@@ -1,16 +1,15 @@
-process SELECT_NEXT_BATCH {
+process SELECT_NEXT_PLATE {
     tag "$meta.id"
-    label 'process_long'
-    label 'process_high_memory'
+    label 'process_single'
     container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
         'docker://jeffquinnmsk/batchie:latest' :
         'docker.io/jeffquinnmsk/batchie:latest' }"
 
     input:
-    tuple val(meta), path(data), path(thetas), path(distance_matrix)
+    tuple val(meta), path(data), path(scores)
 
     output:
-    tuple val(meta), path("${prefix}/selected_plates.json"), emit: selected_plates
+    tuple val(meta), env(SELECTED_PLATE), emit: selected_plate
     path  "versions.yml"                , emit: versions
 
 
@@ -22,11 +21,12 @@ process SELECT_NEXT_BATCH {
     def args = task.ext.args ?: ""
     """
     mkdir -p "${prefix}"
-    select_next_batch --data ${data} \
-        --thetas ${thetas} \
-        --distance-matrix ${distance_matrix} \
-        --output "${prefix}/selected_plates.json" \
+    select_next_plate --data ${data} \
+        --scores ${scores} \
+        --output "${prefix}/selected_plate" \
         ${args}
+
+    SELECTED_PLATE=\$(cat ${prefix}/selected_plate)
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":

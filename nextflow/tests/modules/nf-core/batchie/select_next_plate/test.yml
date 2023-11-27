@@ -1,0 +1,5 @@
+- name: select_next_plate
+  command: nextflow -C ./nextflow/tests/modules/nf-core/batchie/select_next_plate/nextflow.config,./nextflow/tests/config/nextflow.config run ./nextflow/tests/modules/nf-core/batchie/select_next_plate -entry select_next_plate
+  tags:
+    - select_next_plate
+  files: []

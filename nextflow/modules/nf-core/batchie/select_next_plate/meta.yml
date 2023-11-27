@@ -1,0 +1,38 @@
+name: select_next_plate
+description: Select the next best unobserved plate to observe
+keywords:
+  - active_learning
+tools:
+  - select_next_plate:
+      description: |
+        Select the next best unobserved plate
+      homepage: https://batchie.readthedocs.io/en/latest/command_line_interface.html#select-next-plate
+      documentation: https://batchie.readthedocs.io/en/latest/command_line_interface.html#select-next-plate
+      licence: []
+      args_id: "$args"
+input:
+  - meta:
+      type: map
+      description: |
+        Groovy Map containing sample information
+        e.g. [ id:'test', single_end:false ]
+  - data:
+      type: file
+      description: |
+        Batchie experiment file (.h5) as documented at
+        https://batchie.readthedocs.io/en/latest/data_format.html#experiment-format
+  - scores:
+      type: file
+      description: |
+        h5 file containing plate scores (.h5)
+
+output:
+  - selected_plate:
+      type: val
+      description: id of next best plate
+  - versions:
+      type: file
+      description: File containing software versions
+      pattern: "versions.yml"
+authors:
+  - "@jeffquinn-msk"

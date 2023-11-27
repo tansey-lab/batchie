@@ -31,9 +31,10 @@ class ChunkedScoresHolder(ScoresHolder):
         return self.plate_ids[self.scores.argmin()]
 
     def combine(self, other: ScoresHolder):
-        self.scores = np.concatenate((other.scores, self.scores))
-        self.plate_ids = np.concatenate((other.plate_ids, self.plate_ids))
+        self.scores = np.concatenate((self.scores, other.scores))
+        self.plate_ids = np.concatenate((self.plate_ids, other.plate_ids))
         self.current_index += len(other.scores)
+        return self
 
     @classmethod
     def concat(cls, scores_list: list[ScoresHolder]):

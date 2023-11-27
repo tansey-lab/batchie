@@ -2,6 +2,9 @@ from unittest import mock
 
 import numpy as np
 import pytest
+import tempfile
+import shutil
+import os
 from batchie.core import (
     BayesianModel,
     ThetaHolder,
@@ -28,6 +31,60 @@ def test_screen():
             [[2.0, 2.0], [1.0, 2.0], [2.0, 1.0], [2.0, 0.1], [2.0, 1.0], [2.0, 1.0]]
         ),
     )
+
+
+def test_chunked_scores_holder():
+    scores = main.ChunkedScoresHolder(size=1)
+    scores.add_score(1, 0.1)
+
+    tmpdir = tempfile.mkdtemp()
+
+    scores.save_h5(os.path.join(tmpdir, "scores.h5"))
+
+    scores_read = main.ChunkedScoresHolder.load_h5(os.path.join(tmpdir, "scores.h5"))
+
+    assert scores_read.scores[0] == 0.1
+    assert scores_read.plate_ids[0] == 1
+
+    try:
+        pass
+    finally:
+        shutil.rmtree(tmpdir)
+
+
+def test_chunked_scores_holder_empty():
+    scores = main.ChunkedScoresHolder(size=0)
+
+    tmpdir = tempfile.mkdtemp()
+
+    scores.save_h5(os.path.join(tmpdir, "scores.h5"))
+
+    scores_read = main.ChunkedScoresHolder.load_h5(os.path.join(tmpdir, "scores.h5"))
+
+    assert scores_read.scores.size == 0
+    assert scores_read.plate_ids.size == 0
+    try:
+        pass
+    finally:
+        shutil.rmtree(tmpdir)
+
+
+def test_chunked_scores_holder_concat():
+    scores0 = main.ChunkedScoresHolder(size=0)
+    scores1 = main.ChunkedScoresHolder(size=1)
+    scores1.add_score(1, 0.1)
+    scores2 = main.ChunkedScoresHolder(size=2)
+    scores2.add_score(2, 0.2)
+    scores2.add_score(3, 0.3)
+
+    concatted = main.ChunkedScoresHolder.concat([scores0, scores1, scores2])
+
+    assert concatted.scores[0] == 0.1
+    assert concatted.plate_ids[0] == 1
+    assert concatted.scores[1] == 0.2
+    assert concatted.plate_ids[1] == 2
+    assert concatted.scores[2] == 0.3
+    assert concatted.plate_ids[2] == 3
 
 
 def test_select_next_plate_with_policy(test_screen):
