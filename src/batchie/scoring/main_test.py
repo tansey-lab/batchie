@@ -117,7 +117,7 @@ def test_score_chunk(test_screen):
     result = main.score_chunk(
         model=mock.MagicMock(spec=BayesianModel),
         scorer=scorer,
-        samples=mock.MagicMock(ThetaHolder),
+        thetas=mock.MagicMock(ThetaHolder),
         screen=test_screen,
         distance_matrix=mock.MagicMock(ChunkedDistanceMatrix),
         progress_bar=True,
@@ -131,7 +131,7 @@ def test_score_chunk(test_screen):
     result = main.score_chunk(
         model=mock.MagicMock(spec=BayesianModel),
         scorer=scorer,
-        samples=mock.MagicMock(ThetaHolder),
+        thetas=mock.MagicMock(ThetaHolder),
         screen=test_screen,
         distance_matrix=mock.MagicMock(ChunkedDistanceMatrix),
         progress_bar=True,

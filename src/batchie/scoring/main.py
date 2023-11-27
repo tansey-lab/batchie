@@ -120,18 +120,39 @@ def select_next_plate(
 def score_chunk(
     model: BayesianModel,
     scorer: Scorer,
-    samples: ThetaHolder,
+    thetas: ThetaHolder,
     screen: Screen,
     distance_matrix: ChunkedDistanceMatrix,
     rng: Optional[np.random.Generator] = None,
     progress_bar: bool = False,
     n_chunks: int = 1,
     chunk_index: int = 0,
+    exclude_plates: Optional[list[int]] = None,
 ) -> ChunkedScoresHolder:
+    """
+    Score a subset of all unobserved plates in a screen.
+
+    :param model: The model to use for scoring
+    :param scorer: The scorer to use for scoring
+    :param thetas: The samples to use for scoring
+    :param screen: The screen to score
+    :param distance_matrix: The distance matrix to use for scoring
+    :param rng: PRNG to use for sampling
+    :param progress_bar: Whether to show a progress bar
+    :param n_chunks: The number of chunks to split the unobserved plates into
+    :param chunk_index: The index of the chunk to score
+    :param exclude_plates: A list of plate ids to exclude from scoring
+    :return: ChunkedScoresHolder containing the scores for each plate in the current chunk
+    """
     if rng is None:
         rng = np.random.default_rng()
 
     unobserved_plates = [plate for plate in screen.plates if not plate.is_observed]
+
+    if exclude_plates is not None:
+        unobserved_plates = [
+            plate for plate in unobserved_plates if plate.plate_id not in exclude_plates
+        ]
 
     unobserved_plates = sorted(unobserved_plates, key=lambda p: p.plate_id)
 
@@ -146,7 +167,7 @@ def score_chunk(
     scores: dict[int, float] = scorer.score(
         plates=chunk_plates,
         model=model,
-        samples=samples,
+        samples=thetas,
         rng=rng,
         distance_matrix=distance_matrix,
         progress_bar=progress_bar,

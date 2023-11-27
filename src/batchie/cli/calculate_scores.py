@@ -83,7 +83,13 @@ def get_parser():
         metavar="KEY=VALUE",
         help="Scorer parameters",
     )
-
+    parser.add_argument(
+        "--exclude-plate-id",
+        help="The plate(s) to exclude from scoring.",
+        nargs="+",
+        type=int,
+        default=list(),
+    )
     parser.add_argument(
         "--output",
         help="Location of output h5 file where scores will be saved.",
@@ -150,7 +156,13 @@ def main():
 
     thetas = thetas_holder.concat([thetas_holder.load_h5(x) for x in args.thetas])
 
-    n_plates = sum([1 for p in screen.plates if not p.is_observed])
+    n_plates = sum(
+        [
+            1
+            for p in screen.plates
+            if not p.is_observed and p.plate_id not in args.exclude_plate_id
+        ]
+    )
 
     logger.info(
         f"Calculating chunk {args.chunk_index + 1} of {args.n_chunks} "
@@ -165,11 +177,12 @@ def main():
         model=model,
         scorer=scorer,
         distance_matrix=distance_matrix,
-        samples=thetas,
+        thetas=thetas,
         screen=screen,
         chunk_index=args.chunk_index,
         n_chunks=args.n_chunks,
         progress_bar=args.progress,
+        exclude_plates=args.exclude_plate_id,
     )
 
     logger.info("Saving results to {}".format(args.output))

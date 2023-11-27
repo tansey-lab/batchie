@@ -88,3 +88,52 @@ def test_main(mocker, test_dataset, test_dist_matrix):
         assert result.scores.size == 1
     finally:
         shutil.rmtree(tmpdir)
+
+
+def test_main_exclude(mocker, test_dataset, test_dist_matrix):
+    tmpdir = tempfile.mkdtemp()
+    command_line_args = [
+        "calculate_scores",
+        "--model",
+        "SparseDrugCombo",
+        "--model-param",
+        "n_embedding_dimensions=2",
+        "--scorer",
+        "RandomScorer",
+        "--data",
+        os.path.join(tmpdir, "data.h5"),
+        "--thetas",
+        os.path.join(tmpdir, "samples.h5"),
+        "--output",
+        os.path.join(tmpdir, "results.json"),
+        "--distance-matrix",
+        os.path.join(tmpdir, "distance_matrix.h5"),
+        "--output",
+        os.path.join(tmpdir, "scores.h5"),
+        "--exclude-plate-id",
+        "1",
+    ]
+
+    test_dataset.save_h5(os.path.join(tmpdir, "data.h5"))
+    results_holder = SparseDrugComboResults(
+        n_thetas=10,
+        n_unique_samples=test_dataset.n_unique_samples,
+        n_unique_treatments=test_dataset.n_unique_treatments,
+        n_embedding_dimensions=5,
+    )
+
+    results_holder._cursor = 10
+
+    results_holder.save_h5(os.path.join(tmpdir, "samples.h5"))
+
+    mocker.patch("sys.argv", command_line_args)
+
+    test_dist_matrix.save(os.path.join(tmpdir, "distance_matrix.h5"))
+
+    try:
+        calculate_scores.main()
+        result = ChunkedScoresHolder.load_h5(os.path.join(tmpdir, "scores.h5"))
+
+        assert result.scores.size == 1
+    finally:
+        shutil.rmtree(tmpdir)
