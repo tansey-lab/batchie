@@ -16,36 +16,18 @@ def create_parallel_sequence(meta, n_par) {
 }
 
 
-workflow RUN_RETROSPECTIVE_STEP {
+workflow SELECT_NEXT_BATCH_PLATE {
     take:
-    ch_input  // channel: [ val(meta), path(screen), path(thetas), val(n_chunks) ]
+    ch_input  // channel: [ val(meta), path(screen), path(thetas), path(distance_matrix_chunks), val(n_chunks), val(reveal) ]
 
     main:
-    ch_input.flatMap { create_parallel_sequence(it[0], it[3]) }.tap { chain_sequence }
-
-    ch_input.map { tuple(it[0], it[1]) }.combine(chain_sequence, by: 0).tap { train_model_input }
-
-    TRAIN_MODEL( train_model_input )
-
     ch_input.flatMap { create_parallel_sequence(it[0], it[4]) }.tap { dist_input }
-
-    ch_input
-        .map { tuple(it[0], it[1], it[2]) }
-        .join(TRAIN_MODEL.out.thetas.groupTuple())
-        .tap { evaluate_model_input }
-
-    EVALUATE_MODEL( evaluate_model_input )
-
-    ch_input
-        .map { tuple(it[0], it[1]) }
-        .join(TRAIN_MODEL.out.thetas.groupTuple())
-        .combine(dist_input, by: 0).tap { calculate_distance_matrix_chunk_input }
-
-    CALCULATE_DISTANCE_MATRIX_CHUNK( calculate_distance_matrix_chunk_input )
+    ch_input.map { tuple(it[0], it[2]) }.tap { thetas }
+    ch_input.map { tuple(it[0], it[3]) }.tap { distance_matrix_chunks }
 
     ch_input.map { tuple(it[0], it[1]) }
-        .join(TRAIN_MODEL.out.thetas.groupTuple())
-        .join(CALCULATE_DISTANCE_MATRIX_CHUNK.out.distance_matrix_chunk.groupTuple())
+        .join(thetas)
+        .join(distance_matrix_chunks)
         .combine(dist_input, by: 0)
         .tap { score_chunk_input }
 
@@ -57,12 +39,11 @@ workflow RUN_RETROSPECTIVE_STEP {
 
     SELECT_NEXT_PLATE( select_next_plate_input )
 
-    ch_input.map { tuple(it[0], it[1]) }
-        .join(SELECT_NEXT_PLATE.out.selected_plate.groupTuple())
-        .tap { reveal_plate_input }
+    if (params.reveal) {
+        ch_input.map { tuple(it[0], it[1]) }
+            .join(SELECT_NEXT_PLATE.out.selected_plate.groupTuple())
+            .tap { reveal_plate_input }
 
-    REVEAL_PLATE( reveal_plate_input )
-
-    emit:
-    ch_output       = REVEAL_PLATE.out.advanced_screen
+        REVEAL_PLATE( reveal_plate_input )
+    }
 }
