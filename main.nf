@@ -1,5 +1,6 @@
 include { RETROSPECTIVE } from './nextflow/workflows/nf-core/batchie/retrospective_simulation/main.nf'
 include { PROSPECTIVE } from './nextflow/workflows/nf-core/batchie/prospective/main.nf'
+include { NEXT_BATCH_PLATE } from './nextflow/workflows/nf-core/batchie/next_batch_plate/main.nf'
 
 workflow {
     if (params.mode == 'retrospective') {
@@ -11,6 +12,6 @@ workflow {
     }
 
     if (params.mode == 'next_plate') {
-        SELECT_NEXT_BATCH_PLATE (  )
+        NEXT_BATCH_PLATE (  )
     }
 }
