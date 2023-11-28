@@ -235,9 +235,6 @@ def examine_output_dir_to_determine_current_iteration(output_dir, batch_size):
         contents_of_iter_directory = glob.glob(iter_dir + "/plate_*")
         plate_dirs = [x for x in contents_of_iter_directory if os.path.isdir(x)]
 
-        if len(plate_dirs) == batch_size:
-            continue
-
         plate_dirs = sorted(plate_dirs, key=dir_sort_key)
 
         current_plate_idx = 0
@@ -246,49 +243,53 @@ def examine_output_dir_to_determine_current_iteration(output_dir, batch_size):
             plate_idx = dir_sort_key(plate_dir)
 
             if validate_job_dir_and_return_meta(plate_dir) is None:
-                print("last_successful_run_meta is None")
-                break
+                raise RuntimeError(
+                    f"Found job dir with invalid structure. "
+                    f"Consider deleting this directory to continue simulation: {plate_dir}"
+                )
 
             if plate_idx != idx:
-                print("plate_idx != idx")
-                break
+                raise RuntimeError(
+                    f"Found job dir with no apparent ancestor. "
+                    f"Consider deleting this directory to continue simulation: {plate_dir}"
+                )
 
             current_plate_idx = plate_idx
             current_iter_index = dir_sort_key(iter_dir)
             last_successful_run_meta = validate_job_dir_and_return_meta(plate_dir)
 
     if last_successful_run_meta is None:
-        print("last_successful_run_meta is None")
-        return 0, 0, None
+        return 0, 0, None, None
 
     if current_plate_idx >= batch_size - 1:
-        print("current_plate_idx >= batch_size - 1")
         next_iter_index = current_iter_index + 1
         next_plate_index = 0
     else:
-        print("current_plate_idx < batch_size - 1")
         next_iter_index = current_iter_index
         next_plate_index = current_plate_idx + 1
 
-    return next_iter_index, next_plate_index, last_successful_run_meta
+    return (
+        next_iter_index,
+        next_plate_index,
+        last_successful_run_meta,
+        get_screen_from_job_output(plate_dir),
+    )
 
 
-def run_next_step(output_dir, screen, extra_args, batch_size):
+def run_next_step(output_dir, input_screen, extra_args, batch_size):
     os.makedirs(output_dir, exist_ok=True)
 
-    experiment_name, _ = os.path.splitext(os.path.basename(screen))
+    experiment_name, _ = os.path.splitext(os.path.basename(input_screen))
 
     (
         current_iter_index,
         current_plate_idx,
         last_successful_run_meta,
-        batch_init_results,
+        current_screen,
     ) = examine_output_dir_to_determine_current_iteration(output_dir, batch_size)
 
     if last_successful_run_meta is not None:
-        plates_remaining = last_successful_run_meta["screen_metadata"][
-            "n_unobserved_plates"
-        ]
+        plates_remaining = last_successful_run_meta["n_unobserved_plates"]
 
         logger.info(f"Plates remaining: {plates_remaining}")
 
@@ -309,14 +310,14 @@ def run_next_step(output_dir, screen, extra_args, batch_size):
     if (current_iter_index, current_plate_idx) == (0, 0):
         run_initial_plate(
             output_dir=job_output_dir,
-            screen=screen,
+            screen=input_screen,
             experiment_name=experiment_name,
             extra_args=extra_args,
         )
     elif current_plate_idx == 0:
         run_first_batch_plate(
             output_dir=job_output_dir,
-            screen=screen,
+            screen=current_screen,
             experiment_name=experiment_name,
             extra_args=extra_args,
         )
@@ -330,7 +331,7 @@ def run_next_step(output_dir, screen, extra_args, batch_size):
 
         run_subsequent_batch_plate(
             output_dir=job_output_dir,
-            screen=screen,
+            screen=current_screen,
             experiment_name=experiment_name,
             extra_args=extra_args,
             thetas=theta_and_dist_chunks["thetas"],
@@ -344,7 +345,7 @@ def main():
     while True:
         should_run_again = run_next_step(
             output_dir=os.path.abspath(args.outdir),
-            screen=os.path.abspath(args.screen),
+            input_screen=os.path.abspath(args.screen),
             extra_args=remaining_args,
             batch_size=args.batch_size,
         )

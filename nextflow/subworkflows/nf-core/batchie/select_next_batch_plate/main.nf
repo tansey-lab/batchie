@@ -41,7 +41,7 @@ workflow SELECT_NEXT_BATCH_PLATE {
 
     output = ch_input.map { tuple(it[0], it[1]) }
 
-    if (params.reveal == "true") {
+    if (params.reveal) {
         ch_input.map { tuple(it[0], it[1]) }
             .join(SELECT_NEXT_PLATE.out.selected_plate.groupTuple())
             .tap { reveal_plate_input }
