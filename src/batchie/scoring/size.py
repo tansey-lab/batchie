@@ -21,6 +21,7 @@ class SizeScorer(Scorer):
         distance_matrix: ChunkedDistanceMatrix,
         samples: ThetaHolder,
         rng: np.random.Generator,
+        progress_bar: bool,
     ) -> dict[int, float]:
         scores = {plate.plate_id: plate.size for plate in plates}
         return scores

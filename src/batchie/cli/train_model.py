@@ -1,4 +1,5 @@
 import argparse
+import logging
 
 from batchie import introspection
 from batchie import log_config
@@ -7,7 +8,6 @@ from batchie.cli.argument_parsing import KVAppendAction, cast_dict_to_type
 from batchie.common import N_UNIQUE_SAMPLES, N_UNIQUE_TREATMENTS
 from batchie.core import BayesianModel, ThetaHolder
 from batchie.data import Screen
-import logging
 
 logger = logging.getLogger(__name__)
 

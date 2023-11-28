@@ -2,6 +2,7 @@ from unittest import mock
 
 import numpy as np
 import pytest
+
 from batchie import distance_calculation
 from batchie.core import BayesianModel, DistanceMetric, ThetaHolder
 from batchie.data import Screen

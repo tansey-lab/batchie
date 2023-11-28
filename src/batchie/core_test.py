@@ -3,6 +3,7 @@ from dataclasses import dataclass
 
 import numpy as np
 import pytest
+
 from batchie.common import ArrayType
 from batchie.core import ThetaHolder, Theta, RetrospectivePlateGenerator
 from batchie.data import Screen

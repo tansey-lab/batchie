@@ -1,4 +1,4 @@
-process ADVANCE_RETROSPECTIVE_SIMULATION {
+process EVALUATE_MODEL {
     tag "$meta.id"
     label 'process_single'
     container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
@@ -6,11 +6,10 @@ process ADVANCE_RETROSPECTIVE_SIMULATION {
         'docker.io/jeffquinnmsk/batchie:latest' }"
 
     input:
-    tuple val(meta), path(training_screen), path(test_screen), path(thetas), path(batch_selection), path(simulation_tracker)
+    tuple val(meta), path(training_data), path(test_data), path(thetas)
 
     output:
-    tuple val(meta), path("${prefix}/advanced_screen.h5"), emit: advanced_screen
-    tuple val(meta), path("${prefix}/simulation_tracker_output.json"), emit: simulation_tracker
+    tuple val(meta), path("${prefix}/model_evaluation.h5"), emit: model_evaluation
     path  "versions.yml"                , emit: versions
 
 
@@ -22,14 +21,10 @@ process ADVANCE_RETROSPECTIVE_SIMULATION {
     def args = task.ext.args ?: ""
     """
     mkdir -p "${prefix}"
-    advance_retrospective_simulation \
+    evaluate_model --training-screen ${training_data} \
+        --test-screen ${test_data} \
         --thetas ${thetas} \
-        --training-screen ${training_screen} \
-        --test-screen ${test_screen} \
-        --batch-selection ${batch_selection} \
-        --simulation-tracker-output ${prefix}/simulation_tracker_output.json \
-        --simulation-tracker-input ${simulation_tracker} \
-        --screen-output ${prefix}/advanced_screen.h5 \
+        --output "${prefix}/model_evaluation.h5" \
         ${args}
 
     cat <<-END_VERSIONS > versions.yml

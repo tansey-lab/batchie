@@ -1,13 +1,14 @@
 import os.path
 import shutil
 import tempfile
-import pytest
+
 import numpy as np
-import json
-from batchie.cli import advance_retrospective_simulation
-from batchie.models.sparse_combo import SparseDrugComboResults
+import pytest
+
+from batchie.cli import evaluate_model
 from batchie.data import Screen
-from batchie.common import SELECTED_PLATES_KEY
+from batchie.models.main import ModelEvaluation
+from batchie.models.sparse_combo import SparseDrugComboResults
 
 
 @pytest.fixture
@@ -47,61 +48,41 @@ def test_dataset():
 def test_main(mocker, training_dataset, test_dataset):
     tmpdir = tempfile.mkdtemp()
     command_line_args = [
-        "advance_retrospective_simulation",
+        "evaluate_model",
         "--model",
         "SparseDrugCombo",
         "--model-param",
-        "n_embedding_dimensions=2",
+        "n_embedding_dimensions=5",
         "--test-screen",
         os.path.join(tmpdir, "test.screen.h5"),
         "--training-screen",
         os.path.join(tmpdir, "training.screen.h5"),
         "--thetas",
         os.path.join(tmpdir, "samples.h5"),
-        "--simulation-tracker-input",
-        os.path.join(tmpdir, "simulation_tracker_input.json"),
-        "--simulation-tracker-output",
-        os.path.join(tmpdir, "simulation_tracker_output.json"),
-        "--batch-selection",
-        os.path.join(tmpdir, "batch_selection.json"),
-        "--screen-output",
-        os.path.join(tmpdir, "advanced_screen.h5"),
+        "--output",
+        os.path.join(tmpdir, "model_evaluation.h5"),
     ]
 
     training_dataset.save_h5(os.path.join(tmpdir, "training.screen.h5"))
     test_dataset.save_h5(os.path.join(tmpdir, "test.screen.h5"))
+
+    n_thetas = 10
     results_holder = SparseDrugComboResults(
-        n_thetas=10,
+        n_thetas=n_thetas,
         n_unique_samples=training_dataset.n_unique_samples,
         n_unique_treatments=training_dataset.n_unique_treatments,
         n_embedding_dimensions=5,
     )
 
-    results_holder._cursor = 10
+    results_holder._cursor = n_thetas
 
     results_holder.save_h5(os.path.join(tmpdir, "samples.h5"))
 
     mocker.patch("sys.argv", command_line_args)
 
-    with open(os.path.join(tmpdir, "batch_selection.json"), "w") as f:
-        json.dump({SELECTED_PLATES_KEY: [1]}, f)
-
-    with open(os.path.join(tmpdir, "simulation_tracker_input.json"), "w") as f:
-        json.dump({"losses": [0.0], "plate_ids_selected": [[0]], "seed": 0}, f)
-
     try:
-        advance_retrospective_simulation.main()
-        with open(os.path.join(tmpdir, "simulation_tracker_output.json"), "r") as f:
-            results = json.load(f)
-
-        assert results["plate_ids_selected"][-1] == [1]
-        assert len(results["losses"]) == 2
-
-        exp_output = Screen.load_h5(os.path.join(tmpdir, "advanced_screen.h5"))
-
-        np.testing.assert_array_equal(
-            exp_output.observation_mask,
-            np.array([True, True, True, True, False, False]),
-        )
+        evaluate_model.main()
+        me = ModelEvaluation.load_h5(os.path.join(tmpdir, "model_evaluation.h5"))
+        assert me.predictions.shape == (test_dataset.size, n_thetas)
     finally:
         shutil.rmtree(tmpdir)

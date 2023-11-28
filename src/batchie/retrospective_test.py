@@ -1,10 +1,12 @@
+from unittest import mock
+
 import numpy as np
 import numpy.testing
 import pytest
-from batchie.data import Screen
+
 from batchie import retrospective
-from unittest import mock
 from batchie.core import BayesianModel, ThetaHolder
+from batchie.data import Screen
 
 
 @pytest.fixture

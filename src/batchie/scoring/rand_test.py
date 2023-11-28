@@ -2,6 +2,7 @@ from unittest import mock
 
 import numpy as np
 import pytest
+
 from batchie.data import Screen
 from batchie.scoring import rand
 
@@ -50,6 +51,7 @@ def test_random_scorer(test_dataset):
         samples=mock.MagicMock(),
         rng=rng,
         distance_matrix=mock.MagicMock(),
+        progress_bar=False,
     )
 
     assert len(result) == len(test_dataset.unique_plate_ids)

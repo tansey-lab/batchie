@@ -5,6 +5,7 @@ from typing import Optional
 import h5py
 import numpy as np
 import pandas
+
 from batchie.common import ArrayType, FloatingPointType, CONTROL_SENTINEL_VALUE
 
 logger = logging.getLogger(__name__)

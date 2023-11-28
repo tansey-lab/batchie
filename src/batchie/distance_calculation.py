@@ -1,3 +1,7 @@
+import collections
+import logging
+from itertools import islice
+
 import h5py
 import numpy as np
 import tqdm
@@ -9,9 +13,6 @@ from batchie.core import (
     BayesianModel,
 )
 from batchie.data import Screen
-from itertools import islice
-import collections
-import logging
 
 logger = logging.getLogger(__name__)
 

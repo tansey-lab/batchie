@@ -1,5 +1,6 @@
-from batchie import fast_mvn
 import numpy as np
+
+from batchie import fast_mvn
 
 
 def test_sample_mvn_from_precision():

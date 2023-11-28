@@ -1,16 +1,15 @@
-process SELECT_NEXT_BATCH {
+process REVEAL_PLATE {
     tag "$meta.id"
-    label 'process_long'
-    label 'process_high_memory'
+    label 'process_single'
     container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
         'docker://jeffquinnmsk/batchie:latest' :
         'docker.io/jeffquinnmsk/batchie:latest' }"
 
     input:
-    tuple val(meta), path(data), path(thetas), path(distance_matrix)
+    tuple val(meta), path(screen), val(plate_ids)
 
     output:
-    tuple val(meta), path("${prefix}/selected_plates.json"), emit: selected_plates
+    tuple val(meta), path("${prefix}/advanced_screen.h5"), emit: advanced_screen
     path  "versions.yml"                , emit: versions
 
 
@@ -20,12 +19,13 @@ process SELECT_NEXT_BATCH {
     script:
     prefix = task.ext.prefix ?: "${meta.id}"
     def args = task.ext.args ?: ""
+    def plate_ids_joined = (plate_ids as Iterable).join ' '
     """
     mkdir -p "${prefix}"
-    select_next_batch --data ${data} \
-        --thetas ${thetas} \
-        --distance-matrix ${distance_matrix} \
-        --output "${prefix}/selected_plates.json" \
+    reveal_plate \
+        --screen ${screen} \
+        --plate-id ${plate_ids_joined} \
+        --output ${prefix}/advanced_screen.h5 \
         ${args}
 
     cat <<-END_VERSIONS > versions.yml

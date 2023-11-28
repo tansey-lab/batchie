@@ -1,6 +1,7 @@
 import logging
 
 import numpy as np
+
 from batchie.common import ArrayType, CONTROL_SENTINEL_VALUE
 from batchie.data import create_single_treatment_effect_map
 

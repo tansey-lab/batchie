@@ -1,5 +1,6 @@
 include { CALCULATE_DISTANCE_MATRIX_CHUNK } from '../../../../modules/nf-core/batchie/calculate_distance_matrix_chunk/main'
-include { SELECT_NEXT_BATCH } from '../../../../modules/nf-core/batchie/select_next_batch/main'
+include { CALCULATE_SCORE_CHUNK } from '../../../../modules/nf-core/batchie/calculate_score_chunk/main'
+include { SELECT_NEXT_PLATE } from '../../../../modules/nf-core/batchie/select_next_plate/main'
 include { TRAIN_MODEL } from '../../../../modules/nf-core/batchie/train_model/main'
 
 
@@ -29,17 +30,24 @@ workflow RUN_PROSPECTIVE_STEP {
     ch_input
         .map { tuple(it[0], it[1]) }
         .join(TRAIN_MODEL.out.thetas.groupTuple())
-        .combine(dist_input, by: 0).tap { meta_exp_theta_chunk_idx_n_chunks }
+        .combine(dist_input, by: 0).tap { calculate_distance_matrix_chunk_input }
 
-    CALCULATE_DISTANCE_MATRIX_CHUNK( meta_exp_theta_chunk_idx_n_chunks )
+    CALCULATE_DISTANCE_MATRIX_CHUNK( calculate_distance_matrix_chunk_input )
 
-    meta_exp_theta_dist = ch_input.map { tuple(it[0], it[1]) }
+    ch_input.map { tuple(it[0], it[1]) }
         .join(TRAIN_MODEL.out.thetas.groupTuple())
         .join(CALCULATE_DISTANCE_MATRIX_CHUNK.out.distance_matrix_chunk.groupTuple())
-        .tap { meta_exp_theta_dist }
+        .combine(dist_input, by: 0)
+        .tap { score_chunk_input }
 
-    SELECT_NEXT_BATCH( meta_exp_theta_dist )
+    CALCULATE_SCORE_CHUNK( score_chunk_input )
+
+    ch_input.map { tuple(it[0], it[1]) }
+        .join(CALCULATE_SCORE_CHUNK.out.score_chunk.groupTuple())
+        .tap { select_next_plate_input }
+
+    SELECT_NEXT_PLATE( select_next_plate_input )
 
     emit:
-    ch_output       = SELECT_NEXT_BATCH.out.selected_plates
+    ch_output       = SELECT_NEXT_PLATE.out.selected_plate
 }

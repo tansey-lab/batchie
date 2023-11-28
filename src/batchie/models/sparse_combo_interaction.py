@@ -4,16 +4,15 @@ from dataclasses import dataclass
 
 import h5py
 import numpy as np
+from scipy.special import logit
 
 import batchie.data
-from batchie import synergy
 from batchie.common import ArrayType, copy_array_with_control_treatments_set_to_zero
 from batchie.common import CONTROL_SENTINEL_VALUE
 from batchie.core import Theta, ThetaHolder
 from batchie.data import ScreenBase
 from batchie.fast_mvn import sample_mvn_from_precision
 from batchie.models.sparse_combo import SparseDrugCombo
-from scipy.special import logit
 
 logger = logging.getLogger(__name__)
 

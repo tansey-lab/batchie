@@ -1,0 +1,5 @@
+- name: reveal_plate
+  command: nextflow -C ./nextflow/tests/modules/nf-core/batchie/reveal_plate/nextflow.config,./nextflow/tests/config/nextflow.config run ./nextflow/tests/modules/nf-core/batchie/reveal_plate -entry reveal_plate
+  tags:
+    - reveal_plate
+  files: []

@@ -1,0 +1,10 @@
+- name: select_next_batch_plate
+  command: nextflow -C ./nextflow/tests/subworkflows/nf-core/batchie/select_next_batch_plate/nextflow.config,./nextflow/tests/config/nextflow.config run ./nextflow/tests/subworkflows/nf-core/batchie/select_next_batch_plate -entry select_next_batch_plate
+  tags:
+    - select_next_batch_plate
+  files: []
+- name: select_next_batch_plate_no_reveal
+  command: nextflow -C ./nextflow/tests/subworkflows/nf-core/batchie/select_next_batch_plate/noreveal.config,./nextflow/tests/config/nextflow.config run ./nextflow/tests/subworkflows/nf-core/batchie/select_next_batch_plate -entry select_next_batch_plate
+  tags:
+    - select_next_batch_plate_no_reveal
+  files: []

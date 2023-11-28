@@ -2,6 +2,7 @@ from unittest import mock
 
 import numpy as np
 import pytest
+
 from batchie.data import Screen
 from batchie.scoring import size
 
@@ -50,6 +51,7 @@ def test_size_scorer(test_dataset):
         distance_matrix=mock.MagicMock(),
         rng=rng,
         model=mock.MagicMock(),
+        progress_bar=False,
     )
 
     assert result == {0: 4, 1: 4}

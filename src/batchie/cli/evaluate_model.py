@@ -1,25 +1,22 @@
 import argparse
-import json
-import os.path
 import logging
+
+import numpy as np
 
 from batchie import introspection
 from batchie import log_config
 from batchie.cli.argument_parsing import KVAppendAction, cast_dict_to_type
-from batchie.core import BayesianModel, ThetaHolder, SimulationTracker
+from batchie.common import N_UNIQUE_SAMPLES, N_UNIQUE_TREATMENTS
+from batchie.core import BayesianModel, ThetaHolder
 from batchie.data import Screen
-from batchie.common import SELECTED_PLATES_KEY, N_UNIQUE_SAMPLES, N_UNIQUE_TREATMENTS
-from batchie.retrospective import reveal_plates, calculate_mse
-
+from batchie.models.main import predict_all, ModelEvaluation
 
 logger = logging.getLogger(__name__)
 
 
 def get_parser():
     parser = argparse.ArgumentParser(
-        description="This is a utility for revealing plates in a retrospective simulation, "
-        "calculating the prediction error on a holdout test set, "
-        "and saving the results."
+        description="This is a utility for evaluating model performance by predicting over an observed 'test screen'."
     )
     log_config.add_logging_args(parser)
     parser.add_argument(
@@ -35,32 +32,6 @@ def get_parser():
         required=True,
     )
     parser.add_argument(
-        "--batch-selection",
-        help="A json file containing the next batch to reveal.",
-        type=str,
-        required=True,
-    )
-    parser.add_argument(
-        "--screen-output",
-        help="Output batchie Screen in hdf5 format with the next batch of experiments revealed.",
-        type=str,
-        required=True,
-    )
-    parser.add_argument(
-        "--simulation-tracker-input",
-        help="A batchie SimulationTracker in json format.",
-        type=str,
-        nargs="?",
-        const=None,
-        default=None,
-    )
-    parser.add_argument(
-        "--simulation-tracker-output",
-        help="An updated batchie SimulationTracker in json format.",
-        type=str,
-        required=True,
-    )
-    parser.add_argument(
         "--thetas",
         help="A batchie ThetaHolder in hdf5 format.",
         type=str,
@@ -70,6 +41,12 @@ def get_parser():
     parser.add_argument(
         "--model",
         help="Fully qualified name of the BayesianModel class to use.",
+        type=str,
+        required=True,
+    )
+    parser.add_argument(
+        "--output",
+        help="Output ModelEvaluation object in h5 format.",
         type=str,
         required=True,
     )
@@ -121,33 +98,31 @@ def main():
 
     model: BayesianModel = args.model_cls(**args.model_params)
     theta_holder: ThetaHolder = model.get_results_holder(n_samples=1)
-    thetas = theta_holder.concat([theta_holder.load_h5(x) for x in args.thetas])
+
+    theta_holders = [theta_holder.load_h5(x) for x in args.thetas]
+
+    thetas = theta_holder.concat(theta_holders)
+
+    chain_ids = []
+    for i, t in enumerate(theta_holders):
+        chain_ids.extend([i] * t.n_thetas)
+
+    chain_ids = np.array(chain_ids, dtype=int)
 
     test_screen = Screen.load_h5(args.test_screen)
 
-    if args.simulation_tracker_input and os.path.exists(args.simulation_tracker_input):
-        simulation_tracker = SimulationTracker.load(args.simulation_tracker_input)
-    else:
-        logger.warning("No simulation tracker provided, will create blank one.")
-        simulation_tracker = SimulationTracker(
-            plate_ids_selected=[], losses=[], seed=args.seed
-        )
-
-    mse = calculate_mse(
-        observed_screen=test_screen,
+    predictions = predict_all(
+        screen=test_screen,
         thetas=thetas,
         model=model,
+    ).T
+
+    me = ModelEvaluation(
+        observations=test_screen.observations,
+        predictions=predictions,
+        chain_ids=chain_ids,
     )
 
-    simulation_tracker.losses.append(mse)
+    logger.info(f"Saving ModelEvaluation to {args.output}")
 
-    with open(args.batch_selection, "r") as f:
-        next_batch = json.load(f)
-
-    plates_to_reveal = next_batch[SELECTED_PLATES_KEY]
-    advanced_screen = reveal_plates(training_screen, plates_to_reveal)
-
-    simulation_tracker.plate_ids_selected.append(plates_to_reveal)
-
-    advanced_screen.save_h5(args.screen_output)
-    simulation_tracker.save(args.simulation_tracker_output)
+    me.save_h5(args.output)

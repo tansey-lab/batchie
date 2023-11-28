@@ -22,6 +22,7 @@ class RandomScorer(Scorer):
         distance_matrix: ChunkedDistanceMatrix,
         samples: ThetaHolder,
         rng: np.random.Generator,
+        progress_bar: bool,
     ) -> dict[int, float]:
         scores = {plate.plate_id: rng.random() for plate in plates}
         return scores

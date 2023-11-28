@@ -1,5 +1,6 @@
 import argparse
 import json
+
 from batchie import log_config
 from batchie.data import Screen
 

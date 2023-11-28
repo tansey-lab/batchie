@@ -1,5 +1,6 @@
 import numpy as np
 import numpy.testing
+
 from batchie import common
 
 
