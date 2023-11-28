@@ -159,7 +159,7 @@ def score_chunk(
     chunk_plates = np.array_split(unobserved_plates, n_chunks)[chunk_index].tolist()
 
     logger.info(
-        f"Scoring chunk {chunk_index+1} of {n_chunks}, with {len(chunk_plates)} plates"
+        f"Scoring chunk {chunk_index+1} of {n_chunks}, with {len(chunk_plates)} non-excluded plates"
     )
 
     scores_holder = ChunkedScoresHolder(len(chunk_plates))

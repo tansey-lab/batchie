@@ -2,6 +2,7 @@
 nextflow.enable.dsl = 2
 
 include { RUN_PROSPECTIVE_STEP } from '../../../../subworkflows/nf-core/batchie/run_prospective_step/main'
+include { EXTRACT_SCREEN_METADATA } from '../../../../modules/nf-core/batchie/extract_screen_metadata/main'
 
 workflow PROSPECTIVE {
     def name = params.name == null ? "batchie" : params.name
@@ -14,4 +15,6 @@ workflow PROSPECTIVE {
             )
     ch_input = Channel.fromList([input])
     RUN_PROSPECTIVE_STEP ( ch_input )
+
+    EXTRACT_SCREEN_METADATA( ch_input.map { tuple(it[0], it[1]) } )
 }

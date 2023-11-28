@@ -27,6 +27,8 @@ workflow RUN_PROSPECTIVE_STEP {
 
     ch_input.flatMap { create_parallel_sequence(it[0], it[3]) }.tap { dist_input }
 
+    ch_input.map { tuple(it[0], []) }.tap { excludes }
+
     ch_input
         .map { tuple(it[0], it[1]) }
         .join(TRAIN_MODEL.out.thetas.groupTuple())
@@ -37,6 +39,7 @@ workflow RUN_PROSPECTIVE_STEP {
     ch_input.map { tuple(it[0], it[1]) }
         .join(TRAIN_MODEL.out.thetas.groupTuple())
         .join(CALCULATE_DISTANCE_MATRIX_CHUNK.out.distance_matrix_chunk.groupTuple())
+        .join(excludes)
         .combine(dist_input, by: 0)
         .tap { score_chunk_input }
 

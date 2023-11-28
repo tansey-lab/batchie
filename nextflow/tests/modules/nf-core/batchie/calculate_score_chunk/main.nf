@@ -8,6 +8,7 @@ workflow calculate_score_chunk {
               file(params.test_data['batchie']['masked_screen'], checkIfExists: true),
               file(params.test_data['batchie']['thetas'], checkIfExists: true),
               file(params.test_data['batchie']['distance_matrix'], checkIfExists: true),
+              [1],
               0,
               1
             ]

@@ -55,6 +55,13 @@ def get_args():
         help="How many plates to select each iteration (using the same trained model)",
     )
     parser.add_argument(
+        "--mode",
+        choices=["retrospective", "prospective"],
+        required=True,
+        help="Whether to run in retrospective or prospective mode",
+    )
+
+    parser.add_argument(
         "--outdir", type=str, required=True, help="Path to output directory"
     )
     args, remaining_args = parser.parse_known_args()
@@ -138,6 +145,20 @@ def get_theta_and_dist_chunks(output_dir):
     }
 
 
+def get_selected_plates(output_dir):
+    plates = list(glob.glob(os.path.join(output_dir, "*", "*", "*", "selected_plate")))
+
+    output = []
+
+    for fn in plates:
+        with open(fn, "r") as f:
+            output.append(f.read().strip())
+
+    if len(output) == 0:
+        return None
+    return output
+
+
 def run_initial_plate(output_dir, screen, experiment_name, extra_args):
     subprocess.check_call(
         [
@@ -186,24 +207,16 @@ def run_first_batch_plate(output_dir, screen, experiment_name, extra_args):
     )
 
 
-def run_subsequent_batch_plate(
-    output_dir, screen, thetas, dist_chunks, experiment_name, extra_args
-):
+def run_first_prospective_batch_plate(output_dir, screen, experiment_name, extra_args):
     subprocess.check_call(
         [
             "nextflow",
             "run",
             get_main_nf_file(),
             "--mode",
-            "next_plate",
-            "--reveal",
-            "true",
+            "prospective",
             "--screen",
             screen,
-            "--thetas",
-            thetas,
-            "--distance_matrix",
-            dist_chunks,
             "--name",
             experiment_name,
             "--outdir",
@@ -212,6 +225,40 @@ def run_subsequent_batch_plate(
             os.path.join(output_dir, "work"),
         ]
         + extra_args,
+        cwd=get_repository_root(),
+    )
+
+
+def run_subsequent_batch_plate(
+    output_dir, screen, thetas, dist_chunks, experiment_name, extra_args, excludes=None
+):
+    args = [
+        "nextflow",
+        "run",
+        get_main_nf_file(),
+        "--mode",
+        "next_plate",
+        "--reveal",
+        "true",
+        "--screen",
+        screen,
+        "--thetas",
+        thetas,
+        "--distance_matrix",
+        dist_chunks,
+        "--name",
+        experiment_name,
+        "--outdir",
+        output_dir,
+        "-work-dir",
+        os.path.join(output_dir, "work"),
+    ] + extra_args
+
+    if excludes is not None:
+        args = args + ["--excludes", ",".join(excludes)]
+
+    subprocess.check_call(
+        args,
         cwd=get_repository_root(),
     )
 
@@ -276,7 +323,7 @@ def examine_output_dir_to_determine_current_iteration(output_dir, batch_size):
     )
 
 
-def run_next_step(output_dir, input_screen, extra_args, batch_size):
+def run_next_retrospective_step(output_dir, input_screen, extra_args, batch_size):
     os.makedirs(output_dir, exist_ok=True)
 
     experiment_name, _ = os.path.splitext(os.path.basename(input_screen))
@@ -340,10 +387,69 @@ def run_next_step(output_dir, input_screen, extra_args, batch_size):
     return True
 
 
+def run_next_prospective_step(output_dir, input_screen, extra_args, batch_size):
+    os.makedirs(output_dir, exist_ok=True)
+
+    experiment_name, _ = os.path.splitext(os.path.basename(input_screen))
+
+    (
+        current_iter_index,
+        current_plate_idx,
+        last_successful_run_meta,
+        current_screen,
+    ) = examine_output_dir_to_determine_current_iteration(output_dir, batch_size)
+
+    already_selected_plates = get_selected_plates(output_dir)
+
+    job_output_dir = os.path.join(
+        output_dir, f"iter_{current_iter_index}", f"plate_{current_plate_idx}"
+    )
+
+    # clear job output dir incase some partial results were written
+    shutil.rmtree(job_output_dir, ignore_errors=True)
+    os.makedirs(job_output_dir, exist_ok=True)
+
+    logger.info(f"Running iteration {current_iter_index}, plate {current_plate_idx}")
+
+    if current_plate_idx == 0:
+        run_first_prospective_batch_plate(
+            output_dir=job_output_dir,
+            screen=input_screen,
+            experiment_name=experiment_name,
+            extra_args=extra_args,
+        )
+    else:
+        first_plate_of_iter_output_dir = os.path.join(
+            output_dir, f"iter_{current_iter_index}", f"plate_{0}"
+        )
+        theta_and_dist_chunks = get_theta_and_dist_chunks(
+            first_plate_of_iter_output_dir
+        )
+
+        run_subsequent_batch_plate(
+            output_dir=job_output_dir,
+            screen=input_screen,
+            experiment_name=experiment_name,
+            extra_args=extra_args,
+            thetas=theta_and_dist_chunks["thetas"],
+            dist_chunks=theta_and_dist_chunks["dist_chunks"],
+            excludes=already_selected_plates,
+        )
+
+    return current_plate_idx < batch_size - 1
+
+
 def main():
     args, remaining_args = get_args()
+    if args.mode == "retrospective":
+        run_next = run_next_retrospective_step
+    elif args.mode == "prospective":
+        run_next = run_next_prospective_step
+    else:
+        raise ValueError(f"Unknown mode: {args.mode}")
+
     while True:
-        should_run_again = run_next_step(
+        should_run_again = run_next(
             output_dir=os.path.abspath(args.outdir),
             input_screen=os.path.abspath(args.screen),
             extra_args=remaining_args,

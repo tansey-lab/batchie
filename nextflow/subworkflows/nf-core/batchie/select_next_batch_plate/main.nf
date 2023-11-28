@@ -18,16 +18,15 @@ def create_parallel_sequence(meta, n_par) {
 
 workflow SELECT_NEXT_BATCH_PLATE {
     take:
-    ch_input  // channel: [ val(meta), path(screen), path(thetas), path(distance_matrix_chunks), val(n_chunks), val(reveal) ]
+    ch_input  // channel: [ val(meta), path(screen), path(thetas), path(distance_matrix_chunks), val(n_chunks), val(reveal), val(excludes) ]
 
     main:
     ch_input.flatMap { create_parallel_sequence(it[0], it[4]) }.tap { dist_input }
     ch_input.map { tuple(it[0], it[2]) }.tap { thetas }
     ch_input.map { tuple(it[0], it[3]) }.tap { distance_matrix_chunks }
+    ch_input.map { tuple(it[0], it[6]) }.tap { excludes }
 
-    ch_input.map { tuple(it[0], it[1]) }
-        .join(thetas)
-        .join(distance_matrix_chunks)
+    ch_input.map { tuple(it[0], it[1], it[2], it[3], it[6]) }
         .combine(dist_input, by: 0)
         .tap { score_chunk_input }
 

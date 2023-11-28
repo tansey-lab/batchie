@@ -120,5 +120,5 @@ def main():
             f.write(str(next_plate.plate_id))
     else:
         logger.info(f"No plate eligible for selection")
-        with open(args.output, "w"):
-            pass
+        with open(args.output, "w") as f:
+            f.write(str(-1))
