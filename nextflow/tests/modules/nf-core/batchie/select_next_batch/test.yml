@@ -1,5 +1,0 @@
-- name: select_next_batch
-  command: nextflow -C ./nextflow/tests/modules/nf-core/batchie/select_next_batch/nextflow.config,./nextflow/tests/config/nextflow.config run ./nextflow/tests/modules/nf-core/batchie/select_next_batch -entry select_next_batch
-  tags:
-    - select_next_batch
-  files: []
