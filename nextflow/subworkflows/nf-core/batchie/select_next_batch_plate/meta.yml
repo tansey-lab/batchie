@@ -1,0 +1,23 @@
+name: select_next_batch_plate
+description: A subworkflow for selecting the next plate given a set of thetas and distances
+keywords:
+  - active_learning
+
+components:
+  - batchie/calculate_score_chunk
+  - batchie/select_next_plate
+  - batchie/reveal_plate
+
+input:
+  - ch_input:
+      description: |
+        An input channel containing the following:
+        Structure: [ val(meta), path(screen), path(thetas), path(distance_matrix_chunks), val(n_chunks), val(reveal), val(excludes) ]
+
+output:
+  - ch_output:
+      description: |
+        The screen file with the next plate revealed
+        Structure: [ val(meta), path(screen) ]
+authors:
+  - "@jeffquinn-msk"

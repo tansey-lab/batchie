@@ -160,71 +160,80 @@ def get_selected_plates(output_dir):
 
 
 def run_initial_plate(output_dir, screen, experiment_name, extra_args):
+    cmd = [
+        "nextflow",
+        "run",
+        get_main_nf_file(),
+        "--mode",
+        "retrospective",
+        "--screen",
+        screen,
+        "--name",
+        experiment_name,
+        "--outdir",
+        output_dir,
+        "--initialize",
+        "true",
+        "-work-dir",
+        os.path.join(output_dir, "work"),
+    ] + extra_args
+
+    logger.info(f"Running command: {' '.join(cmd)}")
+
     subprocess.check_call(
-        [
-            "nextflow",
-            "run",
-            get_main_nf_file(),
-            "--mode",
-            "retrospective",
-            "--screen",
-            screen,
-            "--name",
-            experiment_name,
-            "--outdir",
-            output_dir,
-            "--initialize",
-            "true",
-            "-work-dir",
-            os.path.join(output_dir, "work"),
-        ]
-        + extra_args,
+        cmd,
         cwd=get_repository_root(),
     )
 
 
 def run_first_batch_plate(output_dir, screen, experiment_name, extra_args):
+    cmd = [
+        "nextflow",
+        "run",
+        get_main_nf_file(),
+        "--mode",
+        "retrospective",
+        "--screen",
+        screen,
+        "--name",
+        experiment_name,
+        "--outdir",
+        output_dir,
+        "--initialize",
+        "false",
+        "-work-dir",
+        os.path.join(output_dir, "work"),
+    ] + extra_args
+
+    logger.info(f"Running command: {' '.join(cmd)}")
+
     subprocess.check_call(
-        [
-            "nextflow",
-            "run",
-            get_main_nf_file(),
-            "--mode",
-            "retrospective",
-            "--screen",
-            screen,
-            "--name",
-            experiment_name,
-            "--outdir",
-            output_dir,
-            "--initialize",
-            "false",
-            "-work-dir",
-            os.path.join(output_dir, "work"),
-        ]
-        + extra_args,
+        cmd,
         cwd=get_repository_root(),
     )
 
 
 def run_first_prospective_batch_plate(output_dir, screen, experiment_name, extra_args):
+    cmd = [
+        "nextflow",
+        "run",
+        get_main_nf_file(),
+        "--mode",
+        "prospective",
+        "--screen",
+        screen,
+        "--name",
+        experiment_name,
+        "--outdir",
+        output_dir,
+        "-work-dir",
+        os.path.join(output_dir, "work"),
+    ] + extra_args
+
+    logger.info(f"Running command: {' '.join(cmd)}")
+
     subprocess.check_call(
-        [
-            "nextflow",
-            "run",
-            get_main_nf_file(),
-            "--mode",
-            "prospective",
-            "--screen",
-            screen,
-            "--name",
-            experiment_name,
-            "--outdir",
-            output_dir,
-            "-work-dir",
-            os.path.join(output_dir, "work"),
-        ]
-        + extra_args,
+        cmd,
         cwd=get_repository_root(),
     )
 
@@ -256,6 +265,8 @@ def run_subsequent_batch_plate(
 
     if excludes is not None:
         args = args + ["--excludes", ",".join(excludes)]
+
+    logger.info(f"Running command: {' '.join(args)}")
 
     subprocess.check_call(
         args,

@@ -1,9 +1,6 @@
-include { CALCULATE_DISTANCE_MATRIX_CHUNK } from '../../../../modules/nf-core/batchie/calculate_distance_matrix_chunk/main'
 include { CALCULATE_SCORE_CHUNK } from '../../../../modules/nf-core/batchie/calculate_score_chunk/main'
-include { EVALUATE_MODEL } from '../../../../modules/nf-core/batchie/evaluate_model/main'
 include { REVEAL_PLATE } from '../../../../modules/nf-core/batchie/reveal_plate/main'
 include { SELECT_NEXT_PLATE } from '../../../../modules/nf-core/batchie/select_next_plate/main'
-include { TRAIN_MODEL } from '../../../../modules/nf-core/batchie/train_model/main'
 
 
 def create_parallel_sequence(meta, n_par) {

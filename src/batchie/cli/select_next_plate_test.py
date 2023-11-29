@@ -79,7 +79,7 @@ def test_main(mocker, test_dataset, test_scores, use_policy):
         with open(os.path.join(tmpdir, "results.txt"), "r") as f:
             content = f.read()
         if use_policy:
-            assert content == ""
+            assert content == "-1"
         else:
             assert int(content.strip()) == 0
 
