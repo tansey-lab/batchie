@@ -1,0 +1,13 @@
+name: next_batch_plate
+description: Given a set of scores, select the next best plate
+keywords:
+  - active_learning
+
+components:
+  - batchie/select_next_batch_plate
+  - batchie/extract_screen_metadata
+
+input: []
+output: []
+authors:
+  - "@jeffquinn-msk"

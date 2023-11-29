@@ -43,9 +43,12 @@ workflow RUN_RETROSPECTIVE_STEP {
 
     CALCULATE_DISTANCE_MATRIX_CHUNK( calculate_distance_matrix_chunk_input )
 
+    excludes = ch_input.map { tuple(it[0], []) }
+
     ch_input.map { tuple(it[0], it[1]) }
         .join(TRAIN_MODEL.out.thetas.groupTuple())
         .join(CALCULATE_DISTANCE_MATRIX_CHUNK.out.distance_matrix_chunk.groupTuple())
+        .join(excludes)
         .combine(dist_input, by: 0)
         .tap { score_chunk_input }
 

@@ -95,5 +95,5 @@ On-Disk Format
 --------------
 
 The on-disk format for the screen is a compressed HDF5 file.
-We use the extension `.screen.h5` for these files by convention. Once you have your `.screen.h5` file prepared,
-you are ready to start running batchie!
+We use the extension ``.screen.h5`` for these files by convention. Once you have your ``.screen.h5`` file prepared,
+you are ready to start running BATCHIE!

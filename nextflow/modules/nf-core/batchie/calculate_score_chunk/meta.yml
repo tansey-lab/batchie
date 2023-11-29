@@ -29,6 +29,10 @@ input:
       type: file
       description: |
         h5 file containing pairwise distance matrix (.h5)
+  - excludes:
+      type: list
+      description: |
+        List of plates to exclude from the calculation
   - chunk_index:
       type: integer
       description: Index of the current chunk being calculated

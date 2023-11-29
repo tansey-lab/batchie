@@ -10,7 +10,8 @@ workflow select_next_batch_plate {
               file(params.test_data['batchie']['thetas'], checkIfExists: true),
               file(params.test_data['batchie']['distance_matrix'], checkIfExists: true),
               3,
-              true
+              true,
+              []
             )
     ch_input = Channel.fromList([input])
     SELECT_NEXT_BATCH_PLATE ( ch_input )
