@@ -29,7 +29,7 @@ workflow SELECT_NEXT_BATCH_PLATE {
 
     CALCULATE_SCORE_CHUNK( score_chunk_input )
 
-    ch_input.map { tuple(it[0], it[1]) }
+    ch_input.map { tuple(it[0], it[1], it[6]) }
         .join(CALCULATE_SCORE_CHUNK.out.score_chunk.groupTuple())
         .tap { select_next_plate_input }
 

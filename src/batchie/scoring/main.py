@@ -25,10 +25,14 @@ class ChunkedScoresHolder(ScoresHolder):
         self.current_index += 1
 
     def get_score(self, plate_id: int) -> FloatingPointType:
-        return self.scores[self.plate_ids == plate_id][0]
+        return self.scores[self.plate_ids == plate_id].item()
 
-    def plate_id_with_minimum_score(self) -> int:
-        return self.plate_ids[self.scores.argmin()]
+    def plate_id_with_minimum_score(self, eligible_plate_ids: list[int] = None) -> int:
+        if eligible_plate_ids is None:
+            return self.plate_ids[self.scores.argmin()].item()
+
+        mask = np.isin(self.plate_ids, eligible_plate_ids)
+        return self.plate_ids[mask][self.scores[mask].argmin()].item()
 
     def combine(self, other: ScoresHolder):
         self.scores = np.concatenate((self.scores, other.scores))
@@ -71,6 +75,7 @@ def select_next_plate(
     scores: ScoresHolder,
     screen: Screen,
     policy: Optional[PlatePolicy],
+    batch_plate_ids: Optional[list[int]] = None,
     rng: Optional[np.random.Generator] = None,
 ) -> Optional[Plate]:
     """
@@ -79,24 +84,36 @@ def select_next_plate(
     :param scores: The scores for each plate
     :param screen: The screen which defines the set of plates to choose from
     :param policy: The policy to use for plate selection
+    :param batch_plate_ids: The plates currently selected in the batch
     :param rng: PRNG to use for sampling
     :return: A list of plates to observe
     """
     if rng is None:
         rng = np.random.default_rng()
 
-    observed_plates = [plate for plate in screen.plates if plate.is_observed]
+    if batch_plate_ids is None:
+        batch_plate_ids = []
 
-    unobserved_plates = [plate for plate in screen.plates if not plate.is_observed]
+    batch_plates = [
+        plate for plate in screen.plates if plate.plate_id in batch_plate_ids
+    ]
 
-    unobserved_plates = sorted(unobserved_plates, key=lambda p: p.plate_id)
+    unobserved_plates_not_already_selected = [
+        plate
+        for plate in screen.plates
+        if not plate.is_observed and plate.plate_id not in batch_plate_ids
+    ]
+
+    unobserved_plates_not_already_selected = sorted(
+        unobserved_plates_not_already_selected, key=lambda p: p.plate_id
+    )
 
     if policy is None:
-        eligible_plates = unobserved_plates
+        eligible_plates = unobserved_plates_not_already_selected
     else:
         eligible_plates = policy.filter_eligible_plates(
-            observed_plates=observed_plates,
-            unobserved_plates=unobserved_plates,
+            batch_plates=batch_plates,
+            unobserved_plates=unobserved_plates_not_already_selected,
             rng=rng,
         )
 
@@ -104,7 +121,9 @@ def select_next_plate(
         logger.warning("No eligible plates remaining, exiting early.")
         return
 
-    best_plate_id = scores.plate_id_with_minimum_score()
+    eligible_plate_ids = [plate.plate_id for plate in eligible_plates]
+
+    best_plate_id = scores.plate_id_with_minimum_score(eligible_plate_ids)
     best_plate = screen.get_plate(best_plate_id)
     best_plate_name = best_plate.plate_name
 

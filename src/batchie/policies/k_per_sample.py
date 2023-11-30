@@ -12,14 +12,14 @@ class KPerSamplePlatePolicy(PlatePolicy):
 
     def filter_eligible_plates(
         self,
-        observed_plates: list[Plate],
+        batch_plates: list[Plate],
         unobserved_plates: list[Plate],
         rng: np.random.Generator,
     ) -> list[Plate]:
-        for plate in observed_plates + unobserved_plates:
+        for plate in batch_plates + unobserved_plates:
             if plate.n_unique_samples != 1:
                 raise ValueError(
-                    "KPerSampleBatcher only works if all plates in the experiment contain exactly one sample"
+                    "KPerSampleBatcher only works if all plates in the screen contain exactly one sample"
                 )
 
         # For each cell line, count how many plates remain
@@ -36,7 +36,7 @@ class KPerSamplePlatePolicy(PlatePolicy):
 
         # Calculate how many times each cell line has appeared in an already selected plate
         n_plates_already_selected_per_sample = defaultdict(int)
-        for plate in observed_plates:
+        for plate in batch_plates:
             sample_id = plate.sample_ids[0]
             n_plates_already_selected_per_sample[sample_id] += 1
 

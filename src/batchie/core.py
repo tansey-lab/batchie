@@ -376,7 +376,7 @@ class PlatePolicy:
 
     def filter_eligible_plates(
         self,
-        observed_plates: list[Plate],
+        batch_plates: list[Plate],
         unobserved_plates: list[Plate],
         rng: np.random.Generator,
     ) -> list[Plate]:
@@ -550,10 +550,11 @@ class ScoresHolder(ABC):
         """
         raise NotImplementedError
 
-    def plate_id_with_minimum_score(self) -> int:
+    def plate_id_with_minimum_score(self, eligible_plate_ids: list[int] = None) -> int:
         """
         Get the plate id with the minimum score.
 
+        :param eligible_plate_ids: The set of plates to consider.
         :return: The plate id with the minimum score.
         """
         raise NotImplementedError

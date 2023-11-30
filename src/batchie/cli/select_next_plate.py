@@ -60,6 +60,13 @@ def get_parser():
         type=int,
         default=0,
     )
+    parser.add_argument(
+        "--batch-plate-id",
+        help="The plate(s) currently select in the batch.",
+        nargs="+",
+        type=int,
+        default=list(),
+    )
     return parser
 
 
@@ -111,6 +118,7 @@ def main():
     next_plate = select_next_plate(
         screen=screen,
         scores=scores,
+        batch_plate_ids=args.batch_plate_id,
         policy=policy,
         rng=rng,
     )
