@@ -1,22 +1,21 @@
 import logging
 import warnings
-from dataclasses import dataclass
+from collections import defaultdict
 from typing import Optional
-
+from dataclasses import dataclass
 import h5py
 import numpy as np
 from numpy.random import Generator
-from scipy.linalg import LinAlgError
 from scipy.special import logit, expit
 
+from batchie.core import BayesianModel, Theta, ThetaHolder
+from batchie.data import ScreenBase
+from batchie.fast_mvn import sample_mvn_from_precision
 from batchie.common import (
     ArrayType,
     copy_array_with_control_treatments_set_to_zero,
     FloatingPointType,
 )
-from batchie.core import BayesianModel, Theta, ThetaHolder
-from batchie.data import ScreenBase
-from batchie.fast_mvn import sample_mvn_from_precision
 
 logger = logging.getLogger(__name__)
 
@@ -122,12 +121,12 @@ class SparseDrugComboResults(ThetaHolder):
             V2=self.V2[step_index],
             V1=self.V1[step_index],
             V0=self.V0[step_index],
-            alpha=self.alpha[step_index],
-            precision=self.precision[step_index],
+            alpha=self.alpha[step_index].item(),
+            precision=self.precision[step_index].item(),
         )
 
     def get_variance(self, step_index: int) -> float:
-        return 1.0 / self.precision[step_index]
+        return 1.0 / self.precision[step_index].item()
 
     def _save_theta(
         self, sample: SparseDrugComboMCMCSample, variance: float, sample_index: int
@@ -180,11 +179,526 @@ class SparseDrugComboResults(ThetaHolder):
         return results
 
 
-class SparseDrugCombo(BayesianModel):
+class LegacySparseDrugComboImpl:
     """
-    Bayesian tensor factorization model for predicting combination drug response
+    Original implementation of Bayesian tensor factorization model for
+    predicting combination drug response. Preserved here without changes
+    to ensure reproducibility of results.
     """
 
+    def __init__(
+        self,
+        n_dims: int,  # embedding dimension
+        n_drugdoses: int,  # number of total drug/doses
+        n_clines: int,  # number of total cell lines
+        intercept: bool = True,  # use intercept
+        fake_intercept: bool = True,  # instead of sample fix to mean
+        individual_eff: bool = True,
+        mult_gamma_proc: bool = True,
+        local_shrinkage: bool = True,
+        a0: float = 1.1,  # gamma prior hyperparmas for all precisions
+        b0: float = 1.1,
+        min_Mu: float = -10.0,
+        max_Mu: float = 10.0,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.D = n_dims  # embedding size
+        self.n_drugdoses = n_drugdoses
+        self.n_clines = n_clines
+        self.min_Mu = min_Mu
+        self.max_Mu = max_Mu
+        self.individual_eff = individual_eff  # use linear effects
+        self.intercept = intercept
+        self.fake_intercept = fake_intercept
+
+        # for the next two see BHATTACHARYA and DUNSON (2011)
+        self.local_shrinkage = local_shrinkage
+        self.mult_gamma_proc = mult_gamma_proc
+        # self.dummy_last = int(has_controls)
+
+        # data holders
+        self.y = []
+        self.num_mcmc_steps = 0
+
+        # indicators for each entry AND sparse query of speficic combos
+        self.cline = []
+        self.dd1 = []
+        self.dd2 = []
+        self.cline_idxs = defaultdict(list)
+        self.dd1_idxs = defaultdict(list)
+        self.dd2_idxs = defaultdict(list)
+
+        # hyperpriors
+        self.a0 = a0  # inverse gamma param 1 for prec
+        self.b0 = b0  # inverse gamma param 2 for prec
+
+        # strategy
+        # cell line interaction matrices have shrinking gamam process variances
+        # for each gamma process we need phi and tau
+        # drug interaction terms have sparsity
+        # for sparsity term need only local shrinkage since global shrinkage is
+        # determined by tau
+        # V<k> means drug-dose embedding for order k interactions
+        # W<k> means cell line embedding for order k interactions
+
+        sh = (self.n_drugdoses, self.D)
+        # Careful! If changing the inialization make sure the last entry of the
+        # V's stay at zero becuase it's used for single controls.
+        self.V2 = np.zeros(sh, dtype=np.float32)
+        self.V1 = np.zeros(sh, dtype=np.float32)
+
+        sh = (self.n_clines, self.D)
+        self.W = np.zeros(sh, dtype=np.float32)
+
+        self.V0 = np.zeros((self.n_drugdoses,), np.float32)
+        self.W0 = np.zeros((self.n_clines,), np.float32)
+
+        # paramaters for hroseshow priorss
+        self.phi2 = 100.0 * np.ones_like(self.V2)
+        self.phi1 = 100.0 * np.ones_like(self.V1)
+        self.phi0 = 100.0 * np.ones_like(self.V0)
+        self.eta2 = np.ones(self.D, dtype=np.float32)
+        self.eta1 = np.ones(self.D, dtype=np.float32)
+        self.eta0 = 1.0
+
+        # shrinkage
+        self.tau = 100.0 * np.ones(self.D, np.float32)
+        self.tau0 = 100.0
+
+        if mult_gamma_proc:
+            self.gam = np.ones(self.D, np.float32)
+
+        # intercept and overall precision
+        self.alpha = 0.0
+        self.prec = 100.0
+
+        # holder for model prediction during fit and for eval
+        self.Mu = np.zeros(0, np.float32)
+
+    def n_obs(self):
+        return len(self.y)
+
+    def _update(self, y, cl, dd1, dd2):
+        n = self.n_obs()
+        self.y.append(y)
+        self.cline.append(cl)
+        self.dd1.append(dd1)
+        self.dd2.append(dd2)
+        self.cline_idxs[cl].append(n)
+        self.dd1_idxs[dd1].append(n)
+        self.dd2_idxs[dd2].append(n)
+
+    def encode_obs(self):
+        y = np.array(self.y, copy=False)
+        cline = np.array(self.cline, copy=False)
+        dd1 = np.array(self.dd1, copy=False)
+        dd2 = np.array(self.dd2, copy=False)
+        return (y, cline, dd1, dd2)
+
+    def reset_model(self):
+        self.W = self.W * 0.0
+        self.W0 = self.W0 * 0.0
+        self.V2 = self.V2 * 0.0
+        self.V1 = self.V1 * 0.0
+        self.V0 = self.V0 * 0.0
+        self.alpha = 0.0
+        self.prec = 100.0
+        self.Mu = np.zeros(0, np.float32)
+
+    def get(self, attr, ix):
+        # mask -1 for single controls
+        A = self.__getattribute__(attr)[ix].copy()
+        controls = np.where(ix == -1)[0]
+        if len(controls > 0):
+            A[controls] = 0.0
+        return A
+
+    def _W_step(self) -> None:
+        """the strategy is to iterate over each cell line
+        and solve the linear problem"""
+        y, _, dd1, dd2 = self.encode_obs()
+        for c in range(self.n_clines):
+            cidx = np.array(self.cline_idxs[c], copy=False)
+            if len(cidx) == 0:
+                # no data seen yet, sample from prior
+                stddev = 1.0 / np.sqrt(self.tau)
+                self.W[c] = np.random.normal(0.0, stddev)
+                continue
+            tmp1 = self.get("V2", dd1[cidx]) * self.get("V2", dd2[cidx])
+            tmp2 = self.get("V1", dd1[cidx]) + self.get("V1", dd2[cidx])
+            X = tmp1 + tmp2
+            old_contrib = X @ self.W[c]
+            resid = y[cidx] - self.Mu[cidx] + old_contrib
+
+            Xt = X.transpose()
+            prec = self.prec
+            mu_part = (Xt @ resid) * prec
+            Q = (Xt @ X) * prec
+            Q[np.diag_indices(self.D)] += self.tau
+            try:
+                self.W[c] = sample_mvn_from_precision(Q, mu_part=mu_part)
+
+                # update Mu
+                self.Mu[cidx] += X @ self.W[c] - old_contrib
+            except:
+                warnings.warn("Numeric instability in Gibbs W-step...")
+
+    def _W0_step(self) -> None:
+        y, _, *_ = self.encode_obs()
+        for c in range(self.n_clines):
+            cidx = np.array(self.cline_idxs[c], copy=False)
+            if len(cidx) == 0:
+                # sample from prior
+                stddev = 1.0 / np.sqrt(self.tau0)
+                self.W0[c] = np.random.normal(0.0, stddev)
+            else:
+                resid = y[cidx] - self.Mu[cidx] + self.W0[c]
+                # resid = np.clip(resid, -10.0, 10.0)
+                old_contrib = self.W0[c]
+                N = len(cidx)
+                mean = self.prec * resid.sum() / (self.prec * N + self.tau0)
+                stddev = 1.0 / np.sqrt(self.prec * N + self.tau0)
+                self.W0[c] = np.random.normal(mean, stddev)
+                self.Mu[cidx] += self.W0[c] - old_contrib
+
+    def _V2_step(self) -> None:
+        """the strategy is to iterate over each drug pair combination
+        but the trick is to handle the case when drug-pair appears in first
+        postition and when it appears in second position
+        and solve the linear problem"""
+        y, cline, dd1, dd2 = self.encode_obs()
+        for m in range(self.n_drugdoses):
+            # slice where m, k appears as drug1
+            idx1 = np.array(self.dd1_idxs[m], copy=False, dtype=int)
+            # slice where m, k appears as drug2
+            idx2 = np.array(self.dd2_idxs[m], copy=False, dtype=int)
+
+            if len(idx1) + len(idx2) == 0:
+                # no data seen yet, sample from prior
+                stddev = 1.0 / np.sqrt(self.phi2[m] * self.eta2)
+                self.V2[m] = np.random.normal(0, stddev)
+                continue
+
+            if len(idx1) == 0:
+                resid1 = []
+                old_contrib1 = []
+                X1 = np.array([], dtype=np.float32).reshape(0, self.D)
+            else:
+                X1 = self.W[cline[idx1]] * self.get("V2", dd2[idx1])
+                old_contrib1 = X1 @ self.V2[m]
+                resid1 = y[idx1] - self.Mu[idx1] + old_contrib1
+
+            if len(idx2) == 0:
+                resid2 = []
+                old_contrib2 = []
+                X2 = np.array([], dtype=np.float32).reshape(0, self.D)
+            else:
+                X2 = self.W[cline[idx2]] * self.get("V2", dd1[idx2])
+                old_contrib2 = X2 @ self.V2[m]
+                resid2 = y[idx2] - self.Mu[idx2] + old_contrib2
+
+            # combine slices of data
+            X = np.concatenate([X1, X2])
+            resid = np.concatenate([resid1, resid2])
+            # resid = np.clip(resid, -10.0, 10.0)
+            old_contrib = np.concatenate([old_contrib1, old_contrib2])
+            idx = np.concatenate([idx1, idx2])
+
+            # sample form posterior
+            # X = np.clip(X, -10.0, 10.0)
+            Xt = X.transpose()
+            mu_part = (Xt @ resid) * self.prec
+            Q = (Xt @ X) * self.prec
+            dix = np.diag_indices(self.D)
+            Q[dix] += self.phi2[m] * self.eta2
+            try:
+                self.V2[m] = sample_mvn_from_precision(Q, mu_part=mu_part)
+                # self.V2[m] = np.clip(self.V2[m], -10.0, 10.0)
+                self.Mu[idx] += X @ self.V2[m] - old_contrib
+            except:
+                warnings.warn("Numeric instability in Gibbs V-step...")
+
+    def _V1_step(self) -> None:
+        """the strategy is to iterate over each drug pair combination
+        but the trick is to handle the case when drug-pair appears in first
+        postition and when it appears in second position
+        and solve the linear problem"""
+        y, cline, dd1, dd2 = self.encode_obs()
+        for m in range(self.n_drugdoses):
+            # slice where m, k appears as drug1
+            idx1 = np.array(self.dd1_idxs[m], copy=False, dtype=int)
+            # slice where m, k appears as drug2
+            idx2 = np.array(self.dd2_idxs[m], copy=False, dtype=int)
+            if len(idx1) + len(idx2) == 0:
+                # no data seen yet, sample from prior
+                stddev = 1.0 / np.sqrt(self.phi1[m] * self.eta1)
+                self.V1[m] = np.random.normal(0, stddev)
+                continue
+
+            if len(idx1) == 0:
+                resid1 = []
+                old_contrib1 = []
+                X1 = np.array([], dtype=np.float32).reshape(0, self.D)
+            else:
+                X1 = self.W[cline[idx1]]
+                old_contrib1 = X1 @ self.V1[m]
+                resid1 = y[idx1] - self.Mu[idx1] + old_contrib1
+
+            if len(idx2) == 0:
+                resid2 = []
+                old_contrib2 = []
+                X2 = np.array([], dtype=np.float32).reshape(0, self.D)
+            else:
+                X2 = self.W[cline[idx2]]
+                old_contrib2 = X2 @ self.V1[m]
+                resid2 = y[idx2] - self.Mu[idx2] + old_contrib2
+
+            # combine slices of data
+            X = np.concatenate([X1, X2])
+            resid = np.concatenate([resid1, resid2])
+            # resid = np.clip(resid, -10.0, 10.0)
+            old_contrib = np.concatenate([old_contrib1, old_contrib2])
+            idx = np.concatenate([idx1, idx2])
+
+            # sample form posterior
+            # X = np.clip(X, -10.0, 10.0)
+            Xt = X.transpose()
+            mu_part = (Xt @ resid) * self.prec
+            Q = (Xt @ X) * self.prec
+            dix = np.diag_indices(self.D)
+            Q[dix] += self.phi1[m] * self.eta1
+            try:
+                self.V1[m] = sample_mvn_from_precision(Q, mu_part=mu_part)
+                # self.V1[m] = np.clip(self.V1[m], -10.0, 10.0)
+                self.Mu[idx] += X @ self.V1[m] - old_contrib
+            except:
+                warnings.warn("Numeric instability in Gibbs V-step...")
+
+    def _V0_step(self) -> None:
+        y, cline, dd1, dd2 = self.encode_obs()
+        for m in range(self.n_drugdoses):
+            # slice where m, k appears as drug1
+            idx1 = np.array(self.dd1_idxs[m], copy=False, dtype=int)
+            # slice where m, k appears as drug2
+            idx2 = np.array(self.dd2_idxs[m], copy=False, dtype=int)
+
+            if len(idx1) + len(idx2) == 0:
+                # no data seen yet, sample from prior
+                stddev = 1.0 / np.sqrt(self.phi0[m] * self.eta0)
+                self.V0[m] = np.random.normal(0, stddev)
+                continue
+
+            old_value = self.V0[m]
+
+            if len(idx1) == 0:
+                resid1 = []
+            else:
+                resid1 = y[idx1] - self.Mu[idx1] + old_value
+
+            # slice where m, k appears as drug2
+            if len(idx2) == 0:
+                resid2 = []
+            else:
+                resid2 = y[idx2] - self.Mu[idx2] + old_value
+
+            # combine slices of data
+            resid = np.concatenate([resid1, resid2])
+            # resid = np.clip(resid, -10.0, 10.0)
+            idx = np.concatenate([idx1, idx2])
+            N = len(idx)
+            mean = self.prec * resid.sum() / (self.prec * N + self.phi0[m] * self.eta0)
+            stddev = 1.0 / np.sqrt(self.prec * N + self.phi0[m] * self.eta0)
+            self.V0[m] = np.random.normal(mean, stddev)
+            self.Mu[idx] += self.V0[m] - old_value
+
+    def _prec_obs_step(self) -> None:
+        if self.n_obs() == 0:
+            self.prec = np.random.gamma(self.a0, 1.0 / self.b0)
+            return
+        # self._reconstruct_Mu()
+        sse = np.square(self.y - self.Mu).sum()
+        an = self.a0 + 0.5 * self.n_obs()
+        bn = self.b0 + 0.5 * sse
+        self.prec = np.random.gamma(an, 1.0 / (bn + 1e-3))
+        C = 1.0 / np.sqrt(1 + self.n_obs())
+        self.last_rmse = np.sqrt(np.square(self.y - self.Mu).mean())
+        self.prec = np.clip(self.prec, C, 1e6)
+
+    def _prec_V2_step(self):
+        if self.local_shrinkage:
+            phiaux2 = np.random.gamma(1.0, 1.0 / (1.0 + self.phi2))
+            bn = phiaux2 + 0.5 * self.eta2 * self.V2**2
+            self.phi2 = np.random.gamma(1.0, 1.0 / (bn + 1e-3))
+            N1 = np.array([len(self.dd1_idxs[c]) for c in range(self.n_drugdoses)])
+            N2 = np.array([len(self.dd2_idxs[c]) for c in range(self.n_drugdoses)])
+            C = 1.0 / np.sqrt(1.0 + N1 + N2)
+            self.phi2 = np.clip(self.phi2, C[:, None], 1e6)
+
+        an = 0.5 * (1 + self.n_drugdoses)
+        etaaux2 = np.random.gamma(1.0, 1.0 / (1.0 + self.eta2))
+        bn = etaaux2 + 0.5 * (self.phi2 * self.V2**2).sum(0)
+        self.eta2 = np.random.gamma(an, 1.0 / (bn + 1e-3))
+        C = 1.0 / np.sqrt(1 + self.n_obs())
+        self.eta2 = np.clip(self.eta2, C, 1e6)
+
+    def _prec_V1_step(self):
+        if self.local_shrinkage:
+            phiaux1 = np.random.gamma(1.0, 1.0 / (1.0 + self.phi1))
+            bn = phiaux1 + 0.5 * self.eta1 * self.V1**2
+            self.phi1 = np.random.gamma(1.0, 1.0 / (bn + 1e-3))
+            N1 = np.array([len(self.dd1_idxs[c]) for c in range(self.n_drugdoses)])
+            N2 = np.array([len(self.dd2_idxs[c]) for c in range(self.n_drugdoses)])
+            C = 1.0 / np.sqrt(1.0 + N1 + N2)
+            self.phi1 = np.clip(self.phi1, C[:, None], 1e6)
+
+        an = 0.5 * (1 + self.n_drugdoses)
+        etaaux1 = np.random.gamma(1.0, 1.0 / (1.0 + self.eta1))
+        bn = etaaux1 + 0.5 * (self.phi1 * self.V1**2).sum(0)
+        self.eta1 = np.random.gamma(an, 1.0 / (bn + 1e-3))
+        C = 1.0 / np.sqrt(1 + self.n_obs())
+        self.eta1 = np.clip(self.eta1, C, 1e6)
+
+    def _prec_V0_step(self):
+        if self.local_shrinkage:
+            phiaux0 = np.random.gamma(1.0, 1.0 / (1.0 + self.phi0))
+            bn = phiaux0 + 0.5 * self.eta0 * self.V0**2
+            self.phi0 = np.random.gamma(1.0, 1.0 / (bn + 1e-3))  # +0.01 for stability
+            N1 = np.array([len(self.dd1_idxs[c]) for c in range(self.n_drugdoses)])
+            N2 = np.array([len(self.dd2_idxs[c]) for c in range(self.n_drugdoses)])
+            C = 1.0 / np.sqrt(1.0 + N1 + N2)
+            self.phi0 = np.clip(self.phi0, C, 1e6)
+
+        # V0 precision
+        an = 0.5 * (1 + self.n_drugdoses)
+        etaaux0 = np.random.gamma(1.0, 1.0 / (1.0 + self.eta0))
+        bn = etaaux0 + 0.5 * (self.phi0 * self.V0**2).sum()
+        self.eta0 = np.random.gamma(an, 1.0 / (bn + 1e-3))  # +0.01 for stability
+        C = 1.0 / np.sqrt(1 + self.n_obs())
+        self.eta0 = np.clip(self.eta0, C, 1e6)
+
+    def _prec_W_step(self):
+        # gamma process
+        parssq = self.W**2
+        if self.mult_gamma_proc:
+            tmp = np.cumprod(self.gam) / self.gam[0]
+            an = 2 + 0.5 * self.n_clines * self.D
+            bn = 1 + 0.5 * (tmp * parssq).sum()
+            self.gam[0] = np.random.gamma(an, 1.0 / (bn + 1e-3))
+            # self.gam[0] = np.clip(self.gam[0], 1.0, 10000.0)
+            # sample all others
+            for d in range(1, self.D):
+                tmp = np.cumprod(self.gam)[d:] / self.gam[d]
+                an = 3 + 0.5 * self.n_clines * (self.D - d)
+                bn = 1 + 0.5 * (tmp * parssq[:, d:]).sum()
+                self.gam[d] = np.random.gamma(an, 1.0 / (bn + 1e-3))
+                # self.gam[d] = np.clip(self.gam[d], 0.5, 100.0)
+            self.tau = np.cumprod(self.gam)
+        else:
+            an = self.a0 + 0.5 * self.n_clines
+            bn = self.b0 + 0.5 * parssq.sum(0)
+            self.tau = np.random.gamma(an, 1.0 / (bn + 1e-3))
+        C = 1.0 / np.sqrt(1 + self.n_obs())
+        self.tau = np.clip(self.tau, C, 1e6)
+
+    def _prec_W0_step(self):
+        # W0 precision
+        an = self.a0 + 0.5 * self.n_clines
+        bn = self.b0 + 0.5 * (self.W0**2).sum()
+        self.tau0 = np.random.gamma(an, 1.0 / (bn + 1e-3))  # +0.01 for stability
+        C = 1.0 / np.sqrt(1 + self.n_obs())
+        self.tau0 = np.clip(self.tau0, C, 1e6)
+
+    def _alpha_step(self) -> None:
+        old_value = self.alpha
+        if self.n_obs() == 0:
+            # alpha is undefined, so assume there is no intercept and sample from prior
+            # it's better than sampling from super degenerate prior
+            return
+        if self.fake_intercept:
+            self.alpha = np.mean(self.y)
+        else:
+            # self._reconstruct_Mu()
+            y, *_ = self.encode_obs()
+            mean = (y - self.Mu + self.alpha).mean()
+            stddev = 1.0 / np.sqrt(self.n_obs())
+            self.alpha = np.random.normal(mean, stddev)
+        self.Mu += self.alpha - old_value
+
+    def mcmc_step(self) -> None:
+        self.num_mcmc_steps += 1
+        # Note! all thse reconstruct Mu's can be changed inplace
+        # when updating the parameter, currently not efficiient
+        self._reconstruct_Mu(clip=False)
+        # if self.intercept:
+        self._alpha_step()
+        # self._reconstruct_Mu()
+        # if self.individual_eff:
+        self._W0_step()
+        # self._reconstruct_Mu()
+        self._V0_step()
+        # self._reconstruct_Mu()
+        self._W_step()
+        self._V2_step()
+        self._V1_step()
+        # self._reconstruct_Mu()
+        # self._reconstruct_Mu()
+        self._prec_W0_step()
+        self._prec_V0_step()
+        self._prec_obs_step()
+        self._prec_V2_step()
+        self._prec_V1_step()
+        self._prec_W_step()
+
+    def _reconstruct_Mu(self, clip=True):
+        if self.n_obs() == 0:
+            return
+        # Reconstruct the entire matrix of means, excluding the upper triangular portion
+        _, cline, dd1, dd2 = self.encode_obs()
+        interaction2 = np.sum(
+            self.W[cline] * self.get("V2", dd1) * self.get("V2", dd2), -1
+        )
+        interaction1 = np.sum(
+            self.W[cline] * (self.get("V1", dd1) + self.get("V1", dd2)), -1
+        )
+        intercept = (
+            self.alpha + self.W0[cline] + self.get("V0", dd1) + self.get("V0", dd2)
+        )
+        self.Mu = intercept + interaction1 + interaction2
+        if clip:
+            self.Mu = np.clip(self.Mu, self.min_Mu, self.max_Mu)
+
+    def predict(self, cline: np.ndarray, dd1: np.ndarray, dd2: np.ndarray):
+        interaction2 = np.sum(
+            self.W[cline] * self.get("V2", dd1) * self.get("V2", dd2), -1
+        )
+        interaction1 = np.sum(
+            self.W[cline] * (self.get("V1", dd1) + self.get("V1", dd2)), -1
+        )
+        intercept = (
+            self.alpha + self.W0[cline] + self.get("V0", dd1) + self.get("V0", dd2)
+        )
+        Mu = intercept + interaction1 + interaction2
+        return Mu
+
+    def predict_single_drug(self, cline: np.ndarray, dd1: np.ndarray):
+        interaction1 = np.sum(self.W[cline] * self.get("V1", dd1), -1)
+        intercept = self.alpha + self.W0[cline] + self.get("V0", dd1)
+        Mu = intercept + interaction1
+        return Mu
+
+    def bliss(self, cline: np.ndarray, dd1: np.ndarray, dd2: np.ndarray):
+        interaction2 = np.sum(
+            self.W[cline] * self.get("V2", dd1) * self.get("V2", dd2), -1
+        )
+        return interaction2
+
+    def ess_pars(self):
+        # return [1.0 / np.sqrt(self.prec)]
+        return [1.0 / np.sqrt(self.prec)] + self.Mu.tolist()
+
+
+class SparseDrugCombo(BayesianModel):
     def __init__(
         self,
         n_embedding_dimensions: int,  # embedding dimension
@@ -201,174 +715,52 @@ class SparseDrugCombo(BayesianModel):
         rng: Optional[Generator] = None,
         predict_interactions: bool = False,
         interaction_log_transform: bool = True,
+        intercept: bool = True,
     ):
-        self.predict_interactions = predict_interactions
-        self.interaction_log_transform = interaction_log_transform
-        self._rng = rng if rng else np.random.default_rng()
-        self.n_embedding_dimensions = n_embedding_dimensions  # embedding size
+        self.n_embedding_dimensions = n_embedding_dimensions
         self.n_unique_treatments = n_unique_treatments
         self.n_unique_samples = n_unique_samples
-        self.min_Mu = min_Mu
-        self.max_Mu = max_Mu
-        self.individual_eff = individual_eff  # use linear effects
-        self.fake_intercept = fake_intercept
-
-        # for the next two see BHATTACHARYA and DUNSON (2011)
-        self.local_shrinkage = local_shrinkage
-        self.mult_gamma_proc = mult_gamma_proc
-
-        # data holders
-        self.y = np.array([], dtype=FloatingPointType)
-
-        # indicators for each entry AND sparse query of specific combos
-        self.sample_ids = np.array([], dtype=int)
-        self.treatment_1 = np.array([], dtype=int)
-        self.treatment_2 = np.array([], dtype=int)
-
-        # hyperpriors
-        self.a0 = a0  # inverse gamma param 1 for prec
-        self.b0 = b0  # inverse gamma param 2 for prec
-
-        # strategy
-        # cell line interaction matrices have shrinking gamam process variances
-        # for each gamma process we need phi and tau
-        # drug interaction terms have sparsity
-        # for sparsity term need only local shrinkage since global shrinkage is
-        # determined by tau
-        # V<k> means drug-dose embedding for order k interactions
-        # W<k> means cell line embedding for order k interactions
-
-        # If changing the initialization make sure the last entry of the
-        # V's stay at zero because it's used for single controls.
-        self.V2 = np.zeros(
-            (self.n_unique_treatments, self.n_embedding_dimensions),
-            dtype=FloatingPointType,
-        )
-        self.V1 = np.zeros(
-            (self.n_unique_treatments, self.n_embedding_dimensions),
-            dtype=FloatingPointType,
-        )
-        self.W = np.zeros(
-            (self.n_unique_samples, self.n_embedding_dimensions),
-            dtype=FloatingPointType,
-        )
-        self.V0 = np.zeros((self.n_unique_treatments,), FloatingPointType)
-        self.W0 = np.zeros((self.n_unique_samples,), FloatingPointType)
-
-        # parameters for horseshoe priors
-        self.phi2 = 100.0 * np.ones_like(self.V2)
-        self.phi1 = 100.0 * np.ones_like(self.V1)
-        self.phi0 = 100.0 * np.ones_like(self.V0)
-        self.eta2 = np.ones(self.n_embedding_dimensions, dtype=FloatingPointType)
-        self.eta1 = np.ones(self.n_embedding_dimensions, dtype=FloatingPointType)
-        self.eta0 = 1.0
-
-        # shrinkage
-        self.tau = 100.0 * np.ones(self.n_embedding_dimensions, FloatingPointType)
-        self.tau0 = 100.0
-
-        if mult_gamma_proc:
-            self.gam = np.ones(self.n_embedding_dimensions, FloatingPointType)
-
-        # intercept and overall precision
-        self.alpha = 0.0
-        self.precision = 100.0
-
-        # holder for model prediction during fit and for eval
-        self.Mu = np.zeros(0, FloatingPointType)
-
-    @property
-    def rng(self) -> np.random.Generator:
-        return self._rng
-
-    def set_rng(self, rng: np.random.Generator):
         self._rng = rng
-
-    @property
-    def n_obs(self):
-        return self.y.size
-
-    def get_results_holder(self, n_samples: int):
-        return SparseDrugComboResults(
-            n_unique_samples=self.n_unique_samples,
-            n_unique_treatments=self.n_unique_treatments,
-            n_embedding_dimensions=self.n_embedding_dimensions,
-            n_thetas=n_samples,
+        self.predict_interactions = predict_interactions
+        self.interaction_log_transform = interaction_log_transform
+        self.wrapped_model = LegacySparseDrugComboImpl(
+            n_dims=n_embedding_dimensions,
+            n_drugdoses=n_unique_treatments,
+            n_clines=n_unique_samples,
+            intercept=intercept,
+            fake_intercept=fake_intercept,
+            individual_eff=individual_eff,
+            mult_gamma_proc=mult_gamma_proc,
+            local_shrinkage=local_shrinkage,
+            a0=a0,
+            b0=b0,
+            min_Mu=min_Mu,
+            max_Mu=max_Mu,
         )
 
-    def add_observations(self, data: ScreenBase):
-        if data.treatment_arity != 2:
-            raise ValueError(
-                "SparseDrugCombo only works with two-treatments combination datasets, "
-                "received a {} treatment dataset".format(data.treatment_arity)
-            )
-
-        y = logit(np.clip(data.observations, a_min=0.01, a_max=0.99))
-
-        self.y = np.concatenate([self.y, y])
-        self.sample_ids = np.concatenate([self.sample_ids, data.sample_ids])
-        self.treatment_1 = np.concatenate([self.treatment_1, data.treatment_ids[:, 0]])
-        self.treatment_2 = np.concatenate([self.treatment_2, data.treatment_ids[:, 1]])
-
-    def reset_model(self):
-        self.W = self.W * 0.0
-        self.W0 = self.W0 * 0.0
-        self.V2 = self.V2 * 0.0
-        self.V1 = self.V1 * 0.0
-        self.V0 = self.V0 * 0.0
-        self.alpha = 0.0
-        self.precision = 100.0
-        self.Mu = np.zeros(0, FloatingPointType)
-        self.phi2 = 100.0 * np.ones_like(self.V2)
-        self.phi1 = 100.0 * np.ones_like(self.V1)
-        self.phi0 = 100.0 * np.ones_like(self.V0)
-        self.eta2 = np.ones(self.n_embedding_dimensions, dtype=FloatingPointType)
-        self.eta1 = np.ones(self.n_embedding_dimensions, dtype=FloatingPointType)
-        self.eta0 = 1.0
-        self.tau = 100.0 * np.ones(self.n_embedding_dimensions, FloatingPointType)
-        self.tau0 = 100.0
-        self.gam = np.ones(self.n_embedding_dimensions, FloatingPointType)
-        self.alpha = 0.0
-        self.precision = 100.0
-        self.Mu = np.zeros(0, FloatingPointType)
-
-    def set_model_state(self, model_state: SparseDrugComboMCMCSample):
-        self.W = model_state.W
-        self.W0 = model_state.W0
-        self.V2 = model_state.V2
-        self.V1 = model_state.V1
-        self.V0 = model_state.V0
-        self.alpha = model_state.alpha
-        self.precision = model_state.precision
-        self._reconstruct_Mu()
-
-    def step(self):
-        self._reconstruct_Mu(clip=False)
-        self._alpha_step()
-        self._W0_step()
-        self._V0_step()
-        self._W_step()
-        self._V2_step()
-        self._V1_step()
-        self._prec_W0_step()
-        self._prec_V0_step()
-        self._prec_obs_step()
-        self._prec_V2_step()
-        self._prec_V1_step()
-        self._prec_W_step()
+    def set_model_state(self, theta: SparseDrugComboMCMCSample):
+        self.wrapped_model.reset_model()
+        self.wrapped_model.W0 = theta.W0.astype(np.float32)
+        self.wrapped_model.W = theta.W.astype(np.float32)
+        self.wrapped_model.V0 = theta.V0.astype(np.float32)
+        self.wrapped_model.V1 = theta.V1.astype(np.float32)
+        self.wrapped_model.V2 = theta.V2.astype(np.float32)
+        self.wrapped_model.alpha = theta.alpha
+        self.wrapped_model.prec = theta.precision
+        self.wrapped_model._reconstruct_Mu()
 
     def get_model_state(self) -> SparseDrugComboMCMCSample:
         return SparseDrugComboMCMCSample(
-            precision=self.precision,
-            alpha=self.alpha,
-            W0=self.W0.copy(),
-            V0=self.V0.copy(),
-            W=self.W.copy(),
-            V2=self.V2.copy(),
-            V1=self.V1.copy(),
+            precision=self.wrapped_model.prec,
+            alpha=self.wrapped_model.alpha,
+            W0=self.wrapped_model.W0.copy().astype(FloatingPointType),
+            V0=self.wrapped_model.V0.copy().astype(FloatingPointType),
+            W=self.wrapped_model.W.copy().astype(FloatingPointType),
+            V2=self.wrapped_model.V2.copy().astype(FloatingPointType),
+            V1=self.wrapped_model.V1.copy().astype(FloatingPointType),
         )
 
-    def predict(self, data: ScreenBase):
+    def predict(self, data: ScreenBase) -> ArrayType:
         state = self.get_model_state()
         if data.treatment_arity == 1:
             return predict_single_drug(state, data)
@@ -390,408 +782,42 @@ class SparseDrugCombo(BayesianModel):
         else:
             raise NotImplementedError("SparseDrugCombo only supports 1 or 2 treatments")
 
-    def variance(self):
-        return 1.0 / self.precision
+    def variance(self) -> FloatingPointType:
+        return 1.0 / self.wrapped_model.prec
 
-    # region Model Implementation
-    def _W_step(self):
-        """the strategy is to iterate over each cell line
-        and solve the linear problem"""
-        for sample_id in range(self.n_unique_samples):
-            cidx = self.sample_ids == sample_id
-            if cidx.sum() == 0:
-                # no data seen yet, sample from prior
-                stddev = 1.0 / np.sqrt(self.tau)
-                self.W[sample_id] = self.rng.normal(0.0, stddev)
-                continue
-            tmp1 = copy_array_with_control_treatments_set_to_zero(
-                self.V2, self.treatment_1[cidx]
-            ) * copy_array_with_control_treatments_set_to_zero(
-                self.V2, self.treatment_2[cidx]
-            )
+    def step(self):
+        self.wrapped_model.mcmc_step()
 
-            tmp2 = copy_array_with_control_treatments_set_to_zero(
-                self.V1, self.treatment_1[cidx]
-            ) * copy_array_with_control_treatments_set_to_zero(
-                self.V1, self.treatment_2[cidx]
-            )
+    def set_rng(self, rng: np.random.Generator):
+        self._rng = rng
 
-            X = tmp1 + tmp2
-            old_contrib = X @ self.W[sample_id]
-            resid = self.y[cidx] - self.Mu[cidx] + old_contrib
+    @property
+    def rng(self) -> np.random.Generator:
+        return self._rng
 
-            Xt = X.transpose()
-            prec = self.precision
-            mu_part = (Xt @ resid) * prec
-            Q = (Xt @ X) * prec
-            Q[np.diag_indices(self.n_embedding_dimensions)] += self.tau
-            try:
-                self.W[sample_id] = sample_mvn_from_precision(
-                    Q, mu_part=mu_part, rng=self.rng
-                )
+    def _add_observations(self, data: ScreenBase):
+        for y, dd, cl, mask in zip(
+            logit(data.observations.astype(np.float32)),
+            data.treatment_ids,
+            data.sample_ids,
+            data.observation_mask,
+        ):
+            if mask:
+                self.wrapped_model._update(y=y, cl=cl, dd1=dd[0], dd2=dd[1])
 
-                # update Mu
-                self.Mu[cidx] += X @ self.W[sample_id] - old_contrib
-            except LinAlgError:
-                warnings.warn("Numeric instability in Gibbs W-step...")
+    def n_obs(self) -> int:
+        return self.wrapped_model.n_obs()
 
-    def _W0_step(self):
-        for sample_id in range(self.n_unique_samples):
-            cidx = self.sample_ids == sample_id
-            if cidx.sum() == 0:
-                # sample from prior
-                stddev = 1.0 / np.sqrt(self.tau0)
-                self.W0[sample_id] = self.rng.normal(0.0, stddev)
-            else:
-                resid = self.y[cidx] - self.Mu[cidx] + self.W0[sample_id]
-                old_contrib = self.W0[sample_id]
-                N = cidx.sum()
-                mean = self.precision * resid.sum() / (self.precision * N + self.tau0)
-                stddev = 1.0 / np.sqrt(self.precision * N + self.tau0)
-                self.W0[sample_id] = self.rng.normal(mean, stddev)
-                self.Mu[cidx] += self.W0[sample_id] - old_contrib
-
-    def _V2_step(self) -> None:
-        """the strategy is to iterate over each drug pair combination
-        but the trick is to handle the case when drug-pair appears in first
-        postition and when it appears in second position
-        and solve the linear problem"""
-        for treatment_id in range(self.n_unique_treatments):
-            # slice where treatment_id, k appears as drug1
-            idx1 = self.treatment_1 == treatment_id
-            # slice where treatment_id, k appears as drug2
-            idx2 = self.treatment_2 == treatment_id
-            idx = idx1 | idx2
-
-            idx1_count = np.count_nonzero(idx1)
-            idx2_count = np.count_nonzero(idx2)
-            idx_total = np.count_nonzero(idx)
-
-            if idx_total == 0:
-                # no data seen yet, sample from prior
-                stddev = 1.0 / np.sqrt(self.phi2[treatment_id] * self.eta2)
-                self.V2[treatment_id] = self.rng.normal(0, stddev)
-                continue
-
-            if idx1_count == 0:
-                resid1 = []
-                old_contrib1 = []
-                X1 = np.array([], dtype=FloatingPointType).reshape(
-                    0, self.n_embedding_dimensions
-                )
-            else:
-                X1 = self.W[
-                    self.sample_ids[idx1]
-                ] * copy_array_with_control_treatments_set_to_zero(
-                    self.V2, self.treatment_2[idx1]
-                )
-                old_contrib1 = X1 @ self.V2[treatment_id]
-                resid1 = self.y[idx1] - self.Mu[idx1] + old_contrib1
-
-            if idx2_count == 0:
-                resid2 = []
-                old_contrib2 = []
-                X2 = np.array([], dtype=FloatingPointType).reshape(
-                    0, self.n_embedding_dimensions
-                )
-            else:
-                X2 = self.W[
-                    self.sample_ids[idx2]
-                ] * copy_array_with_control_treatments_set_to_zero(
-                    self.V2, self.treatment_1[idx2]
-                )
-                old_contrib2 = X2 @ self.V2[treatment_id]
-                resid2 = self.y[idx2] - self.Mu[idx2] + old_contrib2
-
-            # combine slices of data
-            X = np.concatenate([X1, X2])
-            resid = np.concatenate([resid1, resid2])
-            old_contrib = np.concatenate([old_contrib1, old_contrib2])
-
-            # sample form posterior
-            Xt = X.transpose()
-            mu_part = (Xt @ resid) * self.precision
-            Q = (Xt @ X) * self.precision
-            dix = np.diag_indices(self.n_embedding_dimensions)
-            Q[dix] += self.phi2[treatment_id] * self.eta2
-            try:
-                self.V2[treatment_id] = sample_mvn_from_precision(
-                    Q, mu_part=mu_part, rng=self.rng
-                )
-                self.Mu[idx] += X @ self.V2[treatment_id] - old_contrib
-            except LinAlgError:
-                warnings.warn("Numeric instability in Gibbs V-step...")
-
-    def _V1_step(self) -> None:
-        """the strategy is to iterate over each drug pair combination
-        but the trick is to handle the case when drug-pair appears in first
-        postition and when it appears in second position
-        and solve the linear problem"""
-        for treatment_id in range(self.n_unique_treatments):
-            # slice where treatment_id, k appears as drug1
-            idx1 = self.treatment_1 == treatment_id
-            # slice where treatment_id, k appears as drug2
-            idx2 = self.treatment_2 == treatment_id
-            idx = idx1 | idx2
-
-            idx1_count = np.count_nonzero(idx1)
-            idx2_count = np.count_nonzero(idx2)
-            idx_total = np.count_nonzero(idx)
-
-            if idx_total == 0:
-                # no data seen yet, sample from prior
-                stddev = 1.0 / np.sqrt(self.phi1[treatment_id] * self.eta1)
-                self.V1[treatment_id] = self.rng.normal(0, stddev)
-                continue
-
-            if idx1_count == 0:
-                resid1 = []
-                old_contrib1 = []
-                X1 = np.array([], dtype=FloatingPointType).reshape(
-                    0, self.n_embedding_dimensions
-                )
-            else:
-                X1 = self.W[self.sample_ids[idx1]]
-                old_contrib1 = X1 @ self.V1[treatment_id]
-                resid1 = self.y[idx1] - self.Mu[idx1] + old_contrib1
-
-            if idx2_count == 0:
-                resid2 = []
-                old_contrib2 = []
-                X2 = np.array([], dtype=FloatingPointType).reshape(
-                    0, self.n_embedding_dimensions
-                )
-            else:
-                X2 = self.W[self.sample_ids[idx2]]
-                old_contrib2 = X2 @ self.V1[treatment_id]
-                resid2 = self.y[idx2] - self.Mu[idx2] + old_contrib2
-
-            # combine slices of data
-            X = np.concatenate([X1, X2])
-            resid = np.concatenate([resid1, resid2])
-            old_contrib = np.concatenate([old_contrib1, old_contrib2])
-
-            # sample form posterior
-            Xt = X.transpose()
-            mu_part = (Xt @ resid) * self.precision
-            Q = (Xt @ X) * self.precision
-            dix = np.diag_indices(self.n_embedding_dimensions)
-            Q[dix] += self.phi1[treatment_id] * self.eta1
-            try:
-                self.V1[treatment_id] = sample_mvn_from_precision(
-                    Q, mu_part=mu_part, rng=self.rng
-                )
-                self.Mu[idx] += X @ self.V1[treatment_id] - old_contrib
-            except LinAlgError:
-                warnings.warn("Numeric instability in Gibbs V-step...")
-
-    def _V0_step(self) -> None:
-        for treatment_id in range(self.n_unique_treatments):
-            # slice where treatment_id, k appears as drug1
-            idx1 = self.treatment_1 == treatment_id
-            # slice where treatment_id, k appears as drug2
-            idx2 = self.treatment_2 == treatment_id
-            idx = idx1 | idx2
-
-            idx1_count = np.count_nonzero(idx1)
-            idx2_count = np.count_nonzero(idx2)
-            idx_total = np.count_nonzero(idx)
-
-            if idx_total == 0:
-                # no data seen yet, sample from prior
-                stddev = 1.0 / np.sqrt(self.phi0[treatment_id] * self.eta0)
-                self.V0[treatment_id] = self.rng.normal(0, stddev)
-                continue
-
-            old_value = self.V0[treatment_id]
-
-            if idx1_count == 0:
-                resid1 = []
-            else:
-                resid1 = self.y[idx1] - self.Mu[idx1] + old_value
-
-            # slice where treatment_id, k appears as drug2
-            if idx2_count == 0:
-                resid2 = []
-            else:
-                resid2 = self.y[idx2] - self.Mu[idx2] + old_value
-
-            # combine slices of data
-            resid = np.concatenate([resid1, resid2])
-
-            mean = (
-                self.precision
-                * resid.sum()
-                / (self.precision * idx_total + self.phi0[treatment_id] * self.eta0)
-            )
-            stddev = 1.0 / np.sqrt(
-                self.precision * idx_total + self.phi0[treatment_id] * self.eta0
-            )
-            self.V0[treatment_id] = self.rng.normal(mean, stddev)
-            self.Mu[idx] += self.V0[treatment_id] - old_value
-
-    def _prec_obs_step(self) -> None:
-        if self.n_obs == 0:
-            self.precision = self.rng.gamma(self.a0, 1.0 / self.b0)
-            return
-        sse = np.square(self.y - self.Mu).sum()
-        an = self.a0 + 0.5 * self.n_obs
-        bn = self.b0 + 0.5 * sse
-        self.precision = self.rng.gamma(an, 1.0 / (bn + 1e-3))
-        C = 1.0 / np.sqrt(1 + self.n_obs)
-        self.last_rmse = np.sqrt(np.square(self.y - self.Mu).mean())
-        self.precision = np.clip(self.precision, C, 1e6)
-
-    def _prec_V2_step(self):
-        if self.local_shrinkage:
-            phiaux2 = self.rng.gamma(1.0, 1.0 / (1.0 + self.phi2))
-            bn = phiaux2 + 0.5 * self.eta2 * self.V2**2
-            self.phi2 = self.rng.gamma(1.0, 1.0 / (bn + 1e-3))
-            N1 = np.array(
-                [(self.treatment_1 == c).sum() for c in range(self.n_unique_treatments)]
-            )
-            N2 = np.array(
-                [(self.treatment_2 == c).sum() for c in range(self.n_unique_treatments)]
-            )
-            C = 1.0 / np.sqrt(1.0 + N1 + N2)
-            self.phi2 = np.clip(self.phi2, C[:, None], 1e6)
-
-        an = 0.5 * (1 + self.n_unique_treatments)
-        etaaux2 = self.rng.gamma(1.0, 1.0 / (1.0 + self.eta2))
-        bn = etaaux2 + 0.5 * (self.phi2 * self.V2**2).sum(0)
-        self.eta2 = self.rng.gamma(an, 1.0 / (bn + 1e-3))
-        C = 1.0 / np.sqrt(1 + self.n_obs)
-        self.eta2 = np.clip(self.eta2, C, 1e6)
-
-    def _prec_V1_step(self):
-        if self.local_shrinkage:
-            phiaux1 = self.rng.gamma(1.0, 1.0 / (1.0 + self.phi1))
-            bn = phiaux1 + 0.5 * self.eta1 * self.V1**2
-            self.phi1 = self.rng.gamma(1.0, 1.0 / (bn + 1e-3))
-            N1 = np.array(
-                [(self.treatment_1 == c).sum() for c in range(self.n_unique_treatments)]
-            )
-            N2 = np.array(
-                [(self.treatment_2 == c).sum() for c in range(self.n_unique_treatments)]
-            )
-            C = 1.0 / np.sqrt(1.0 + N1 + N2)
-            self.phi1 = np.clip(self.phi1, C[:, None], 1e6)
-
-        an = 0.5 * (1 + self.n_unique_treatments)
-        etaaux1 = self.rng.gamma(1.0, 1.0 / (1.0 + self.eta1))
-        bn = etaaux1 + 0.5 * (self.phi1 * self.V1**2).sum(0)
-        self.eta1 = self.rng.gamma(an, 1.0 / (bn + 1e-3))
-        C = 1.0 / np.sqrt(1 + self.n_obs)
-        self.eta1 = np.clip(self.eta1, C, 1e6)
-
-    def _prec_V0_step(self):
-        if self.local_shrinkage:
-            phiaux0 = self.rng.gamma(1.0, 1.0 / (1.0 + self.phi0))
-            bn = phiaux0 + 0.5 * self.eta0 * self.V0**2
-            self.phi0 = self.rng.gamma(1.0, 1.0 / (bn + 1e-3))  # +0.01 for stability
-            N1 = np.array(
-                [(self.treatment_1 == c).sum() for c in range(self.n_unique_treatments)]
-            )
-            N2 = np.array(
-                [(self.treatment_2 == c).sum() for c in range(self.n_unique_treatments)]
-            )
-            C = 1.0 / np.sqrt(1.0 + N1 + N2)
-            self.phi0 = np.clip(self.phi0, C, 1e6)
-
-        # V0 precision
-        an = 0.5 * (1 + self.n_unique_treatments)
-        etaaux0 = self.rng.gamma(1.0, 1.0 / (1.0 + self.eta0))
-        bn = etaaux0 + 0.5 * (self.phi0 * self.V0**2).sum()
-        self.eta0 = self.rng.gamma(an, 1.0 / (bn + 1e-3))  # +0.01 for stability
-        C = 1.0 / np.sqrt(1 + self.n_obs)
-        self.eta0 = np.clip(self.eta0, C, 1e6)
-
-    def _prec_W_step(self):
-        # gamma process
-        parssq = self.W**2
-        if self.mult_gamma_proc:
-            tmp = np.cumprod(self.gam) / self.gam[0]
-            an = 2 + 0.5 * self.n_unique_samples * self.n_embedding_dimensions
-            bn = 1 + 0.5 * (tmp * parssq).sum()
-            self.gam[0] = self.rng.gamma(an, 1.0 / (bn + 1e-3))
-            # sample all others
-            for d in range(1, self.n_embedding_dimensions):
-                tmp = np.cumprod(self.gam)[d:] / self.gam[d]
-                an = 3 + 0.5 * self.n_unique_samples * (self.n_embedding_dimensions - d)
-                bn = 1 + 0.5 * (tmp * parssq[:, d:]).sum()
-                self.gam[d] = self.rng.gamma(an, 1.0 / (bn + 1e-3))
-            self.tau = np.cumprod(self.gam)
-        else:
-            an = self.a0 + 0.5 * self.n_unique_samples
-            bn = self.b0 + 0.5 * parssq.sum(0)
-            self.tau = self.rng.gamma(an, 1.0 / (bn + 1e-3))
-        C = 1.0 / np.sqrt(1 + self.n_obs)
-        self.tau = np.clip(self.tau, C, 1e6)
-
-    def _prec_W0_step(self):
-        # W0 precision
-        an = self.a0 + 0.5 * self.n_unique_samples
-        bn = self.b0 + 0.5 * (self.W0**2).sum()
-        self.tau0 = self.rng.gamma(an, 1.0 / (bn + 1e-3))  # +0.01 for stability
-        C = 1.0 / np.sqrt(1 + self.n_obs)
-        self.tau0 = np.clip(self.tau0, C, 1e6)
-
-    def _alpha_step(self) -> None:
-        old_value = self.alpha
-        if self.n_obs == 0:
-            # alpha is undefined, so assume there is no intercept and sample from prior
-            # it's better than sampling from super degenerate prior
-            return
-        if self.fake_intercept:
-            self.alpha = np.mean(self.y)
-        else:
-            mean = (self.y - self.Mu + self.alpha).mean()
-            stddev = 1.0 / np.sqrt(self.n_obs)
-            self.alpha = self.rng.normal(mean, stddev)
-        self.Mu += self.alpha - old_value
-
-    def _reconstruct_Mu(self, clip=True):
-        if self.n_obs == 0:
-            return
-        # Reconstruct the entire matrix of means, excluding the upper triangular portion
-        interaction2 = np.sum(
-            (
-                self.W[self.sample_ids]
-                * copy_array_with_control_treatments_set_to_zero(
-                    self.V2, self.treatment_1
-                )
-                * copy_array_with_control_treatments_set_to_zero(
-                    self.V2, self.treatment_2
-                )
-            ),
-            -1,
+    def get_results_holder(self, n_samples: int) -> ThetaHolder:
+        return SparseDrugComboResults(
+            n_unique_samples=self.n_unique_samples,
+            n_unique_treatments=self.n_unique_treatments,
+            n_embedding_dimensions=self.n_embedding_dimensions,
+            n_thetas=n_samples,
         )
-        interaction1 = np.sum(
-            self.W[self.sample_ids]
-            * (
-                copy_array_with_control_treatments_set_to_zero(
-                    self.V1, self.treatment_1
-                )
-                + copy_array_with_control_treatments_set_to_zero(
-                    self.V1, self.treatment_2
-                )
-            ),
-            -1,
-        )
-        intercept = (
-            self.alpha
-            + self.W0[self.sample_ids]
-            + copy_array_with_control_treatments_set_to_zero(self.V0, self.treatment_1)
-            + copy_array_with_control_treatments_set_to_zero(self.V0, self.treatment_2)
-        )
-        self.Mu = intercept + interaction1 + interaction2
-        if clip:
-            self.Mu = np.clip(self.Mu, self.min_Mu, self.max_Mu)
 
-    def _ess_pars(self):
-        return [1.0 / np.sqrt(self.precision)] + self.Mu.tolist()
-
-    # endregion
+    def reset_model(self):
+        self.wrapped_model.reset_model()
 
 
 def predict(mcmc_sample: SparseDrugComboMCMCSample, data: ScreenBase):
@@ -848,19 +874,6 @@ def predict_single_drug(mcmc_sample: SparseDrugComboMCMCSample, data: ScreenBase
     )
     Mu = intercept + interaction1
     return np.clip(expit(Mu), a_min=0.01, a_max=0.99)
-
-
-def bliss(mcmc_sample: SparseDrugComboMCMCSample, data: ScreenBase):
-    return np.sum(
-        mcmc_sample.W[data.treatment_ids]
-        * copy_array_with_control_treatments_set_to_zero(
-            mcmc_sample.V2, data.treatment_ids[:, 0]
-        )
-        * copy_array_with_control_treatments_set_to_zero(
-            mcmc_sample.V2, data.treatment_ids[:, 1]
-        ),
-        -1,
-    )
 
 
 def interactions_to_logits(

@@ -236,8 +236,19 @@ class BayesianModel(ABC):
         """
         raise NotImplementedError
 
-    @abstractmethod
     def add_observations(self, data: ScreenBase):
+        """
+        Add observations to the model.
+
+        :param data: The data to add.
+        """
+        if not data.observation_mask.all():
+            raise ValueError("Cannot add data with masked observations")
+
+        self._add_observations(data)
+
+    @abstractmethod
+    def _add_observations(self, data: ScreenBase):
         """
         Add observations to the model.
 

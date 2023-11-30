@@ -97,6 +97,9 @@ def main():
     args.model_params[N_UNIQUE_TREATMENTS] = training_screen.n_unique_treatments
 
     model: BayesianModel = args.model_cls(**args.model_params)
+
+    model.add_observations(training_screen.subset_observed())
+
     theta_holder: ThetaHolder = model.get_results_holder(n_samples=1)
 
     theta_holders = [theta_holder.load_h5(x) for x in args.thetas]
