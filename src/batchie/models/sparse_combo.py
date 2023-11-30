@@ -876,19 +876,6 @@ def predict_single_drug(mcmc_sample: SparseDrugComboMCMCSample, data: ScreenBase
     return np.clip(expit(Mu), a_min=0.01, a_max=0.99)
 
 
-def bliss(mcmc_sample: SparseDrugComboMCMCSample, data: ScreenBase):
-    return np.sum(
-        mcmc_sample.W[data.treatment_ids]
-        * copy_array_with_control_treatments_set_to_zero(
-            mcmc_sample.V2, data.treatment_ids[:, 0]
-        )
-        * copy_array_with_control_treatments_set_to_zero(
-            mcmc_sample.V2, data.treatment_ids[:, 1]
-        ),
-        -1,
-    )
-
-
 def interactions_to_logits(
     interaction: ArrayType, single_effects: ArrayType, log_transform: bool
 ):
