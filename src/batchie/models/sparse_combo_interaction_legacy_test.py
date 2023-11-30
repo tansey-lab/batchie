@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from batchie.data import Screen
-from batchie.models import sparse_combo_interaction
+from batchie.models import sparse_combo_interaction_legacy
 
 
 @pytest.fixture
@@ -40,7 +40,7 @@ def test_dataset():
 
 
 def test_step_with_observed_data(test_dataset):
-    model = sparse_combo_interaction.SparseDrugComboInteraction(
+    model = sparse_combo_interaction_legacy.LegacySparseDrugComboInteraction(
         n_embedding_dimensions=5, n_unique_treatments=2, n_unique_samples=4
     )
 
@@ -56,12 +56,11 @@ def test_step_with_observed_data(test_dataset):
 def test_predict_and_set_model_state(
     test_dataset, adjust_single, interaction_log_transform
 ):
-    model = sparse_combo_interaction.SparseDrugComboInteraction(
+    model = sparse_combo_interaction_legacy.LegacySparseDrugComboInteraction(
         n_embedding_dimensions=5,
         n_unique_treatments=test_dataset.treatment_arity,
         n_unique_samples=test_dataset.n_unique_samples,
         adjust_single=adjust_single,
-        interaction_log_transform=interaction_log_transform,
     )
     model.add_observations(test_dataset)
     model.step()
@@ -79,13 +78,13 @@ def test_predict_and_set_model_state(
 
 
 def test_results_holder_serde(test_dataset):
-    model = sparse_combo_interaction.SparseDrugComboInteraction(
+    model = sparse_combo_interaction_legacy.LegacySparseDrugComboInteraction(
         n_embedding_dimensions=5,
         n_unique_treatments=test_dataset.treatment_arity,
         n_unique_samples=test_dataset.n_unique_samples,
     )
 
-    results_holder = sparse_combo_interaction.SparseDrugComboInteractionResults(
+    results_holder = sparse_combo_interaction_legacy.SparseDrugComboInteractionResults(
         n_thetas=2,
         n_embedding_dimensions=5,
         n_unique_treatments=test_dataset.treatment_arity,
@@ -100,14 +99,16 @@ def test_results_holder_serde(test_dataset):
         results_holder.save_h5(f.name)
 
         results_holder2 = (
-            sparse_combo_interaction.SparseDrugComboInteractionResults.load_h5(f.name)
+            sparse_combo_interaction_legacy.SparseDrugComboInteractionResults.load_h5(
+                f.name
+            )
         )
 
     assert results_holder2.n_unique_samples == results_holder.n_thetas
     np.testing.assert_array_equal(results_holder2.V2, results_holder.V2)
     np.testing.assert_array_equal(results_holder2.W, results_holder.W)
 
-    results_holder2 = sparse_combo_interaction.SparseDrugComboInteractionResults(
+    results_holder2 = sparse_combo_interaction_legacy.SparseDrugComboInteractionResults(
         n_thetas=2,
         n_embedding_dimensions=5,
         n_unique_treatments=test_dataset.treatment_arity,
