@@ -1,7 +1,6 @@
-import tempfile
-
 import numpy as np
 import pytest
+import tempfile
 
 from batchie.data import Screen
 from batchie.models import sparse_combo

@@ -151,6 +151,11 @@ class SparseDrugComboInteractionResults(ThetaHolder):
 
 
 class LegacySparseDrugComboInteractionImpl:
+    """
+    This is the original implementation of the sparse drug combo interaction model.
+    Preserved here without changes to ensure reproducibility of results.
+    """
+
     ### Assumes that we are only modeling interaction terms
     def __init__(
         self,
@@ -163,7 +168,7 @@ class LegacySparseDrugComboInteractionImpl:
         b0: float = 1.1,
         min_Mu: float = -10.0,
         max_Mu: float = 10.0,
-    ) -> None:
+    ):
         self.D = n_dims  # embedding size
         self.n_drugdoses = n_drugdoses
         self.n_clines = n_clines
@@ -425,7 +430,7 @@ class LegacySparseDrugComboInteractionImpl:
         return Mu
 
 
-class LegacySparseDrugComboInteraction(BayesianModel):
+class SparseDrugComboInteraction(BayesianModel):
     def __init__(
         self,
         n_embedding_dimensions: int,  # embedding dimension
