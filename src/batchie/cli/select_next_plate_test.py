@@ -32,10 +32,10 @@ def test_dataset():
 @pytest.fixture
 def test_scores():
     scores = ChunkedScoresHolder(size=4)
-    scores.add_score(0, 0.1)
     scores.add_score(1, 0.2)
-    scores.add_score(2, 0.3)
-    scores.add_score(3, 0.4)
+    scores.add_score(2, 0.1)
+    scores.add_score(3, 0.3)
+    scores.add_score(4, 0.4)
     return scores
 
 
@@ -50,6 +50,9 @@ def test_main(mocker, test_dataset, test_scores, use_policy):
         os.path.join(tmpdir, "scores.h5"),
         "--output",
         os.path.join(tmpdir, "results.txt"),
+        "--batch-plate-id",
+        "2",
+        "3",
     ]
 
     test_dataset.save_h5(os.path.join(tmpdir, "data.h5"))
@@ -81,7 +84,7 @@ def test_main(mocker, test_dataset, test_scores, use_policy):
         if use_policy:
             assert content == "-1"
         else:
-            assert int(content.strip()) == 0
+            assert int(content.strip()) == 1
 
     finally:
         shutil.rmtree(tmpdir)

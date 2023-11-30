@@ -48,7 +48,7 @@ def test_k_per_sample_batcher(test_dataset):
     all_plates = test_dataset.plates
 
     result = batcher.filter_eligible_plates(
-        observed_plates=[],
+        batch_plates=[],
         unobserved_plates=all_plates,
         rng=mock.MagicMock(),
     )
@@ -56,7 +56,7 @@ def test_k_per_sample_batcher(test_dataset):
     assert len(result) == 8
 
     result_after_one_sample_has_been_selected_twice = batcher.filter_eligible_plates(
-        observed_plates=[all_plates[6], all_plates[7]],
+        batch_plates=[all_plates[6], all_plates[7]],
         unobserved_plates=[
             all_plates[0],
             all_plates[1],
@@ -110,7 +110,7 @@ def test_k_per_sample_batcher_preconditions():
     batcher = KPerSamplePlatePolicy(k=2)
     with pytest.raises(ValueError):
         batcher.filter_eligible_plates(
-            observed_plates=[],
+            batch_plates=[],
             unobserved_plates=bad_plates.plates,
             rng=mock.MagicMock(),
         )

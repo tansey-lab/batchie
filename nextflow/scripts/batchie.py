@@ -264,7 +264,7 @@ def run_subsequent_batch_plate(
     ] + extra_args
 
     if excludes is not None:
-        args = args + ["--excludes", ",".join(excludes)]
+        args = args + ["--excludes={}".format(",".join(excludes))]
 
     logger.info(f"Running command: {' '.join(args)}")
 
@@ -346,6 +346,8 @@ def run_next_retrospective_step(output_dir, input_screen, extra_args, batch_size
         current_screen,
     ) = examine_output_dir_to_determine_current_iteration(output_dir, batch_size)
 
+    already_selected_plates = get_selected_plates(output_dir)
+
     if last_successful_run_meta is not None:
         plates_remaining = last_successful_run_meta["n_unobserved_plates"]
 
@@ -394,6 +396,7 @@ def run_next_retrospective_step(output_dir, input_screen, extra_args, batch_size
             extra_args=extra_args,
             thetas=theta_and_dist_chunks["thetas"],
             dist_chunks=theta_and_dist_chunks["dist_chunks"],
+            excludes=already_selected_plates,
         )
     return True
 

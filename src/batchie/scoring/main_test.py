@@ -53,6 +53,15 @@ def test_chunked_scores_holder():
         shutil.rmtree(tmpdir)
 
 
+def test_chunked_scores_holder_min():
+    scores = main.ChunkedScoresHolder(size=3)
+    scores.add_score(1, 0.1)
+    scores.add_score(2, 0.0)
+    scores.add_score(3, 0.2)
+    assert scores.plate_id_with_minimum_score() == 2
+    assert scores.plate_id_with_minimum_score([1, 3]) == 1
+
+
 def test_chunked_scores_holder_empty():
     scores = main.ChunkedScoresHolder(size=0)
 

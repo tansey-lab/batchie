@@ -46,6 +46,7 @@ workflow RUN_PROSPECTIVE_STEP {
     CALCULATE_SCORE_CHUNK( score_chunk_input )
 
     ch_input.map { tuple(it[0], it[1]) }
+        .join(excludes)
         .join(CALCULATE_SCORE_CHUNK.out.score_chunk.groupTuple())
         .tap { select_next_plate_input }
 

@@ -21,6 +21,10 @@ input:
       description: |
         Batchie experiment file (.h5) as documented at
         https://batchie.readthedocs.io/en/latest/data_format.html#experiment-format
+  - excludes:
+      type: list
+      description: |
+        List of plates to exclude from selection
   - scores:
       type: file
       description: |
