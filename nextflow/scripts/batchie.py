@@ -264,7 +264,7 @@ def run_subsequent_batch_plate(
     ] + extra_args
 
     if excludes is not None:
-        args = args + ["--excludes", ",".join(excludes)]
+        args = args + ["--excludes", "'{}'".format(",".join(excludes))]
 
     logger.info(f"Running command: {' '.join(args)}")
 
