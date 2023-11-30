@@ -516,7 +516,7 @@ class SparseDrugComboInteraction(BayesianModel):
     def rng(self) -> np.random.Generator:
         return self._rng
 
-    def add_observations(self, data: ScreenBase):
+    def _add_observations(self, data: ScreenBase):
         if data.treatment_arity != 2:
             raise ValueError(
                 "SparseDrugComboInteraction only works with two-treatments combination datasets, "

@@ -98,7 +98,7 @@ def main():
 
     model: BayesianModel = args.model_cls(**args.model_params)
 
-    model.add_observations(training_screen)
+    model.add_observations(training_screen.subset_observed())
 
     theta_holder: ThetaHolder = model.get_results_holder(n_samples=1)
 

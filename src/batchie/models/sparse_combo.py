@@ -795,7 +795,7 @@ class SparseDrugCombo(BayesianModel):
     def rng(self) -> np.random.Generator:
         return self._rng
 
-    def add_observations(self, data: ScreenBase):
+    def _add_observations(self, data: ScreenBase):
         for y, dd, cl, mask in zip(
             logit(data.observations.astype(np.float32)),
             data.treatment_ids,

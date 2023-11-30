@@ -144,6 +144,8 @@ def main():
 
     model: BayesianModel = args.model_cls(**args.model_params)
 
+    model.add_observations(screen.subset_observed())
+
     scorer: Scorer = args.scorer_cls(**args.scorer_params)
 
     thetas_holder: ThetaHolder = model.get_results_holder(n_samples=1)

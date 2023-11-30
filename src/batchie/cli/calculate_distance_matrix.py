@@ -123,6 +123,8 @@ def main():
 
     model: BayesianModel = args.model_cls(**args.model_params)
 
+    model.add_observations(data.subset_observed())
+
     thetas_holder: ThetaHolder = model.get_results_holder(n_samples=1)
 
     thetas = thetas_holder.concat([thetas_holder.load_h5(x) for x in args.thetas])
