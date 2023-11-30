@@ -49,18 +49,11 @@ def test_step_with_observed_data(test_dataset):
     model.step()
 
 
-@pytest.mark.parametrize(
-    "adjust_single,interaction_log_transform",
-    [(True, True), (False, False), (True, False), (False, True)],
-)
-def test_predict_and_set_model_state(
-    test_dataset, adjust_single, interaction_log_transform
-):
+def test_predict_and_set_model_state(test_dataset):
     model = sparse_combo_interaction_legacy.LegacySparseDrugComboInteraction(
         n_embedding_dimensions=5,
         n_unique_treatments=test_dataset.treatment_arity,
         n_unique_samples=test_dataset.n_unique_samples,
-        adjust_single=adjust_single,
     )
     model.add_observations(test_dataset)
     model.step()
@@ -75,6 +68,8 @@ def test_predict_and_set_model_state(
     prediction2 = model.predict(test_dataset)
 
     np.testing.assert_array_equal(prediction, prediction2)
+    assert (prediction < 1).all()
+    assert (prediction > 0).all()
 
 
 def test_results_holder_serde(test_dataset):

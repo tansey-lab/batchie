@@ -157,7 +157,6 @@ class LegacySparseDrugComboInteractionImpl:
         n_dims: int,  # embedding dimension
         n_drugdoses: int,  # number of total drug/doses
         n_clines: int,  # number of total cell lines
-        transform: str,
         mult_gamma_proc: bool = True,
         local_shrinkage: bool = True,
         a0: float = 1.1,  # gamma prior hyperparmas for all precisions
@@ -170,7 +169,6 @@ class LegacySparseDrugComboInteractionImpl:
         self.n_clines = n_clines
         self.min_Mu = min_Mu
         self.max_Mu = max_Mu
-        self.transform = transform
 
         # for the next two see BHATTACHARYA and DUNSON (2011)
         self.local_shrinkage = local_shrinkage
@@ -433,20 +431,17 @@ class LegacySparseDrugComboInteraction(BayesianModel):
         n_embedding_dimensions: int,  # embedding dimension
         n_unique_treatments: int,  # number of total drug/doses
         n_unique_samples: int,  # number of total cell lines
-        transform: str = "logit",
         mult_gamma_proc: bool = True,
         local_shrinkage: bool = True,
         a0: float = 1.1,  # gamma prior hyperparmas for all precisions
         b0: float = 1.1,
         min_Mu: float = -10.0,
         max_Mu: float = 10.0,
-        adjust_single: bool = True,
     ):
         self.n_embedding_dimensions = n_embedding_dimensions
         self.n_unique_treatments = n_unique_treatments
         self.n_unique_samples = n_unique_samples
         self.single_effect_lookup = {}
-        self.adjust_single = adjust_single
         self.wrapped_model = LegacySparseDrugComboInteractionImpl(
             n_dims=n_embedding_dimensions,
             n_drugdoses=n_unique_treatments,
@@ -457,7 +452,6 @@ class LegacySparseDrugComboInteraction(BayesianModel):
             b0=b0,
             min_Mu=min_Mu,
             max_Mu=max_Mu,
-            transform=transform,
         )
 
     def set_model_state(self, theta: SparseDrugComboInteractionMCMCSample):
@@ -489,25 +483,20 @@ class LegacySparseDrugComboInteraction(BayesianModel):
             -1,
         )
 
-        if self.adjust_single:
-            single_effect = np.clip(
-                [
-                    self.single_effect_lookup[c, dd1]
-                    * self.single_effect_lookup[c, dd2]
-                    for c, dd1, dd2 in zip(
-                        data.sample_ids,
-                        data.treatment_ids[:, 0],
-                        data.treatment_ids[:, 1],
-                    )
-                ],
-                a_min=0.01,
-                a_max=0.99,
-            )
-            viability = np.exp(interaction + np.log(single_effect))
-            y_logit = logit(np.clip(viability, a_min=0.01, a_max=0.99))
-            return y_logit
-        else:
-            return interaction
+        single_effect = np.clip(
+            [
+                self.single_effect_lookup[c, dd1] * self.single_effect_lookup[c, dd2]
+                for c, dd1, dd2 in zip(
+                    data.sample_ids,
+                    data.treatment_ids[:, 0],
+                    data.treatment_ids[:, 1],
+                )
+            ],
+            a_min=0.01,
+            a_max=0.99,
+        )
+        viability = np.exp(interaction + np.log(single_effect))
+        return np.clip(viability, a_min=0.01, a_max=0.99)
 
     def variance(self) -> FloatingPointType:
         return 1.0 / self.wrapped_model.prec
