@@ -34,43 +34,43 @@ The main data format for BATCHIE is the :py:class:`batchie.data.Screen` object.
 See below for an example of creating a screen object and saving it to disk:
 
 ```python
-    from batchie.data import Screen
+from batchie.data import Screen
 
-    screen = Screen(
-        observations=np.array([0.1, 0.2, 0.0, 0.0]),
-        observation_mask=np.array([True, True, False, False]),
-        sample_names=np.array([
-            "sample_A",
-            "sample_B",
-            "sample_C",
-            "sample_D"
-        ], dtype=str),
-        plate_names=np.array([
-            "plate_A",
-            "plate_A",
-            "plate_B",
-            "plate_B"
-        ], dtype=str),
-        treatment_names=np.array(
-            [
-                ["drug_A", "drug_B"],
-                ["drug_A", "drug_B"],
-                ["drug_A", "drug_B"],
-                ["drug_A", "control"]
-            ], dtype=str
-        ),
-        treatment_doses=np.array(
-            [
-                [2.0, 2.0],
-                [1.0, 2.0],
-                [2.0, 1.0],
-                [2.0, 0]
-            ]
-        ),
-        control_treatment_name="control"
-    )
+screen = Screen(
+    observations=np.array([0.1, 0.2, 0.0, 0.0]),
+    observation_mask=np.array([True, True, False, False]),
+    sample_names=np.array([
+        "sample_A",
+        "sample_B",
+        "sample_C",
+        "sample_D"
+    ], dtype=str),
+    plate_names=np.array([
+        "plate_A",
+        "plate_A",
+        "plate_B",
+        "plate_B"
+    ], dtype=str),
+    treatment_names=np.array(
+        [
+            ["drug_A", "drug_B"],
+            ["drug_A", "drug_B"],
+            ["drug_A", "drug_B"],
+            ["drug_A", "control"]
+        ], dtype=str
+    ),
+    treatment_doses=np.array(
+        [
+            [2.0, 2.0],
+            [1.0, 2.0],
+            [2.0, 1.0],
+            [2.0, 0]
+        ]
+    ),
+    control_treatment_name="control"
+)
 
-    screen.save_h5("my_screen.screen.h5")
+screen.save_h5("my_screen.screen.h5")
 ```
 
 This will create a file called `my_screen.screen.h5` that contains all the information about the screen, this
@@ -116,29 +116,27 @@ unobserved plates should be run next. The prospective pipeline has the following
 From the root of the repository, you would run a command like this:
 
 ```
-    python nextflow/scripts/batchie.py \
-        --mode prospective \
-        --outdir /tmp/batchie \
-        --screen nextflow/tests/data/masked_screen.h5 \
-        --batch-size 2 \
-        -c nextflow/config/example_prospective.config \
-        --max_cpus 1 \
-        --max_memory 2G \
-        -profile docker
+python nextflow/scripts/batchie.py \
+    --mode prospective \
+    --outdir /tmp/batchie \
+    --screen nextflow/tests/data/masked_screen.h5 \
+    --batch-size 2 \
+    -c nextflow/config/example_prospective.config \
+    --max_cpus 1 \
+    --max_memory 2G \
+    -profile docker
 ```
 
 The output directory will be organized by iteration and plate (if batch_size > 1, then theres multiple plates per iteration).
 
 In the output directory there will be a simple text file with the id of the best plate to observe next:
 
-.. code-block:: bash
-
-    $ cat /tmp/batchie/iter_0/plate_0/masked_screen/selected_plate
-    1
-    $ cat /tmp/batchie/iter_0/plate_1/masked_screen/selected_plate
-    2
-
-.. _running-retrospective:
+```
+$ cat /tmp/batchie/iter_0/plate_0/masked_screen/selected_plate
+1
+$ cat /tmp/batchie/iter_0/plate_1/masked_screen/selected_plate
+2
+```
 
 ### Retrospective Mode
 
@@ -167,24 +165,24 @@ From the root of the repository, you would run a command like this:
 
 
 ```
-    python3 nextflow/scripts/batchie.py \
-        --mode retrospective \
-        -c nextflow/config/example_retrospective.config \
-        --screen nextflow/tests/data/unmasked_screen.h5 \
-        --batch-size 2 \
-        --outdir /tmp/batchie \
-        --max_cpus 1 \
-        --max_memory 2G \
-        -profile docker
+python3 nextflow/scripts/batchie.py \
+    --mode retrospective \
+    -c nextflow/config/example_retrospective.config \
+    --screen nextflow/tests/data/unmasked_screen.h5 \
+    --batch-size 2 \
+    --outdir /tmp/batchie \
+    --max_cpus 1 \
+    --max_memory 2G \
+    -profile docker
 ```
 The output directory will be similar to prospective mode.
 
 
 ```
-    $ cat /tmp/batchie/iter_0/plate_0/unmasked_screen/selected_plate
-    1
-    $ cat /tmp/batchie/iter_0/plate_1/unmasked_screen/selected_plate
-    2
+$ cat /tmp/batchie/iter_0/plate_0/unmasked_screen/selected_plate
+1
+$ cat /tmp/batchie/iter_0/plate_1/unmasked_screen/selected_plate
+2
 ```
 
 However there will also be ``model_evaluation.h5`` files for each iteration which save how
