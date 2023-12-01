@@ -29,7 +29,7 @@ pip install git+https://github.com/tansey-lab/batchie
 
 ## BATCHIE Data Format
 
-The main data format for BATCHIE is the :py:class:`batchie.data.Screen` object.
+The main data format for BATCHIE is the `batchie.data.Screen` object.
 
 See below for an example of creating a screen object and saving it to disk:
 
@@ -78,10 +78,10 @@ is the main input to the BATCHIE pipeline.
 
 ## Running BATCHIE
 
-After you have created your BATCHIE :py:class:`batchie.data.Screen` file (see here: :ref:`data-format`),
+After you have created your BATCHIE `batchie.data.Screen` file,
 you can run BATCHIE using our configurable pipeline.
 
-There are two main modes for running BATCHIE, :ref:`running-prospective` and :ref:`running-retrospective`.
+There are two main modes for running BATCHIE, prospective and retrospective.
 
 Our pipline adheres to nf-core standards, and accepts all the
 nf-core configuration options, see here: https://nf-co.re/docs/usage/configuration
@@ -89,28 +89,20 @@ nf-core configuration options, see here: https://nf-co.re/docs/usage/configurati
 ### Prerequisites
 
 You must have Nextflow and docker installed to run the examples shown here.
-See :ref:`install-nextflow-docker` for more details.
-
-Because our pipeline is recursive, we are not able to run it completely in nextflow. We have a small
-python wrapper around nextflow in ``nextflow/scripts/batchie.py`` for running this
-pipeline. All that is required to run this script is a recent version of python3 and to have nextflow installed.
-The batchie python package does not need to be installed locally, since nextflow can launch all jobs in our
-container if the ``-profile docker``, ``-profile singularity``, ``-profile podman``, etc. flags are used.
-
 
 ### Prospective Mode
 
-Assume you have a :py:class:`batchie.data.Screen` containing one or more
-:py:class:`batchie.data.Plate` s that you have not yet observed.
+Assume you have a `batchie.data.Screen` containing one or more
+`batchie.data.Plate` s that you have not yet observed.
 
 In prospective mode, BATCHIE will tell you which of those
 unobserved plates should be run next. The prospective pipeline has the following steps:
 
-#. Train the specified model given the observed plates
-#. Use the trained model to predict on all unobserved plates
-#. Use the model predictions on unobserved data to score all the unobserved plates
-#. Chose one or more plates with the best scores
-#. If ``--batch-size`` is specified, repeat from step 3 until <batch_size> plates have been revealed, if <batch_size> plates have been revealed, repeat from step 1.
+1. Train the specified model given the observed plates
+2. Use the trained model to predict on all unobserved plates
+3. Use the model predictions on unobserved data to score all the unobserved plates
+4. Chose one or more plates with the best scores
+5. If ``--batch-size`` is specified, repeat from step 3 until <batch_size> plates have been revealed, if <batch_size> plates have been revealed, repeat from step 1.
 
 
 From the root of the repository, you would run a command like this:
@@ -140,25 +132,25 @@ $ cat /tmp/batchie/iter_0/plate_1/masked_screen/selected_plate
 
 ### Retrospective Mode
 
-Assume you have a :py:class:`batchie.data.Screen` where
-all :py:class:`batchie.data.Plate` s are observed, representing data from a high throughput screen
+Assume you have a `batchie.data.Screen` where
+all `batchie.data.Plate` s are observed, representing data from a high throughput screen
 that was run in the past.
 
 In retrospective simulation mode we will run these set up steps:
 
-#. Mask all of the observations.
-#. Sample a fraction of the unobserved experiments and set it aside as "holdout" for evaluating model accuracy.
-#. Pick one initial plate to reveal. For the initial plate reveal, one has the option of using a configured heuristic algorithm or picking an existing plate at random.
+1. Mask all of the observations.
+2. Sample a fraction of the unobserved experiments and set it aside as "holdout" for evaluating model accuracy.
+3. Pick one initial plate to reveal. For the initial plate reveal, one has the option of using a configured heuristic algorithm or picking an existing plate at random.
 
 After these initial steps, we repeat the following series of steps until all plates have been revealed:
 
-#. If all plates have been revealed, exit.
-#. Train the specified model given the revealed plate(s)
-#. Evaluate the model on the holdout data and save
-#. Use the trained model to predict on all unobserved plates
-#. Use the model predictions on unobserved data to score all the unobserved plates
-#. Chose one or more plates with the best scores to reveal, reveal them
-#. If ``--batch-size`` is specified, repeat from step 5 until <batch_size> plates have been revealed, if <batch_size> plates have been revealed, repeat from step 1.
+1. If all plates have been revealed, exit.
+2. Train the specified model given the revealed plate(s)
+3. Evaluate the model on the holdout data and save
+4. Use the trained model to predict on all unobserved plates
+5. Use the model predictions on unobserved data to score all the unobserved plates
+6. Chose one or more plates with the best scores to reveal, reveal them
+7. If ``--batch-size`` is specified, repeat from step 5 until <batch_size> plates have been revealed, if <batch_size> plates have been revealed, repeat from step 1.
 
 
 From the root of the repository, you would run a command like this:
