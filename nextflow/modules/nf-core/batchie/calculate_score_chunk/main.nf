@@ -20,7 +20,7 @@ process CALCULATE_SCORE_CHUNK {
     script:
     prefix = task.ext.prefix ?: "${meta.id}"
     def args = task.ext.args ?: ""
-    def exclude_flag = excludes != null && excludes.join(" ").trim() != "" ? "--exclude-plate-id ${excludes.join(" ")}" : ""
+    def exclude_flag = excludes != null && excludes.join(" ").trim() != "" ? "--batch-plate-ids ${excludes.join(" ")}" : ""
     """
     mkdir -p "${prefix}"
     calculate_scores --data ${data} \

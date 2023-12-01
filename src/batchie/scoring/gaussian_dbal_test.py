@@ -211,7 +211,7 @@ def test_gaussian_dbal_scorer(unobserved_dataset, chunked_distance_matrix):
     theta_holder.n_thetas = chunked_distance_matrix.size
     model.predict.return_value = 1.0
 
-    plates = unobserved_dataset.plates
+    plates = {p.plate_id: p for p in unobserved_dataset.plates}
 
     scorer.score(
         model=model,
@@ -238,7 +238,7 @@ def test_gaussian_dbal_scorer_empty(unobserved_dataset, chunked_distance_matrix)
 
     res = scorer.score(
         model=model,
-        plates=[],
+        plates={},
         distance_matrix=chunked_distance_matrix,
         samples=theta_holder,
         rng=rng,

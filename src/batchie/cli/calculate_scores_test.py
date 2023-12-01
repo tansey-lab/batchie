@@ -110,7 +110,7 @@ def test_main_exclude(mocker, test_dataset, test_dist_matrix):
         os.path.join(tmpdir, "distance_matrix.h5"),
         "--output",
         os.path.join(tmpdir, "scores.h5"),
-        "--exclude-plate-id",
+        "--batch-plate-ids",
         "1",
     ]
 

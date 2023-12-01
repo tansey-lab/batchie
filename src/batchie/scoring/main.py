@@ -6,7 +6,12 @@ import numpy as np
 
 from batchie.common import FloatingPointType
 from batchie.core import Scorer, PlatePolicy, BayesianModel, ThetaHolder, ScoresHolder
-from batchie.data import Screen, Plate
+from batchie.data import (
+    Screen,
+    Plate,
+    ScreenSubset,
+    filter_dataset_to_unique_treatments,
+)
 from batchie.distance_calculation import ChunkedDistanceMatrix
 
 logger = logging.getLogger(__name__)
@@ -146,7 +151,7 @@ def score_chunk(
     progress_bar: bool = False,
     n_chunks: int = 1,
     chunk_index: int = 0,
-    exclude_plates: Optional[list[int]] = None,
+    batch_plate_ids: Optional[list[int]] = None,
 ) -> ChunkedScoresHolder:
     """
     Score a subset of all unobserved plates in a screen.
@@ -160,7 +165,7 @@ def score_chunk(
     :param progress_bar: Whether to show a progress bar
     :param n_chunks: The number of chunks to split the unobserved plates into
     :param chunk_index: The index of the chunk to score
-    :param exclude_plates: A list of plate ids to exclude from scoring
+    :param batch_plate_ids: A list of plate ids that have already been selected in the batch
     :return: ChunkedScoresHolder containing the scores for each plate in the current chunk
     """
     if rng is None:
@@ -168,23 +173,42 @@ def score_chunk(
 
     unobserved_plates = [plate for plate in screen.plates if not plate.is_observed]
 
-    if exclude_plates is not None:
+    if batch_plate_ids is not None:
         unobserved_plates = [
-            plate for plate in unobserved_plates if plate.plate_id not in exclude_plates
+            plate
+            for plate in unobserved_plates
+            if plate.plate_id not in batch_plate_ids
         ]
 
     unobserved_plates = sorted(unobserved_plates, key=lambda p: p.plate_id)
-
     chunk_plates = np.array_split(unobserved_plates, n_chunks)[chunk_index].tolist()
 
+    if batch_plate_ids:
+        previously_selected_plates = [
+            plate for plate in screen.plates if plate.plate_id in batch_plate_ids
+        ]
+
+        previously_selected_plates_combined = ScreenSubset.concat(
+            previously_selected_plates
+        )
+
+        plates_to_score = {}
+        for plate in chunk_plates:
+            conditioned_plate = filter_dataset_to_unique_treatments(
+                plate.combine(previously_selected_plates_combined)
+            )
+            plates_to_score[plate.plate_id] = conditioned_plate
+    else:
+        plates_to_score = {p.plate_id: p for p in chunk_plates}
+
     logger.info(
-        f"Scoring chunk {chunk_index+1} of {n_chunks}, with {len(chunk_plates)} non-excluded plates"
+        f"Scoring chunk {chunk_index+1} of {n_chunks}, with {len(plates_to_score)} non-excluded plates"
     )
 
-    scores_holder = ChunkedScoresHolder(len(chunk_plates))
+    scores_holder = ChunkedScoresHolder(len(plates_to_score))
 
     scores: dict[int, float] = scorer.score(
-        plates=chunk_plates,
+        plates=plates_to_score,
         model=model,
         samples=thetas,
         rng=rng,

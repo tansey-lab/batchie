@@ -46,7 +46,7 @@ def test_size_scorer(test_dataset):
     rng = np.random.default_rng(0)
 
     result = size.SizeScorer().score(
-        plates=[x for x in test_dataset.plates],
+        plates={x.plate_id: x for x in test_dataset.plates},
         samples=mock.MagicMock(),
         distance_matrix=mock.MagicMock(),
         rng=rng,
