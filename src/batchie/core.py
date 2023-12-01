@@ -5,7 +5,7 @@ from abc import ABC, abstractmethod
 import numpy as np
 
 from batchie.common import ArrayType, FloatingPointType
-from batchie.data import ScreenBase, Plate, Screen
+from batchie.data import ScreenBase, Plate, Screen, ScreenSubset
 
 logger = logging.getLogger(__name__)
 
@@ -369,7 +369,7 @@ class Scorer:
     def score(
         self,
         model: BayesianModel,
-        plates: list[Plate],
+        plates: dict[int, ScreenSubset],
         distance_matrix: DistanceMatrix,
         samples: ThetaHolder,
         rng: np.random.Generator,

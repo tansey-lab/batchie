@@ -6,7 +6,12 @@ import h5py
 import numpy as np
 import pandas
 
-from batchie.common import ArrayType, FloatingPointType, CONTROL_SENTINEL_VALUE
+from batchie.common import (
+    ArrayType,
+    FloatingPointType,
+    CONTROL_SENTINEL_VALUE,
+    select_unique_zipped_numpy_arrays,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -422,6 +427,30 @@ class ScreenSubset(ScreenBase):
             sample_names=self.screen.sample_names[self.selection_vector].copy(),
             plate_names=self.screen.plate_names[self.selection_vector].copy(),
             control_treatment_name=self.screen.control_treatment_name,
+        )
+
+    def subset(self, selection_vector):
+        """
+        Return a new :py:class:`batchie.data.ScreenSubset` defined by a boolean selection vector.
+
+        :param selection_vector: 1d array of bools
+        :return: :py:class:`batchie.data.ScreenSubset`
+        """
+        if not np.issubdtype(selection_vector.dtype, bool):
+            raise ValueError("selection_vector must be bool")
+
+        if not selection_vector.size == self.size:
+            raise ValueError("selection_vector must have same length as dataset")
+
+        original_selection_vector = self.selection_vector.copy()
+
+        indexes = np.where(original_selection_vector)[0]
+
+        original_selection_vector[indexes] = selection_vector
+
+        return ScreenSubset(
+            self.screen,
+            original_selection_vector,
         )
 
 
@@ -883,6 +912,25 @@ class Screen(ScreenBase):
                 plate_names=np.char.decode(f["plate_names"][:], "utf-8"),
                 control_treatment_name=f.attrs["control_treatment_name"],
             )
+
+
+def filter_dataset_to_unique_treatments(screen: Screen | ScreenSubset):
+    """
+    Ensure that the dataset only has one experiment per treatment and sample condition
+    by arbitrarily dropping duplicates.
+
+    :param screen: an :py:class:`batchie.data.ScreenSubset`
+    :return: A :py:class:`batchie.data.ScreenSubset` with the same or
+        smaller number of experiments compared to the input.
+    """
+    arrs = [screen.sample_ids]
+
+    for i in range(screen.treatment_arity):
+        arrs.append(screen.treatment_ids[:, i])
+
+    mask = select_unique_zipped_numpy_arrays(arrs)
+
+    return screen.subset(mask)
 
 
 def filter_dataset_to_treatments_that_appear_in_at_least_one_combo(

@@ -78,8 +78,8 @@ def get_parser():
         help="Scorer parameters",
     )
     parser.add_argument(
-        "--exclude-plate-id",
-        help="The plate(s) to exclude from scoring.",
+        "--batch-plate-ids",
+        help="The plate(s) already selected as part of this batch.",
         nargs="+",
         type=int,
         default=list(),
@@ -156,7 +156,7 @@ def main():
         [
             1
             for p in screen.plates
-            if not p.is_observed and p.plate_id not in args.exclude_plate_id
+            if not p.is_observed and p.plate_id not in args.batch_plate_ids
         ]
     )
 
@@ -178,7 +178,7 @@ def main():
         chunk_index=args.chunk_index,
         n_chunks=args.n_chunks,
         progress_bar=args.progress,
-        exclude_plates=args.exclude_plate_id,
+        batch_plate_ids=args.batch_plate_ids,
     )
 
     logger.info("Saving results to {}".format(args.output))

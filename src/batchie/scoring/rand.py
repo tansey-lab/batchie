@@ -18,11 +18,11 @@ class RandomScorer(Scorer):
     def score(
         self,
         model: BayesianModel,
-        plates: list[Plate],
+        plates: dict[int, Plate],
         distance_matrix: ChunkedDistanceMatrix,
         samples: ThetaHolder,
         rng: np.random.Generator,
         progress_bar: bool,
     ) -> dict[int, float]:
-        scores = {plate.plate_id: rng.random() for plate in plates}
+        scores = {k: rng.random() for k in plates.keys()}
         return scores

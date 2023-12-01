@@ -174,7 +174,7 @@ class GaussianDBALScorer(Scorer):
     def score(
         self,
         model: BayesianModel,
-        plates: list[Plate],
+        plates: dict[int, Plate],
         distance_matrix: ChunkedDistanceMatrix,
         samples: ThetaHolder,
         rng: np.random.Generator,
@@ -186,7 +186,7 @@ class GaussianDBALScorer(Scorer):
         variances = np.array([samples.get_variance(i) for i in range(samples.n_thetas)])
 
         n_subs = np.ceil(len(plates) / self.max_chunk)
-        plate_subgroups = np.array_split(np.arange(len(plates)), n_subs)
+        plate_subgroups = np.array_split(list(plates.keys()), n_subs)
         dense_distance_matrix = distance_matrix.to_dense()
 
         progress_bar = tqdm.tqdm(total=len(plate_subgroups), disable=not progress_bar)

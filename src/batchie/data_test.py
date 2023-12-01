@@ -10,6 +10,7 @@ import batchie.data
 from batchie.common import CONTROL_SENTINEL_VALUE
 from batchie.data import (
     Screen,
+    ScreenSubset,
     Plate,
     encode_treatment_arrays_to_0_indexed_ids,
     filter_dataset_to_treatments_that_appear_in_at_least_one_combo,
@@ -205,6 +206,28 @@ def test_screen_subset_props():
     assert experiment_subset.is_observed == True
     assert experiment_subset.size == 2
     assert experiment_subset.treatment_arity == 2
+
+
+def test_screen_resubset():
+    experiment = Screen(
+        observations=np.array([0.1, 0.2, 0, 0]),
+        observation_mask=np.array([True, True, False, False]),
+        sample_names=np.array(["a", "b", "c", "d"], dtype=str),
+        plate_names=np.array(["a", "a", "b", "b"], dtype=str),
+        treatment_names=np.array(
+            [["a", "b"], ["a", "b"], ["a", "b"], ["a", "b"]], dtype=str
+        ),
+        treatment_doses=np.array([[2.0, 2.0], [1.0, 2.0], [2.0, 1.0], [2.0, 0]]),
+    )
+
+    experiment_subset = Plate(
+        screen=experiment, selection_vector=np.array([True, True, False, False])
+    )
+
+    subsubset = experiment_subset.subset(np.array([False, True]))
+
+    assert subsubset.size == 1
+    assert subsubset.observations.item() == 0.2
 
 
 def test_plate_merge():
@@ -430,3 +453,20 @@ def test_create_single_treatment_effect_array():
             ],
         ),
     )
+
+
+def test_filter_dataset_to_unique_treatments():
+    test_experiment = Screen(
+        observations=np.array([0.1, 0.2, 0.3, 0.4]),
+        sample_names=np.array(["a", "a", "a", "a"], dtype=str),
+        plate_names=np.array(["a", "a", "a", "a"], dtype=str),
+        treatment_names=np.array(
+            [["a", ""], ["a", ""], ["a", "b"], ["a", "b"]], dtype=str
+        ),
+        treatment_doses=np.array([[2.0, 2.0], [2.0, 2.0], [2.0, 2.0], [2.0, 2.0]]),
+    )
+
+    result = batchie.data.filter_dataset_to_unique_treatments(test_experiment)
+
+    assert result.size == 2
+    assert result.selection_vector.tolist() == [True, False, True, False]

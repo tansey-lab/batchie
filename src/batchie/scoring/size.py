@@ -17,11 +17,11 @@ class SizeScorer(Scorer):
     def score(
         self,
         model: BayesianModel,
-        plates: list[Plate],
+        plates: dict[int, Plate],
         distance_matrix: ChunkedDistanceMatrix,
         samples: ThetaHolder,
         rng: np.random.Generator,
         progress_bar: bool,
     ) -> dict[int, float]:
-        scores = {plate.plate_id: plate.size for plate in plates}
+        scores = {k: plate.size for k, plate in plates.items()}
         return scores
