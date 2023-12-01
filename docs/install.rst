@@ -7,7 +7,7 @@ to run BATCHIE.
 .. _install-nextflow-docker:
 
 Option 1 (Recommended): Using Nextflow + Docker
-------------------------------------
+-----------------------------------------------
 
 BATCHIE uses several python packages with C extensions,
 so the easiest way to get started is using the up to date
