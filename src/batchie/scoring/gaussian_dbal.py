@@ -8,7 +8,7 @@ from batchie.core import (
     BayesianModel,
     ThetaHolder,
 )
-from batchie.data import Plate
+from batchie.data import ScreenSubset
 from batchie.distance_calculation import ChunkedDistanceMatrix
 from batchie.models.main import predict_all
 
@@ -174,7 +174,7 @@ class GaussianDBALScorer(Scorer):
     def score(
         self,
         model: BayesianModel,
-        plates: dict[int, Plate],
+        plates: dict[int, ScreenSubset],
         distance_matrix: ChunkedDistanceMatrix,
         samples: ThetaHolder,
         rng: np.random.Generator,
@@ -193,7 +193,7 @@ class GaussianDBALScorer(Scorer):
 
         result = {}
         for plate_subgroup in plate_subgroups:
-            current_plates = [plates[i] for i in plate_subgroup]
+            current_plates = [plates[k] for k in plate_subgroup]
             plate_subgroup_mask = None
 
             for plate in current_plates:
@@ -214,7 +214,7 @@ class GaussianDBALScorer(Scorer):
                 max_combos=self.max_triples,
                 rng=rng,
             )
-            result.update(dict(zip([x.plate_id for x in current_plates], vals)))
+            result.update(dict(zip(plate_subgroup, vals)))
             progress_bar.update(len(current_plates))
 
         if len(result) != len(plates):
