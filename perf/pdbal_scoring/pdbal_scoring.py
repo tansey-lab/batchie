@@ -1,12 +1,12 @@
-from batchie.models.sparse_combo_legacy import (
-    LegacySparseDrugCombo,
-    SparseDrugComboResults,
-)
+from batchie.models.sparse_combo import SparseDrugCombo, SparseDrugComboResults
 from batchie.data import Screen
 import numpy as np
-
+import os
 from batchie import sampling
-from batchie.retrospective import calculate_mse, create_random_holdout
+from batchie.retrospective import calculate_mse
+from batchie.scoring import main, gaussian_dbal
+from batchie.distance_calculation import ChunkedDistanceMatrix
+from batchie.retrospective import mask_screen
 
 
 def generate_data(
@@ -46,13 +46,13 @@ def generate_data(
 
 
 def run_benchmark():
-    data = generate_data()
+    data = generate_data(n_unique_samples=25)
 
     print("Generated {} observations".format(data.size))
     print("Unique samples: {}".format(data.n_unique_samples))
     print("Unique treatments: {}".format(data.n_unique_treatments))
 
-    model = LegacySparseDrugCombo(
+    model = SparseDrugCombo(
         n_embedding_dimensions=12,
         n_unique_treatments=data.n_unique_treatments,
         n_unique_samples=data.n_unique_samples,
@@ -60,28 +60,56 @@ def run_benchmark():
 
     model.add_observations(data)
 
-    results = SparseDrugComboResults(
-        n_unique_samples=data.n_unique_samples,
-        n_unique_treatments=data.n_unique_treatments,
-        n_embedding_dimensions=12,
-        n_thetas=100,
-    )
+    if not os.path.exists("thetas.h5"):
+        results = SparseDrugComboResults(
+            n_unique_samples=data.n_unique_samples,
+            n_unique_treatments=data.n_unique_treatments,
+            n_embedding_dimensions=12,
+            n_thetas=100,
+        )
 
-    res = sampling.sample(
+        res = sampling.sample(
+            model=model,
+            results=results,
+            seed=0,
+            n_chains=1,
+            chain_index=0,
+            n_burnin=100,
+            thin=1,
+            progress_bar=True,
+        )
+
+        res.save_h5("thetas.h5")
+    else:
+        res = SparseDrugComboResults.load_h5("thetas.h5")
+
+    if not os.path.exists("dist.h5"):
+        distance_matrix = ChunkedDistanceMatrix(
+            size=res.n_thetas, n_chunks=1, chunk_index=0
+        )
+        for i in range(res.n_thetas):
+            for j in range(i):
+                distance_matrix.add_value(i, j, np.random.random())
+        distance_matrix.save("dist.h5")
+    else:
+        distance_matrix = ChunkedDistanceMatrix.load("dist.h5")
+
+    data = mask_screen(data)
+
+    scorer = gaussian_dbal.GaussianDBALScorer()
+
+    scores = main.score_chunk(
         model=model,
-        results=results,
-        seed=0,
-        n_chains=1,
-        chain_index=0,
-        n_burnin=500,
-        thin=2,
+        scorer=scorer,
+        thetas=res,
+        screen=data,
+        distance_matrix=distance_matrix,
         progress_bar=True,
+        n_chunks=1,
+        chunk_index=0,
     )
 
-    mse = calculate_mse(model=model, observed_screen=data, thetas=res)
-
-    print(mse)
-    print(res.get_theta(0))
+    print(scores.scores)
 
 
 if __name__ == "__main__":
