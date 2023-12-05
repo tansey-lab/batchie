@@ -114,6 +114,17 @@ def get_screen_from_job_output(output_dir):
         return training_screen_glob[0]
 
 
+def get_test_screen_from_job_output(output_dir):
+    test_screen_glob = list(
+        glob.glob(os.path.join(output_dir, "*", "training.screen.h5"))
+    )
+
+    if len(test_screen_glob) == 0:
+        return None
+    else:
+        return test_screen_glob[0]
+
+
 def validate_job_dir_and_return_meta(output_dir):
     screen_metadata = list(
         glob.glob(os.path.join(output_dir, "*", "screen_metadata.json"))
@@ -186,15 +197,19 @@ def run_initial_plate(output_dir, screen, experiment_name, extra_args):
     )
 
 
-def run_first_batch_plate(output_dir, screen, experiment_name, extra_args):
+def run_first_batch_plate(
+    output_dir, training_screen, test_screen, experiment_name, extra_args
+):
     cmd = [
         "nextflow",
         "run",
         get_main_nf_file(),
         "--mode",
         "retrospective",
-        "--screen",
-        screen,
+        "--training_screen",
+        training_screen,
+        "--test_screen",
+        test_screen,
         "--name",
         experiment_name,
         "--outdir",
@@ -375,9 +390,16 @@ def run_next_retrospective_step(output_dir, input_screen, extra_args, batch_size
             extra_args=extra_args,
         )
     elif current_plate_idx == 0:
+        first_output_dir = os.path.join(output_dir, f"iter_0", f"plate_0")
+        test_screen = get_test_screen_from_job_output(first_output_dir)
+
+        if test_screen is None:
+            raise RuntimeError(f"Could not find test screen in {first_output_dir}")
+
         run_first_batch_plate(
             output_dir=job_output_dir,
-            screen=current_screen,
+            training_screen=current_screen,
+            test_screen=test_screen,
             experiment_name=experiment_name,
             extra_args=extra_args,
         )
