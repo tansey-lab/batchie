@@ -3,12 +3,32 @@
 ![tests](https://github.com/tansey-lab/batchie/actions/workflows/python-unittest.yml/badge.svg)
 [![codecov](https://codecov.io/gh/tansey-lab/batchie/graph/badge.svg?token=UPG3BP7U7G)](https://codecov.io/gh/tansey-lab/batchie)
 
+### [batchie.readthedocs.io](https://batchie.readthedocs.io/en/latest/)
 
 Bayesian Active Treatment Combination Hunting via Iterative Experimentation (BATCHIE),
 is a framework for orchestrating large-scale combination drug screens through sequential experimental design.
 
 This README is a truncated introduction to the framework. For a more detailed description of the framework,
-see the full documentation in `docs/`.
+see the full documentation at https://batchie.readthedocs.io.
+
+## Citation
+
+If you use this code, please cite the [preprint](https://www.biorxiv.org/content/10.1101/2023.12.18.572245v2):
+
+```
+A Bayesian active learning platform for scalable combination drug screens
+Christopher Tosh, Mauricio Tec, Jessica White, Jeffrey F Quinn, Glorymar Ibanez Sanchez, Paul Calder, Andrew L Kung, Filemon S Dela Cruz, Wesley Tansey
+bioRxiv 2023.12.18.572245; doi: https://doi.org/10.1101/2023.12.18.572245
+```
+
+Bibtex citation:
+```
+@article{Tosh2023.12.18.572245,
+	author = {Christopher Tosh and Mauricio Tec and Jessica White and Jeffrey F Quinn and Glorymar Ibanez Sanchez and Paul Calder and Andrew L Kung and Filemon S Dela Cruz and Wesley Tansey},
+	journal = {bioRxiv},
+	title = {A Bayesian active learning platform for scalable combination drug screens},
+	year = {2023}}
+```
 
 ## Installation
 
