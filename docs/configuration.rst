@@ -35,7 +35,7 @@ Let's take a look at an example configuration file to explain its contents:
 
         withName: TRAIN_MODEL {
             ext.args = [
-                '--model', 'LegacySparseDrugCombo',
+                '--model', 'SparseDrugCombo',
                 '--model-param', 'n_embedding_dimensions=10',
                 '--n-burnin', '10',
                 '--n-samples', '10',
@@ -45,7 +45,7 @@ Let's take a look at an example configuration file to explain its contents:
 
         withName: CALCULATE_DISTANCE_MATRIX_CHUNK {
             ext.args = [
-                '--model', 'LegacySparseDrugCombo',
+                '--model', 'SparseDrugCombo',
                 '--model-param', 'n_embedding_dimensions=10',
                 '--distance-metric', 'MSEDistance'
             ].join(' ')
@@ -53,7 +53,7 @@ Let's take a look at an example configuration file to explain its contents:
 
         withName: CALCULATE_SCORE_CHUNK {
             ext.args = [
-                '--model', 'LegacySparseDrugCombo',
+                '--model', 'SparseDrugCombo',
                 '--model-param', 'n_embedding_dimensions=10',
                 '--scorer', 'GaussianDBALScorer',
                 '--seed', '12'
@@ -77,7 +77,7 @@ This section:
 
     withName: TRAIN_MODEL {
         ext.args = [
-            '--model', 'LegacySparseDrugCombo',
+            '--model', 'SparseDrugCombo',
             '--model-param', 'n_embedding_dimensions=10',
             '--n-burnin', '10',
             '--n-samples', '10',
