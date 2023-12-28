@@ -157,8 +157,7 @@ def get_theta_and_dist_chunks(output_dir):
 
 
 def get_selected_plates(output_dir):
-    plates = list(glob.glob(os.path.join(output_dir, "*", "*", "*", "selected_plate")))
-
+    plates = list(glob.glob(os.path.join(output_dir, "plate_*", "*", "selected_plate")))
     output = []
 
     for fn in plates:
@@ -361,8 +360,6 @@ def run_next_retrospective_step(output_dir, input_screen, extra_args, batch_size
         current_screen,
     ) = examine_output_dir_to_determine_current_iteration(output_dir, batch_size)
 
-    already_selected_plates = get_selected_plates(output_dir)
-
     if last_successful_run_meta is not None:
         plates_remaining = last_successful_run_meta["n_unobserved_plates"]
 
@@ -374,6 +371,10 @@ def run_next_retrospective_step(output_dir, input_screen, extra_args, batch_size
 
     job_output_dir = os.path.join(
         output_dir, f"iter_{current_iter_index}", f"plate_{current_plate_idx}"
+    )
+
+    already_selected_plates = get_selected_plates(
+        os.path.join(output_dir, f"iter_{current_iter_index}")
     )
 
     # clear job output dir incase some partial results were written
@@ -405,7 +406,7 @@ def run_next_retrospective_step(output_dir, input_screen, extra_args, batch_size
         )
     else:
         first_plate_of_iter_output_dir = os.path.join(
-            output_dir, f"iter_{current_iter_index}", f"plate_{0}"
+            output_dir, f"iter_{current_iter_index}", "plate_0"
         )
         theta_and_dist_chunks = get_theta_and_dist_chunks(
             first_plate_of_iter_output_dir
@@ -435,10 +436,12 @@ def run_next_prospective_step(output_dir, input_screen, extra_args, batch_size):
         current_screen,
     ) = examine_output_dir_to_determine_current_iteration(output_dir, batch_size)
 
-    already_selected_plates = get_selected_plates(output_dir)
-
     job_output_dir = os.path.join(
         output_dir, f"iter_{current_iter_index}", f"plate_{current_plate_idx}"
+    )
+
+    already_selected_plates = get_selected_plates(
+        os.path.join(output_dir, f"iter_{current_iter_index}")
     )
 
     # clear job output dir incase some partial results were written
@@ -456,7 +459,7 @@ def run_next_prospective_step(output_dir, input_screen, extra_args, batch_size):
         )
     else:
         first_plate_of_iter_output_dir = os.path.join(
-            output_dir, f"iter_{current_iter_index}", f"plate_{0}"
+            output_dir, f"iter_{current_iter_index}", "plate_0"
         )
         theta_and_dist_chunks = get_theta_and_dist_chunks(
             first_plate_of_iter_output_dir

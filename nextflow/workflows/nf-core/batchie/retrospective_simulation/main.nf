@@ -19,7 +19,7 @@ workflow RETROSPECTIVE {
             .collect()
     } else {
         def intermediate_input_tuple = tuple(
-            [id:params.simulation_name],
+            [id:name],
             file(params.training_screen),
             file(params.test_screen),
             params.n_chains,

@@ -796,8 +796,20 @@ class SparseDrugCombo(BayesianModel):
         return self._rng
 
     def _add_observations(self, data: ScreenBase):
+        if not (data.observations >= 0.0).all():
+            raise ValueError(
+                "Observations should be non-negative, please check input data"
+            )
+
+        observations_transformed = logit(
+            np.clip(data.observations.astype(np.float32), a_min=0.01, a_max=0.99)
+        )
+
+        if np.isnan(observations_transformed).any():
+            raise ValueError("NaNs in observations, please check input data")
+
         for y, dd, cl, mask in zip(
-            logit(data.observations.astype(np.float32)),
+            observations_transformed,
             data.treatment_ids,
             data.sample_ids,
             data.observation_mask,
