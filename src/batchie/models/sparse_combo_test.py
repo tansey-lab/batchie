@@ -48,6 +48,22 @@ def test_sparse_drug_combo_mcmc_step_with_observed_data(test_dataset):
     model.step()
 
 
+def test_sparse_drug_combo_refuses_to_accept_bad_observations(test_dataset):
+    model = sparse_combo.SparseDrugCombo(
+        n_embedding_dimensions=5, n_unique_treatments=2, n_unique_samples=2
+    )
+
+    test_dataset.observations[0] = -1
+
+    with pytest.raises(ValueError):
+        model.add_observations(test_dataset)
+
+    test_dataset.observations[0] = np.nan
+
+    with pytest.raises(ValueError):
+        model.add_observations(test_dataset)
+
+
 def test_sparse_drug_combo_mcmc_step_without_observed_data(test_dataset):
     model = sparse_combo.SparseDrugCombo(
         n_embedding_dimensions=5, n_unique_treatments=5, n_unique_samples=5

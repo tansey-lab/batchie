@@ -67,6 +67,12 @@ def predict_all(model: BayesianModel, screen: ScreenBase, thetas: ThetaHolder):
     for theta_index in range(thetas.n_thetas):
         model.set_model_state(thetas.get_theta(theta_index))
         result[theta_index, :] = model.predict(screen)
+
+        if np.isnan(result[theta_index, :]).any():
+            raise ValueError(
+                "NaN predictions were created, please check screen and theta values"
+            )
+
     return result
 
 
@@ -82,6 +88,14 @@ def predict_avg(model: BayesianModel, screen: ScreenBase, thetas: ThetaHolder):
 
     for theta_index in range(thetas.n_thetas):
         model.set_model_state(thetas.get_theta(theta_index))
-        result = result + model.predict(screen)
+
+        sub_result = model.predict(screen)
+
+        if np.isnan(sub_result).any():
+            raise ValueError(
+                "NaN predictions were created, please check screen and theta values"
+            )
+
+        result = result + sub_result
 
     return result / thetas.n_thetas
