@@ -306,6 +306,26 @@ def test_reveal_plates(masked_dataset):
     )
 
 
+def test_reveal_plates_catches_all_0(masked_dataset):
+    masked_dataset._observations[masked_dataset.plate_ids == 3] = 0.0
+
+    with pytest.raises(ValueError):
+        retrospective.reveal_plates(
+            screen=masked_dataset,
+            plate_ids=[3],
+        )
+
+
+def test_reveal_plates_catches_nan(masked_dataset):
+    masked_dataset._observations[masked_dataset.plate_ids == 3] = np.nan
+
+    with pytest.raises(ValueError):
+        retrospective.reveal_plates(
+            screen=masked_dataset,
+            plate_ids=[3],
+        )
+
+
 def test_calculate_mse(test_dataset):
     model = mock.MagicMock(BayesianModel)
     model.predict.return_value = 1.0
