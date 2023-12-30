@@ -108,7 +108,6 @@ class SparseCoverPlateGenerator(InitialRetrospectivePlateGenerator):
         )
 
         observation_vector = screen.observations.copy()
-        observation_vector[~final_plate_selection_vector] = 0.0
 
         return Screen(
             treatment_names=screen.treatment_names,
@@ -731,6 +730,16 @@ def reveal_plates(
     :param plate_ids: The plate ids to reveal
     """
     reveal_mask = np.isin(screen.plate_ids, plate_ids)
+
+    revealed_values = screen.observations[reveal_mask]
+
+    if np.all(revealed_values == 0):
+        raise ValueError(
+            "All revealed observations were 0 indicating a, please check your data"
+        )
+
+    if np.any(np.isnan(revealed_values)):
+        raise ValueError("NaN found in revealed observations, please check your data")
 
     return Screen(
         treatment_names=screen.treatment_names,
