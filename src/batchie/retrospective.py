@@ -735,7 +735,7 @@ def reveal_plates(
 
     if np.all(revealed_values == 0):
         raise ValueError(
-            "All revealed observations were 0 indicating a, please check your data"
+            "All revealed observations were 0 indicating a problem with your Screen, please check your data"
         )
 
     if np.any(np.isnan(revealed_values)):
