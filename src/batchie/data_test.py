@@ -13,6 +13,7 @@ from batchie.data import (
     ScreenSubset,
     Plate,
     encode_treatment_arrays_to_0_indexed_ids,
+    encode_1d_array_to_0_indexed_ids,
     filter_dataset_to_treatments_that_appear_in_at_least_one_combo,
 )
 
@@ -23,20 +24,22 @@ def test_encode_treatment_arrays_to_0_indexed_ids():
         treatment_dose_arr=np.array([1, 2, 3, 4]),
     )
 
-    assert result.size == 4
-    assert np.sort(np.unique(result)).tolist() == [0, 1, 2, 3]
+    np.testing.assert_array_equal(result, np.array([0, 1, 2, 3]))
 
 
 def test_encode_treatment_arrays_with_controls_to_0_indexed_ids():
     result = encode_treatment_arrays_to_0_indexed_ids(
-        treatment_name_arr=np.array(["a", "b", "", "b"], dtype=object),
-        treatment_dose_arr=np.array([1, 2, 3, 0]),
+        treatment_name_arr=np.array(["a", "b", "", "b", "", "a"], dtype=object),
+        treatment_dose_arr=np.array([1, 2, 3, 0, 0, 1]),
         control_treatment_name="",
     )
 
-    assert result.size == 4
-    assert np.sort(np.unique(result)).tolist() == [-1, 0, 1]
-    assert np.sort(result).tolist() == [-1, -1, 0, 1]
+    np.testing.assert_array_equal(result, np.array([0, 1, -1, -1, -1, 0]))
+
+
+def test_encode_1d_array_to_0_indexed_ids():
+    result = encode_1d_array_to_0_indexed_ids(np.array(["a", "b", "c", "a"]))
+    np.testing.assert_array_equal(result, np.array([0, 1, 2, 0]))
 
 
 def test_screen_props():
