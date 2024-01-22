@@ -56,35 +56,33 @@ def encode_treatment_arrays_to_0_indexed_ids(
     :param treatment_dose_arr: array of treatment doses
     :param control_treatment_name: The string value of the control treatment
     """
-    is_control = np.array(
-        [x == control_treatment_name for x in treatment_name_arr]
-    ) | np.array([x <= 0 for x in treatment_dose_arr])
+    with pandas.option_context("mode.copy_on_write", True):
+        df = pandas.DataFrame({"name": treatment_name_arr, "dose": treatment_dose_arr})
 
-    name_dose_arr = np.vstack([treatment_name_arr, treatment_dose_arr]).T
+        df_unique = df.drop_duplicates().reset_index(drop=True)
 
-    df = pandas.DataFrame(name_dose_arr, columns=["name", "dose"])
+        dose_is_zero = df_unique["dose"] <= 0
 
-    df["is_control"] = is_control
+        treatment_is_control = df_unique["name"] == control_treatment_name
 
-    df = df.drop_duplicates()
+        is_control = dose_is_zero | treatment_is_control
 
-    df_no_controls = df[~df.is_control][["name", "dose"]]
+        df_unique["is_control"] = is_control
 
-    df_no_controls = df_no_controls.sort_values(by=df_no_controls.columns.tolist())
+        df_unique = df_unique.reset_index(drop=False)
 
-    df_no_controls = df_no_controls.reset_index(drop=True)
+        df_unique["new_index"] = df_unique.index - df_unique.is_control.cumsum()
 
-    new_arr = df_no_controls.to_numpy()
+        selection = df_unique.index[df_unique.is_control]
 
-    mapping = dict(zip([tuple(x) for x in new_arr], df_no_controls.index))
+        df_unique.loc[selection, "new_index"] = CONTROL_SENTINEL_VALUE
 
-    df_controls = df[df.is_control][["name", "dose"]]
-    df_controls_arr = df_controls.to_numpy()
+        del df_unique["index"]
+        del df_unique["is_control"]
 
-    for row in df_controls_arr:
-        mapping[tuple(row)] = CONTROL_SENTINEL_VALUE
+        joined = df.merge(df_unique, on=["name", "dose"], how="left")
 
-    return np.array([mapping[tuple(x)] for x in name_dose_arr])
+        return joined.new_index.values
 
 
 def encode_1d_array_to_0_indexed_ids(arr: ArrayType):
@@ -95,11 +93,15 @@ def encode_1d_array_to_0_indexed_ids(arr: ArrayType):
     :return: integer array containing only values between 0 and n-1,
     where n is the number of unique values in arr
     """
-    unique_values = np.unique(arr)
+    with pandas.option_context("mode.copy_on_write", True):
+        df = pandas.DataFrame({"val": arr})
 
-    mapping = dict(zip(unique_values, np.arange(len(unique_values))))
+        df_unique = df.drop_duplicates().reset_index(drop=True)
+        df_unique = df_unique.reset_index(drop=False)
 
-    return np.array([mapping[x] for x in arr])
+        df_unique = df_unique.rename(columns={"index": "new_index"})
+        joined = df.merge(df_unique, on=["val"], how="left")
+        return joined.new_index.values
 
 
 def create_single_treatment_effect_map(
@@ -617,6 +619,7 @@ class Screen(ScreenBase):
         dose_class_combos = []
         for i in range(treatment_arity):
             dose_class_combos.append((treatment_names[:, i], treatment_doses[:, i]))
+
         all_dose_names = np.concatenate([x[0] for x in dose_class_combos])
         all_drug_names = np.concatenate([x[1] for x in dose_class_combos])
 

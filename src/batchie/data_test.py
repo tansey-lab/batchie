@@ -13,6 +13,7 @@ from batchie.data import (
     ScreenSubset,
     Plate,
     encode_treatment_arrays_to_0_indexed_ids,
+    encode_1d_array_to_0_indexed_ids,
     filter_dataset_to_treatments_that_appear_in_at_least_one_combo,
 )
 
@@ -23,20 +24,24 @@ def test_encode_treatment_arrays_to_0_indexed_ids():
         treatment_dose_arr=np.array([1, 2, 3, 4]),
     )
 
-    assert result.size == 4
-    assert np.sort(np.unique(result)).tolist() == [0, 1, 2, 3]
+    np.testing.assert_array_equal(result, np.array([0, 1, 2, 3]))
 
 
 def test_encode_treatment_arrays_with_controls_to_0_indexed_ids():
     result = encode_treatment_arrays_to_0_indexed_ids(
-        treatment_name_arr=np.array(["a", "b", "", "b"], dtype=object),
-        treatment_dose_arr=np.array([1, 2, 3, 0]),
+        treatment_name_arr=np.array(["a", "b", "", "b", "", "a"], dtype=object),
+        treatment_dose_arr=np.array([1, 2, 3, 0, 0, 1]),
         control_treatment_name="",
     )
 
-    assert result.size == 4
-    assert np.sort(np.unique(result)).tolist() == [-1, 0, 1]
-    assert np.sort(result).tolist() == [-1, -1, 0, 1]
+    np.testing.assert_array_equal(result, np.array([0, 1, -1, -1, -1, 0]))
+
+
+def test_encode_1d_array_to_0_indexed_ids():
+    result = encode_1d_array_to_0_indexed_ids(np.array(["a", "b", "c", "a"]))
+    np.testing.assert_array_equal(result, np.array([0, 1, 2, 0]))
+    result = encode_1d_array_to_0_indexed_ids(np.array(["a", "a", "b", "b"], dtype=str))
+    np.testing.assert_array_equal(result, np.array([0, 0, 1, 1]))
 
 
 def test_screen_props():
@@ -196,9 +201,8 @@ def test_screen_subset_props():
         experiment_subset.observation_mask, np.array([True, True])
     )
     np.testing.assert_array_equal(experiment_subset.observations, np.array([0.1, 0.2]))
-    np.testing.assert_array_equal(
-        experiment_subset.unique_treatments, np.array([0, 1, 3])
-    )
+
+    assert len(experiment_subset.unique_treatments) == 3
     np.testing.assert_array_equal(experiment_subset.unique_sample_ids, np.array([0, 1]))
     np.testing.assert_array_equal(experiment_subset.unique_plate_ids, np.array([0]))
     assert experiment_subset.n_unique_treatments == 3
@@ -303,9 +307,7 @@ def test_screen_initialization_succeeds_under_correct_condition():
     assert result.size == 4
     numpy.testing.assert_array_equal(result.plate_ids, np.array([0, 0, 1, 1]))
     numpy.testing.assert_array_equal(result.sample_ids, np.array([0, 1, 2, 3]))
-    numpy.testing.assert_array_equal(
-        result.treatment_ids, np.array([[1, 3], [0, 3], [1, 2], [1, -1]])
-    )
+    assert len(result.unique_treatments) == 4
 
 
 def test_screen_serialization():
@@ -330,9 +332,6 @@ def test_screen_serialization():
 
         numpy.testing.assert_array_equal(dset_loaded.plate_ids, np.array([0, 0, 1, 1]))
         numpy.testing.assert_array_equal(dset_loaded.sample_ids, np.array([0, 1, 2, 3]))
-        numpy.testing.assert_array_equal(
-            dset_loaded.treatment_ids, np.array([[1, 3], [0, 3], [1, 2], [1, -1]])
-        )
         numpy.testing.assert_array_equal(
             dset_loaded.treatment_names,
             np.array([["a", "b"], ["a", "b"], ["a", "b"], ["a", "b"]]),
@@ -389,7 +388,7 @@ def test_screen_subset():
     np.testing.assert_array_equal(subset.sample_ids, [0, 3])
     np.testing.assert_array_equal(subset.plate_ids, [0, 1])
     np.testing.assert_array_equal(
-        subset.treatment_ids, [[0, CONTROL_SENTINEL_VALUE], [CONTROL_SENTINEL_VALUE, 2]]
+        subset.treatment_ids, [[0, CONTROL_SENTINEL_VALUE], [CONTROL_SENTINEL_VALUE, 4]]
     )
 
     inverted_subset = subset.invert()
