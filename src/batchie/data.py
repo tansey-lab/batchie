@@ -59,7 +59,7 @@ def encode_treatment_arrays_to_0_indexed_ids(
     with pandas.option_context("mode.copy_on_write", True):
         df = pandas.DataFrame({"name": treatment_name_arr, "dose": treatment_dose_arr})
 
-        df_unique = df.drop_duplicates()
+        df_unique = df.drop_duplicates().reset_index(drop=True)
 
         dose_is_zero = df_unique["dose"] <= 0
 
@@ -96,8 +96,9 @@ def encode_1d_array_to_0_indexed_ids(arr: ArrayType):
     with pandas.option_context("mode.copy_on_write", True):
         df = pandas.DataFrame({"val": arr})
 
-        df_unique = df.drop_duplicates()
+        df_unique = df.drop_duplicates().reset_index(drop=True)
         df_unique = df_unique.reset_index(drop=False)
+
         df_unique = df_unique.rename(columns={"index": "new_index"})
         joined = df.merge(df_unique, on=["val"], how="left")
         return joined.new_index.values
