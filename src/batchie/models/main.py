@@ -58,12 +58,20 @@ class ModelEvaluation:
         """
         return ((self.predictions - self.observations) ** 2).mean()
 
+    @property
+    def mean_predictions(self):
+        return self.predictions.mean(axis=1)
+
     def save_h5(self, fn):
         with h5py.File(fn, "w") as f:
             f.create_dataset("predictions", data=self.predictions, compression="gzip")
             f.create_dataset("observations", data=self.observations, compression="gzip")
             f.create_dataset("chain_ids", data=self.chain_ids, compression="gzip")
-            f.create_dataset("sample_names", data=self.sample_names, compression="gzip")
+            f.create_dataset(
+                "sample_names",
+                data=np.char.encode(self.sample_names),
+                compression="gzip",
+            )
 
     @classmethod
     def load_h5(cls, fn):
@@ -71,7 +79,7 @@ class ModelEvaluation:
             predictions = f["predictions"][:]
             observations = f["observations"][:]
             chain_ids = f["chain_ids"][:]
-            sample_names = f["sample_names"][:]
+            sample_names = np.char.decode(f["sample_names"][:], "utf-8")
             return cls(
                 predictions=predictions,
                 observations=observations,

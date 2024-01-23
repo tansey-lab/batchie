@@ -14,12 +14,15 @@ def test_model_evaluation():
     preds = np.ones((10, 10), dtype=FloatingPointType)
     obs = np.ones((10, 10), dtype=FloatingPointType)
     chain_ids = np.ones(10, dtype=int)
-
+    sample_names = np.array(["1"] * 10, dtype=str)
     tmpdir = tempfile.mkdtemp()
 
     try:
         me = main.ModelEvaluation(
-            predictions=preds, observations=obs, chain_ids=chain_ids
+            predictions=preds,
+            observations=obs,
+            chain_ids=chain_ids,
+            sample_names=sample_names.astype(str),
         )
         me.rmse()
         me.save_h5(os.path.join(tmpdir, "model_evaluation.h5"))
@@ -37,8 +40,14 @@ def test_model_evaluation_rmse():
     preds = np.random.random((10, 10))
     obs = np.ones((10,))
     chain_ids = np.ones(10, dtype=int)
+    sample_names = np.array(["1"] * 10, dtype=str)
 
-    me = main.ModelEvaluation(predictions=preds, observations=obs, chain_ids=chain_ids)
+    me = main.ModelEvaluation(
+        predictions=preds,
+        observations=obs,
+        chain_ids=chain_ids,
+        sample_names=sample_names,
+    )
 
     assert me.rmse() > 0
 

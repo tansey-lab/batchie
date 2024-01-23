@@ -124,6 +124,7 @@ def main():
         observations=test_screen.observations,
         predictions=predictions,
         chain_ids=chain_ids,
+        sample_names=test_screen.sample_names,
     )
 
     logger.info(f"Saving ModelEvaluation to {args.output}")
