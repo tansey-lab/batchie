@@ -1,4 +1,5 @@
 import seaborn as sns
+import numpy as np
 
 from pandas import DataFrame
 from matplotlib import pyplot as plt
@@ -71,6 +72,9 @@ def predicted_vs_observed_scatterplot_per_sample(
     fig, axs = plt.subplots(
         ceil(n_categories / ncol), ncol, figsize=(8, 4 * ceil(n_categories / ncol))
     )
+
+    if len(axs.shape) == 1:
+        axs = np.array([axs])
 
     for i, category in enumerate(unique_categories):
         ax = axs[i // ncol][i % ncol]
