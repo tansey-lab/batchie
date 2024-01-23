@@ -6,7 +6,7 @@ from itertools import combinations
 
 import pandas
 
-from batchie.common import FloatingPointType, ArrayType
+from batchie.common import FloatingPointType, ArrayType, CONTROL_SENTINEL_VALUE
 from batchie.core import BayesianModel, ThetaHolder
 from batchie.data import ScreenBase, Screen
 
@@ -146,23 +146,33 @@ def generate_full_combinatoric_space(sample_id: int, screen: ScreenBase):
     treatments
     """
 
-    if combination_count(screen.n_unique_treatments, screen.treatment_arity) > 1e7:
+    if combination_count(screen.treatment_space_size, screen.treatment_arity) > 1e7:
         raise ValueError("The treatment space is too large for this method")
 
-    combos = combinations(screen.unique_treatments, screen.treatment_arity)
+    all_treatments = zip(screen.treatment_mapping[0], screen.treatment_mapping[1])
 
-    treatment_ids = np.array(list(combos))
+    combos = np.array(
+        list(combinations(all_treatments, screen.treatment_arity)), dtype=object
+    )
 
-    sample_ids = np.array([sample_id] * treatment_ids.shape[0])
-    plate_names = np.array(["1"] * treatment_ids.shape[0])
+    treatment_names = combos[:, :, 0]
+    treatment_doses = combos[:, :, 1]
+
+    plate_names = np.array(["1"] * combos.shape[0])
+
+    sample_name = dict(zip(screen.sample_mapping[1], screen.sample_mapping[0]))[
+        sample_id
+    ]
+
+    sample_ids = np.array([sample_name] * combos.shape[0])
 
     return Screen(
-        treatment_names=treatment_ids.astype(str),
+        treatment_names=treatment_names.astype(str),
         sample_names=sample_ids.astype(str),
-        treatment_doses=np.ones_like(treatment_ids).astype(FloatingPointType),
+        treatment_doses=treatment_doses.astype(FloatingPointType),
         plate_names=plate_names,
-        treatment_ids=treatment_ids,
-        sample_ids=sample_ids,
+        sample_mapping=screen.sample_mapping,
+        treatment_mapping=screen.treatment_mapping,
     )
 
 
