@@ -1,0 +1,42 @@
+name: analyze_model_evaluation
+description: Create plots and summary stats for model evaluation
+keywords:
+  - active_learning
+tools:
+  - analyze_model_evaluation:
+      description: |
+        Create plots and summary stats for model evaluation
+      homepage: https://batchie.readthedocs.io/en/latest/command_line_interface.html#analyze-model-evaluation
+      documentation: https://batchie.readthedocs.io/en/latest/command_line_interface.html#analyze-model-evaluation
+      licence: []
+      args_id: "$args"
+input:
+  - meta:
+      type: map
+      description: |
+        Groovy Map containing sample information
+        e.g. [ id:'test', single_end:false ]
+  - training_data:
+      type: file
+      description: |
+        Batchie experiment file (.h5) as documented at
+        https://batchie.readthedocs.io/en/latest/data_format.html#experiment-format
+  - thetas:
+      type: file
+      description: |
+        h5 file containing trained model parameters (.h5)
+  - model_evaluation:
+      type: file
+      description: |
+        h5 file containing model evaluation (.h5)
+output:
+  - model_evaluation_analysis:
+      type: dir
+      description: directory containing results
+      pattern: "model_evaluation_analysis"
+  - versions:
+      type: file
+      description: File containing software versions
+      pattern: "versions.yml"
+authors:
+  - "@jeffquinn-msk"

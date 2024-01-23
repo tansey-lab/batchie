@@ -1,0 +1,5 @@
+- name: analyze_model_evaluation
+  command: nextflow -C ./nextflow/tests/modules/nf-core/batchie/analyze_model_evaluation/nextflow.config,./nextflow/tests/config/nextflow.config run ./nextflow/tests/modules/nf-core/batchie/analyze_model_evaluation -entry analyze_model_evaluation
+  tags:
+    - analyze_model_evaluation
+  files: []
