@@ -1,4 +1,4 @@
-process EVALUATE_MODEL {
+process ANALYZE_MODEL_EVALUATION {
     tag "$meta.id"
     label 'process_single'
     container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
@@ -6,10 +6,10 @@ process EVALUATE_MODEL {
         'docker.io/jeffquinnmsk/batchie:latest' }"
 
     input:
-    tuple val(meta), path(test_data), path(thetas)
+    tuple val(meta), path(training_data), path(thetas), path(model_evaluation)
 
     output:
-    tuple val(meta), path("${prefix}/model_evaluation.h5"), emit: model_evaluation
+    tuple val(meta), path("${prefix}/model_evaluation_analysis"), emit: results
     path  "versions.yml"                , emit: versions
 
 
@@ -21,10 +21,10 @@ process EVALUATE_MODEL {
     def args = task.ext.args ?: ""
     """
     mkdir -p "${prefix}"
-    evaluate_model \
-        --screen ${test_data} \
+    analyze_model_evaluation --screen ${training_data} \
         --thetas ${thetas} \
-        --output "${prefix}/model_evaluation.h5" \
+        --model-evaluation ${model_evaluation} \
+        --output-dir "${prefix}/model_evaluation_analysis" \
         ${args}
 
     cat <<-END_VERSIONS > versions.yml

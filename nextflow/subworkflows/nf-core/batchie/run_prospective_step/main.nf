@@ -2,6 +2,8 @@ include { CALCULATE_DISTANCE_MATRIX_CHUNK } from '../../../../modules/nf-core/ba
 include { CALCULATE_SCORE_CHUNK } from '../../../../modules/nf-core/batchie/calculate_score_chunk/main'
 include { SELECT_NEXT_PLATE } from '../../../../modules/nf-core/batchie/select_next_plate/main'
 include { TRAIN_MODEL } from '../../../../modules/nf-core/batchie/train_model/main'
+include { EVALUATE_MODEL } from '../../../../modules/nf-core/batchie/evaluate_model/main'
+include { ANALYZE_MODEL_EVALUATION } from '../../../../modules/nf-core/batchie/analyze_model_evaluation/main'
 
 
 def create_parallel_sequence(meta, n_par) {
@@ -24,6 +26,21 @@ workflow RUN_PROSPECTIVE_STEP {
     ch_input.map { tuple(it[0], it[1]) }.combine(chain_sequence, by: 0).tap { train_model_input }
 
     TRAIN_MODEL( train_model_input )
+
+    ch_input
+        .map { tuple(it[0], it[1]) }
+        .join(TRAIN_MODEL.out.thetas.groupTuple())
+        .tap { evaluate_model_input }
+
+    EVALUATE_MODEL( evaluate_model_input )
+
+    ch_input
+        .map { tuple(it[0], it[1] ) }
+        .join(TRAIN_MODEL.out.thetas.groupTuple())
+        .join(EVALUATE_MODEL.out.model_evaluation)
+        .tap { analyze_model_evaluation_input }
+
+    ANALYZE_MODEL_EVALUATION( analyze_model_evaluation_input )
 
     ch_input.flatMap { create_parallel_sequence(it[0], it[3]) }.tap { dist_input }
 

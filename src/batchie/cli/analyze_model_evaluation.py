@@ -1,27 +1,32 @@
 import argparse
 import logging
-
+import os
 import numpy as np
 
-from batchie import introspection
-from batchie import log_config
+from batchie import introspection, log_config, plotting
 from batchie.cli.argument_parsing import KVAppendAction, cast_dict_to_type
 from batchie.common import N_UNIQUE_SAMPLES, N_UNIQUE_TREATMENTS
 from batchie.core import BayesianModel, ThetaHolder
 from batchie.data import Screen
-from batchie.models.main import predict_all, ModelEvaluation
+from batchie.models.main import predict_all, ModelEvaluation, correlation_matrix
 
 logger = logging.getLogger(__name__)
 
 
 def get_parser():
     parser = argparse.ArgumentParser(
-        description="This is a utility for evaluating model performance by predicting over an observed 'test screen'."
+        description="This is a utility for analyzing and plotting the results of model fitting."
     )
     log_config.add_logging_args(parser)
     parser.add_argument(
+        "--model-evaluation",
+        help="A batchie ModelEvaluation in hdf5 format.",
+        type=str,
+        required=True,
+    )
+    parser.add_argument(
         "--screen",
-        help="A batchie Screen in hdf5 format with all plates observed.",
+        help="A batchie Screen in hdf5 format.",
         type=str,
         required=True,
     )
@@ -39,8 +44,8 @@ def get_parser():
         required=True,
     )
     parser.add_argument(
-        "--output",
-        help="Output ModelEvaluation object in h5 format.",
+        "--output-dir",
+        help="Output directory.",
         type=str,
         required=True,
     )
@@ -83,14 +88,18 @@ def get_args():
 
 def main():
     args = get_args()
+
+    os.makedirs(args.output_dir, exist_ok=True)
     log_config.configure_logging(args)
 
     screen = Screen.load_h5(args.screen)
 
-    args.model_params[N_UNIQUE_SAMPLES] = screen.sample_space_size
-    args.model_params[N_UNIQUE_TREATMENTS] = screen.treatment_space_size
+    args.model_params[N_UNIQUE_SAMPLES] = screen.n_unique_samples
+    args.model_params[N_UNIQUE_TREATMENTS] = screen.n_unique_treatments
 
     model: BayesianModel = args.model_cls(**args.model_params)
+
+    model.add_observations(screen.subset_observed())
 
     theta_holder: ThetaHolder = model.get_results_holder(n_samples=1)
 
@@ -98,25 +107,27 @@ def main():
 
     thetas = theta_holder.concat(theta_holders)
 
-    chain_ids = []
-    for i, t in enumerate(theta_holders):
-        chain_ids.extend([i] * t.n_thetas)
+    screen = Screen.load_h5(args.screen)
 
-    chain_ids = np.array(chain_ids, dtype=int)
+    me = ModelEvaluation.load_h5(args.model_evaluation)
 
-    predictions = predict_all(
-        screen=screen,
-        thetas=thetas,
-        model=model,
-    ).T
+    logger.info("Calculating correlation matrix")
 
-    me = ModelEvaluation(
-        observations=screen.observations,
-        predictions=predictions,
-        chain_ids=chain_ids,
-        sample_names=screen.sample_names,
+    corr = correlation_matrix(model, screen, thetas)
+
+    logger.info("Creating plots")
+
+    plotting.plot_correlation_heatmap(
+        corr, os.path.join(args.output_dir, "sample_prediction_correlation.pdf")
     )
 
-    logger.info(f"Saving ModelEvaluation to {args.output}")
+    plotting.predicted_vs_observed_scatterplot(
+        me, os.path.join(args.output_dir, "predicted_vs_observed_scatterplot.pdf")
+    )
 
-    me.save_h5(args.output)
+    plotting.predicted_vs_observed_scatterplot_per_sample(
+        me,
+        os.path.join(
+            args.output_dir, "predicted_vs_observed_by_sample_scatterplot.pdf"
+        ),
+    )

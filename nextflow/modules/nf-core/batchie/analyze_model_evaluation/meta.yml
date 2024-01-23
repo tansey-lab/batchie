@@ -1,13 +1,13 @@
-name: evaluate_model
-description: Evaluate a trained model on holdout data
+name: analyze_model_evaluation
+description: Create plots and summary stats for model evaluation
 keywords:
   - active_learning
 tools:
-  - evaluate_model:
+  - analyze_model_evaluation:
       description: |
-        Predict outcomes for an observed holdout screen and save results
-      homepage: https://batchie.readthedocs.io/en/latest/command_line_interface.html#evaluate-model
-      documentation: https://batchie.readthedocs.io/en/latest/command_line_interface.html#evaluate-model
+        Create plots and summary stats for model evaluation
+      homepage: https://batchie.readthedocs.io/en/latest/command_line_interface.html#analyze-model-evaluation
+      documentation: https://batchie.readthedocs.io/en/latest/command_line_interface.html#analyze-model-evaluation
       licence: []
       args_id: "$args"
 input:
@@ -16,7 +16,7 @@ input:
       description: |
         Groovy Map containing sample information
         e.g. [ id:'test', single_end:false ]
-  - test_data:
+  - training_data:
       type: file
       description: |
         Batchie experiment file (.h5) as documented at
@@ -25,11 +25,15 @@ input:
       type: file
       description: |
         h5 file containing trained model parameters (.h5)
-output:
   - model_evaluation:
       type: file
-      description: h5 file containing the predicted and observed values
-      pattern: "model_evaluation.h5"
+      description: |
+        h5 file containing model evaluation (.h5)
+output:
+  - model_evaluation_analysis:
+      type: dir
+      description: directory containing results
+      pattern: "model_evaluation_analysis"
   - versions:
       type: file
       description: File containing software versions
