@@ -53,17 +53,14 @@ def test_main(mocker, training_dataset, test_dataset):
         "SparseDrugCombo",
         "--model-param",
         "n_embedding_dimensions=5",
-        "--test-screen",
+        "--screen",
         os.path.join(tmpdir, "test.screen.h5"),
-        "--training-screen",
-        os.path.join(tmpdir, "training.screen.h5"),
         "--thetas",
         os.path.join(tmpdir, "samples.h5"),
         "--output",
         os.path.join(tmpdir, "model_evaluation.h5"),
     ]
 
-    training_dataset.save_h5(os.path.join(tmpdir, "training.screen.h5"))
     test_dataset.save_h5(os.path.join(tmpdir, "test.screen.h5"))
 
     n_thetas = 10

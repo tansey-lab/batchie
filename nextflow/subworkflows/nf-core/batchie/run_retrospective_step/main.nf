@@ -30,7 +30,7 @@ workflow RUN_RETROSPECTIVE_STEP {
     ch_input.flatMap { create_parallel_sequence(it[0], it[4]) }.tap { dist_input }
 
     ch_input
-        .map { tuple(it[0], it[1], it[2]) }
+        .map { tuple(it[0], it[1]) }
         .join(TRAIN_MODEL.out.thetas.groupTuple())
         .tap { evaluate_model_input }
 

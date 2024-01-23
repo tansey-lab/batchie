@@ -6,7 +6,7 @@ process EVALUATE_MODEL {
         'docker.io/jeffquinnmsk/batchie:latest' }"
 
     input:
-    tuple val(meta), path(training_data), path(test_data), path(thetas)
+    tuple val(meta), path(test_data), path(thetas)
 
     output:
     tuple val(meta), path("${prefix}/model_evaluation.h5"), emit: model_evaluation
@@ -21,8 +21,8 @@ process EVALUATE_MODEL {
     def args = task.ext.args ?: ""
     """
     mkdir -p "${prefix}"
-    evaluate_model --training-screen ${training_data} \
-        --test-screen ${test_data} \
+    evaluate_model \
+        --screen ${test_data} \
         --thetas ${thetas} \
         --output "${prefix}/model_evaluation.h5" \
         ${args}

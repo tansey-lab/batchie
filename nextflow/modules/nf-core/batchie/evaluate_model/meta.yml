@@ -16,11 +16,6 @@ input:
       description: |
         Groovy Map containing sample information
         e.g. [ id:'test', single_end:false ]
-  - training_data:
-      type: file
-      description: |
-        Batchie experiment file (.h5) as documented at
-        https://batchie.readthedocs.io/en/latest/data_format.html#experiment-format
   - test_data:
       type: file
       description: |

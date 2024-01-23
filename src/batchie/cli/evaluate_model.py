@@ -20,13 +20,7 @@ def get_parser():
     )
     log_config.add_logging_args(parser)
     parser.add_argument(
-        "--training-screen",
-        help="A batchie Screen in hdf5 format with some plates observed.",
-        type=str,
-        required=True,
-    )
-    parser.add_argument(
-        "--test-screen",
+        "--screen",
         help="A batchie Screen in hdf5 format with all plates observed.",
         type=str,
         required=True,
@@ -91,14 +85,12 @@ def main():
     args = get_args()
     log_config.configure_logging(args)
 
-    training_screen = Screen.load_h5(args.training_screen)
+    screen = Screen.load_h5(args.screen)
 
-    args.model_params[N_UNIQUE_SAMPLES] = training_screen.sample_space_size
-    args.model_params[N_UNIQUE_TREATMENTS] = training_screen.treatment_space_size
+    args.model_params[N_UNIQUE_SAMPLES] = screen.sample_space_size
+    args.model_params[N_UNIQUE_TREATMENTS] = screen.treatment_space_size
 
     model: BayesianModel = args.model_cls(**args.model_params)
-
-    model.add_observations(training_screen.subset_observed())
 
     theta_holder: ThetaHolder = model.get_results_holder(n_samples=1)
 
@@ -112,19 +104,17 @@ def main():
 
     chain_ids = np.array(chain_ids, dtype=int)
 
-    test_screen = Screen.load_h5(args.test_screen)
-
     predictions = predict_all(
-        screen=test_screen,
+        screen=screen,
         thetas=thetas,
         model=model,
     ).T
 
     me = ModelEvaluation(
-        observations=test_screen.observations,
+        observations=screen.observations,
         predictions=predictions,
         chain_ids=chain_ids,
-        sample_names=test_screen.sample_names,
+        sample_names=screen.sample_names,
     )
 
     logger.info(f"Saving ModelEvaluation to {args.output}")
