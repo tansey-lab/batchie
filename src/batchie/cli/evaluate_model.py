@@ -93,8 +93,8 @@ def main():
 
     training_screen = Screen.load_h5(args.training_screen)
 
-    args.model_params[N_UNIQUE_SAMPLES] = training_screen.n_unique_samples
-    args.model_params[N_UNIQUE_TREATMENTS] = training_screen.n_unique_treatments
+    args.model_params[N_UNIQUE_SAMPLES] = training_screen.sample_space_size
+    args.model_params[N_UNIQUE_TREATMENTS] = training_screen.treatment_space_size
 
     model: BayesianModel = args.model_cls(**args.model_params)
 

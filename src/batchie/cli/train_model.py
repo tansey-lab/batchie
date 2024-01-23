@@ -112,8 +112,8 @@ def main():
 
     data = Screen.load_h5(args.data)
 
-    args.model_params[N_UNIQUE_SAMPLES] = data.n_unique_samples
-    args.model_params[N_UNIQUE_TREATMENTS] = data.n_unique_treatments
+    args.model_params[N_UNIQUE_SAMPLES] = data.sample_space_size
+    args.model_params[N_UNIQUE_TREATMENTS] = data.treatment_space_size
 
     model: BayesianModel = args.model_cls(**args.model_params)
 
