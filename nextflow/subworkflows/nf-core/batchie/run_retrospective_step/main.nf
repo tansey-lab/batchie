@@ -4,7 +4,7 @@ include { EVALUATE_MODEL } from '../../../../modules/nf-core/batchie/evaluate_mo
 include { REVEAL_PLATE } from '../../../../modules/nf-core/batchie/reveal_plate/main'
 include { SELECT_NEXT_PLATE } from '../../../../modules/nf-core/batchie/select_next_plate/main'
 include { TRAIN_MODEL } from '../../../../modules/nf-core/batchie/train_model/main'
-
+include { ANALYZE_MODEL_EVALUATION } from '../../../../modules/nf-core/batchie/analyze_model_evaluation/main'
 
 def create_parallel_sequence(meta, n_par) {
     def output = []
@@ -35,6 +35,14 @@ workflow RUN_RETROSPECTIVE_STEP {
         .tap { evaluate_model_input }
 
     EVALUATE_MODEL( evaluate_model_input )
+
+    ch_input
+        .map { tuple(it[0], it[1] ) }
+        .join(TRAIN_MODEL.out.thetas.groupTuple())
+        .join(EVALUATE_MODEL.out.model_evaluation)
+        .tap { analyze_model_evaluation_input }
+
+    ANALYZE_MODEL_EVALUATION( analyze_model_evaluation_input )
 
     ch_input
         .map { tuple(it[0], it[1]) }

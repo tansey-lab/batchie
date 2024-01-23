@@ -53,6 +53,7 @@ prepare_retrospective_simulation = "batchie.cli.prepare_retrospective_simulation
 reveal_plate = "batchie.cli.reveal_plate:main"
 select_next_plate = "batchie.cli.select_next_plate:main"
 train_model = "batchie.cli.train_model:main"
+analyze_model_evaluation = "batchie.cli.analyze_model_evaluation:main"
 
 [build-system]
 requires = ["setuptools>=43.0.0", "wheel"]
