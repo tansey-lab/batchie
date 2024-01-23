@@ -31,7 +31,8 @@ dependencies = [
     "pandas>=2,<3",
     "scipy>=1.7,<2",
     "tqdm",
-    "h5py>=3.8,<4"
+    "h5py>=3.8,<4",
+    "seaborn"
 ]
 
 [project.optional-dependencies]
