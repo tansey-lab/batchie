@@ -635,9 +635,8 @@ def create_random_holdout(
         plate_names=screen.plate_names[~selection_vector],
         control_treatment_name=screen.control_treatment_name,
         observation_mask=screen.observation_mask[~selection_vector],
-        treatment_ids=screen.treatment_ids[~selection_vector],
-        sample_ids=screen.sample_ids[~selection_vector],
-        plate_ids=screen.plate_ids[~selection_vector],
+        sample_mapping=screen.sample_mapping,
+        treatment_mapping=screen.treatment_mapping,
     )
 
     holdout_screen = Screen(
@@ -648,9 +647,8 @@ def create_random_holdout(
         plate_names=screen.plate_names[selection_vector],
         control_treatment_name=screen.control_treatment_name,
         observation_mask=np.ones(np.count_nonzero(selection_vector), dtype=bool),
-        treatment_ids=screen.treatment_ids[selection_vector],
-        sample_ids=screen.sample_ids[selection_vector],
-        plate_ids=screen.plate_ids[selection_vector],
+        sample_mapping=screen.sample_mapping,
+        treatment_mapping=screen.treatment_mapping,
     )
 
     return keep_screen, holdout_screen
@@ -697,9 +695,8 @@ def create_plate_balanced_holdout_set_among_masked_plates(
         plate_names=screen.plate_names[~selection_vector],
         control_treatment_name=screen.control_treatment_name,
         observation_mask=screen.observation_mask[~selection_vector],
-        treatment_ids=screen.treatment_ids[~selection_vector],
-        sample_ids=screen.sample_ids[~selection_vector],
-        plate_ids=screen.plate_ids[~selection_vector],
+        treatment_mapping=screen.treatment_mapping,
+        sample_mapping=screen.sample_mapping,
     )
 
     holdout_screen = Screen(
@@ -710,9 +707,8 @@ def create_plate_balanced_holdout_set_among_masked_plates(
         plate_names=screen.plate_names[selection_vector],
         control_treatment_name=screen.control_treatment_name,
         observation_mask=np.ones(np.count_nonzero(selection_vector), dtype=bool),
-        treatment_ids=screen.treatment_ids[selection_vector],
-        sample_ids=screen.sample_ids[selection_vector],
-        plate_ids=screen.plate_ids[selection_vector],
+        treatment_mapping=screen.treatment_mapping,
+        sample_mapping=screen.sample_mapping,
     )
 
     return keep_screen, holdout_screen

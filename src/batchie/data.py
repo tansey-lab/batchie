@@ -1,6 +1,6 @@
 import logging
 from abc import ABC, abstractmethod
-from typing import Optional
+from typing import Optional, Tuple
 
 import h5py
 import numpy as np
@@ -46,6 +46,7 @@ def encode_treatment_arrays_to_0_indexed_ids(
     treatment_name_arr: ArrayType,
     treatment_dose_arr: ArrayType,
     control_treatment_name: str = "",
+    existing_mapping: Optional[Tuple[ArrayType, ArrayType, ArrayType]] = None,
 ):
     """
     Encode treatment names and doses (which are arrays of string)
@@ -55,53 +56,92 @@ def encode_treatment_arrays_to_0_indexed_ids(
     :param treatment_name_arr: array of treatment names
     :param treatment_dose_arr: array of treatment doses
     :param control_treatment_name: The string value of the control treatment
+    :param existing_mapping: Prior mapping
     """
     with pandas.option_context("mode.copy_on_write", True):
         df = pandas.DataFrame({"name": treatment_name_arr, "dose": treatment_dose_arr})
 
-        df_unique = df.drop_duplicates().reset_index(drop=True)
+        if existing_mapping is not None:
+            df_unique = pandas.DataFrame(
+                {
+                    "name": existing_mapping[0],
+                    "dose": existing_mapping[1],
+                    "new_index": existing_mapping[2],
+                }
+            )
+        else:
+            df_unique = (
+                df.drop_duplicates()
+                .sort_values(by=["name", "dose"])
+                .reset_index(drop=True)
+            )
 
-        dose_is_zero = df_unique["dose"] <= 0
+            dose_is_zero = df_unique["dose"] <= 0
 
-        treatment_is_control = df_unique["name"] == control_treatment_name
+            treatment_is_control = df_unique["name"] == control_treatment_name
 
-        is_control = dose_is_zero | treatment_is_control
+            is_control = dose_is_zero | treatment_is_control
 
-        df_unique["is_control"] = is_control
+            df_unique["is_control"] = is_control
 
-        df_unique = df_unique.reset_index(drop=False)
+            df_unique = df_unique.reset_index(drop=False)
 
-        df_unique["new_index"] = df_unique.index - df_unique.is_control.cumsum()
+            df_unique["new_index"] = df_unique.index - df_unique.is_control.cumsum()
 
-        selection = df_unique.index[df_unique.is_control]
+            selection = df_unique.index[df_unique.is_control]
 
-        df_unique.loc[selection, "new_index"] = CONTROL_SENTINEL_VALUE
+            df_unique.loc[selection, "new_index"] = CONTROL_SENTINEL_VALUE
 
-        del df_unique["index"]
-        del df_unique["is_control"]
+            del df_unique["index"]
+            del df_unique["is_control"]
 
         joined = df.merge(df_unique, on=["name", "dose"], how="left")
 
-        return joined.new_index.values
+        if not np.all(joined.new_index.notna()):
+            raise ValueError("Mapping of treatments to ids failed")
+
+        return (
+            joined.new_index.values,
+            df_unique.name.to_numpy(),
+            df_unique.dose.to_numpy(),
+            df_unique.new_index.to_numpy(),
+        )
 
 
-def encode_1d_array_to_0_indexed_ids(arr: ArrayType):
+def encode_1d_array_to_0_indexed_ids(
+    arr: ArrayType, existing_mapping: Optional[Tuple[ArrayType, ArrayType]] = None
+):
     """
     Encode a 1d array of strings to 0-indexed integers.
 
     :param arr: 1d array of strings
+    :param existing_mapping: Prior mapping
     :return: integer array containing only values between 0 and n-1,
     where n is the number of unique values in arr
     """
     with pandas.option_context("mode.copy_on_write", True):
         df = pandas.DataFrame({"val": arr})
+        if existing_mapping is not None:
+            df_unique = pandas.DataFrame(
+                {"val": existing_mapping[0], "new_index": existing_mapping[1]}
+            )
+        else:
+            df_unique = (
+                df.drop_duplicates().sort_values(by="val").reset_index(drop=True)
+            )
+            df_unique = df_unique.reset_index(drop=False)
 
-        df_unique = df.drop_duplicates().reset_index(drop=True)
-        df_unique = df_unique.reset_index(drop=False)
-
-        df_unique = df_unique.rename(columns={"index": "new_index"})
+            df_unique = df_unique.rename(columns={"index": "new_index"})
         joined = df.merge(df_unique, on=["val"], how="left")
-        return joined.new_index.values
+
+        if not np.all(joined.new_index.notna()):
+            raise ValueError("Mapping to ids failed")
+
+        return (
+            joined.new_index.values,
+            df_unique.val.to_numpy(),
+            df_unique.new_index.to_numpy(),
+        )
 
 
 def create_single_treatment_effect_map(
@@ -221,6 +261,21 @@ class ScreenBase(ABC):
 
     @property
     @abstractmethod
+    def treatment_mapping(self):
+        return NotImplemented
+
+    @property
+    @abstractmethod
+    def sample_mapping(self):
+        return NotImplemented
+
+    @property
+    @abstractmethod
+    def plate_mapping(self):
+        return NotImplemented
+
+    @property
+    @abstractmethod
     def observations(self):
         return NotImplemented
 
@@ -272,6 +327,15 @@ class ScreenBase(ABC):
         return np.unique(self.sample_ids)
 
     @property
+    def sample_space_size(self):
+        """
+        Return the size of the universe of possible samples.
+
+        :return: int
+        """
+        return len(self.sample_mapping[0])
+
+    @property
     def unique_treatments(self):
         """
         Return the unique treatments in the screen (excludes "control"
@@ -280,6 +344,15 @@ class ScreenBase(ABC):
         :return: 2d array of unique treatments
         """
         return np.setdiff1d(np.unique(self.treatment_ids), [CONTROL_SENTINEL_VALUE])
+
+    @property
+    def treatment_space_size(self):
+        """
+        Return the size of the universe of possible treatments.
+
+        :return: int
+        """
+        return len(self.treatment_mapping[0])
 
     @property
     def n_unique_samples(self):
@@ -368,6 +441,18 @@ class ScreenSubset(ScreenBase):
     @property
     def observation_mask(self):
         return self.screen.observation_mask[self.selection_vector]
+
+    @property
+    def treatment_mapping(self):
+        return self.screen.treatment_mapping
+
+    @property
+    def sample_mapping(self):
+        return self.screen.sample_mapping
+
+    @property
+    def plate_mapping(self):
+        return self.screen.plate_mapping
 
     def invert(self):
         """
@@ -501,7 +586,7 @@ class Plate(ScreenSubset):
             raise ValueError("Cannot merge two plates from different screens")
         self.selection_vector = self.selection_vector | other.selection_vector
         self.screen.plate_names[self.selection_vector] = self.plate_name
-        self.screen._plate_ids = encode_1d_array_to_0_indexed_ids(
+        self.screen._plate_ids, _, _ = encode_1d_array_to_0_indexed_ids(
             self.screen.plate_names
         )
         return self
@@ -533,9 +618,8 @@ class Screen(ScreenBase):
         observations: Optional[ArrayType] = None,
         observation_mask: Optional[ArrayType] = None,
         control_treatment_name="",
-        treatment_ids: Optional[ArrayType] = None,
-        sample_ids: Optional[ArrayType] = None,
-        plate_ids: Optional[ArrayType] = None,
+        treatment_mapping: Optional[Tuple[ArrayType, ArrayType, ArrayType]] = None,
+        sample_mapping: Optional[Tuple[ArrayType, ArrayType]] = None,
     ):
         self.control_treatment_name = control_treatment_name
         if (
@@ -623,42 +707,50 @@ class Screen(ScreenBase):
         all_dose_names = np.concatenate([x[0] for x in dose_class_combos])
         all_drug_names = np.concatenate([x[1] for x in dose_class_combos])
 
-        all_dose_class_combos_encoded = encode_treatment_arrays_to_0_indexed_ids(
+        if treatment_mapping is not None:
+            if not numpy_array_is_0_indexed_integers(treatment_mapping[-1]):
+                raise ValueError("Invalid treatment mapping")
+        if sample_mapping is not None:
+            if not numpy_array_is_0_indexed_integers(sample_mapping[-1]):
+                raise ValueError("Invalid sample mapping")
+
+        (
+            all_dose_class_combos_encoded,
+            unique_treatment_names,
+            unique_treatment_doses,
+            unique_treatment_ids,
+        ) = encode_treatment_arrays_to_0_indexed_ids(
             treatment_name_arr=all_dose_names,
             treatment_dose_arr=all_drug_names,
             control_treatment_name=self.control_treatment_name,
+            existing_mapping=treatment_mapping,
         )
 
-        if treatment_ids is not None:
-            if treatment_ids.shape != treatment_names.shape:
-                raise ValueError(
-                    "treatment_ids must have same shape as treatment_names"
-                )
-            if not np.issubdtype(treatment_ids.dtype, int):
-                raise ValueError("treatment_ids must be ints")
-            self._treatment_ids = treatment_ids
-        else:
-            self._treatment_ids = np.vstack(
-                np.split(all_dose_class_combos_encoded, treatment_names.shape[1])
-            ).T
+        self._treatment_mapping = (
+            unique_treatment_names,
+            unique_treatment_doses,
+            unique_treatment_ids,
+        )
 
-        if sample_ids is not None:
-            if sample_ids.shape != sample_names.shape:
-                raise ValueError("sample_ids must have same shape as sample_names")
-            if not np.issubdtype(sample_ids.dtype, int):
-                raise ValueError("sample_ids must be ints")
-            self._sample_ids = sample_ids
-        else:
-            self._sample_ids = encode_1d_array_to_0_indexed_ids(sample_names)
+        self._treatment_ids = np.vstack(
+            np.split(all_dose_class_combos_encoded, treatment_names.shape[1])
+        ).T
 
-        if plate_ids is not None:
-            if plate_ids.shape != plate_names.shape:
-                raise ValueError("plate_ids must have same shape as plate_names")
-            if not np.issubdtype(plate_ids.dtype, int):
-                raise ValueError("plate_ids must be ints")
-            self._plate_ids = plate_ids
-        else:
-            self._plate_ids = encode_1d_array_to_0_indexed_ids(plate_names)
+        (
+            self._sample_ids,
+            unique_sample_names,
+            unique_sample_ids,
+        ) = encode_1d_array_to_0_indexed_ids(
+            sample_names, existing_mapping=sample_mapping
+        )
+        self._sample_mapping = (unique_sample_names, unique_sample_ids)
+
+        (
+            self._plate_ids,
+            unique_plate_names,
+            unique_plate_ids,
+        ) = encode_1d_array_to_0_indexed_ids(plate_names)
+        self._plate_mapping = (unique_plate_names, unique_plate_ids)
 
         self._observations = observations
         self._observation_mask = observation_mask
@@ -771,6 +863,27 @@ class Screen(ScreenBase):
         """
         return [self.get_plate(x) for x in self.unique_plate_ids]
 
+    @property
+    def treatment_mapping(self) -> Tuple[ArrayType, ArrayType, ArrayType]:
+        """
+        :return: a tuple of three 1d arrays that map tuples of (name, dose) to id.
+        """
+        return self._treatment_mapping
+
+    @property
+    def sample_mapping(self) -> Tuple[ArrayType, ArrayType]:
+        """
+        :return: a tuple of two 1d arrays that map sample name to id.
+        """
+        return self._sample_mapping
+
+    @property
+    def plate_mapping(self) -> Tuple[ArrayType, ArrayType]:
+        """
+        :return: a tuple of two 1d arrays that map plate name to id.
+        """
+        return self._plate_mapping
+
     def subset(self, selection_vector: ArrayType) -> ScreenSubset:
         """
         Return a :py:class:`batchie.data.ScreenSubset` defined by a boolean selection vector.
@@ -882,6 +995,23 @@ class Screen(ScreenBase):
             f.create_dataset(
                 "treatment_ids", data=self.treatment_ids, compression="gzip"
             )
+
+            f.create_dataset(
+                "treatment_mapping_names",
+                data=np.char.encode(self.treatment_mapping[0].astype(str)),
+                compression="gzip",
+            )
+            f.create_dataset(
+                "treatment_mapping_doses",
+                data=self.treatment_mapping[1],
+                compression="gzip",
+            )
+            f.create_dataset(
+                "treatment_mapping_ids",
+                data=self.treatment_mapping[2],
+                compression="gzip",
+            )
+
             f.create_dataset("observations", data=self.observations, compression="gzip")
             f.create_dataset(
                 "observation_mask", data=self.observation_mask, compression="gzip"
@@ -891,6 +1021,14 @@ class Screen(ScreenBase):
                 "sample_names",
                 data=np.char.encode(self.sample_names),
                 compression="gzip",
+            )
+            f.create_dataset(
+                "sample_mapping_names",
+                data=np.char.encode(self.sample_mapping[0].astype(str)),
+                compression="gzip",
+            )
+            f.create_dataset(
+                "sample_mapping_ids", data=self.sample_mapping[1], compression="gzip"
             )
             f.create_dataset("plate_ids", data=self.plate_ids, compression="gzip")
             f.create_dataset(
@@ -914,6 +1052,15 @@ class Screen(ScreenBase):
                 sample_names=np.char.decode(f["sample_names"][:], "utf-8"),
                 plate_names=np.char.decode(f["plate_names"][:], "utf-8"),
                 control_treatment_name=f.attrs["control_treatment_name"],
+                sample_mapping=(
+                    np.char.decode(f["sample_mapping_names"][:], "utf-8"),
+                    f["sample_mapping_ids"][:],
+                ),
+                treatment_mapping=(
+                    np.char.decode(f["treatment_mapping_names"][:], "utf-8"),
+                    f["treatment_mapping_doses"][:],
+                    f["treatment_mapping_ids"][:],
+                ),
             )
 
 
