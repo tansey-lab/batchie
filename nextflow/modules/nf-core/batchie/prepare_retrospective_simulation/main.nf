@@ -1,6 +1,6 @@
 process PREPARE_RETROSPECTIVE_SIMULATION {
     tag "$meta.id"
-    label 'process_single'
+    label 'process_high'
     container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
         'docker://jeffquinnmsk/batchie:latest' :
         'docker.io/jeffquinnmsk/batchie:latest' }"
