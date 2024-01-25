@@ -36,7 +36,7 @@ def numpy_array_is_0_indexed_integers(arr: ArrayType):
     if CONTROL_SENTINEL_VALUE in arr:
         return np.all(
             np.sort(np.unique(arr))
-            == np.concatenate([[-1], np.arange(np.unique(arr).shape[0] - 1)])
+            == np.concatenate([np.array([-1]), np.arange(np.unique(arr).shape[0] - 1)])
         )
     else:
         return np.all(np.sort(np.unique(arr)) == np.arange(np.unique(arr).shape[0]))
@@ -256,7 +256,22 @@ class ScreenBase(ABC):
 
     @property
     @abstractmethod
+    def sample_names(self):
+        return NotImplemented
+
+    @property
+    @abstractmethod
     def treatment_ids(self):
+        return NotImplemented
+
+    @property
+    @abstractmethod
+    def treatment_names(self):
+        return NotImplemented
+
+    @property
+    @abstractmethod
+    def treatment_doses(self):
         return NotImplemented
 
     @property
@@ -427,6 +442,18 @@ class ScreenSubset(ScreenBase):
     @property
     def treatment_ids(self):
         return self.screen.treatment_ids[self.selection_vector]
+
+    @property
+    def sample_names(self):
+        return self.screen.sample_names[self.selection_vector]
+
+    @property
+    def treatment_names(self):
+        return self.screen.treatment_names[self.selection_vector]
+
+    @property
+    def treatment_doses(self):
+        return self.screen.treatment_doses[self.selection_vector]
 
     @property
     def observations(self):
@@ -754,10 +781,10 @@ class Screen(ScreenBase):
 
         self._observations = observations
         self._observation_mask = observation_mask
-        self.sample_names = sample_names
+        self._sample_names = sample_names
         self.plate_names = plate_names
-        self.treatment_names = treatment_names
-        self.treatment_doses = treatment_doses
+        self._treatment_names = treatment_names
+        self._treatment_doses = treatment_doses
 
     @property
     def plate_ids(self):
@@ -794,6 +821,33 @@ class Screen(ScreenBase):
         :return: 2d array of treatment ids
         """
         return self._treatment_ids
+
+    @property
+    def sample_names(self):
+        """
+        Return the array of sample names (provided string names)
+
+        :return: 1d array of sample names
+        """
+        return self._sample_names
+
+    @property
+    def treatment_names(self):
+        """
+        Return the array of treatment names (provided drug names)
+
+        :return: N-dimension array of treatment names
+        """
+        return self._treatment_names
+
+    @property
+    def treatment_doses(self):
+        """
+        Return the array of treatment doses (floating point drug concentrations)
+
+        :return: N-dimension array of treatment doses
+        """
+        return self._treatment_doses
 
     @property
     def observations(self):
