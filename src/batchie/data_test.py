@@ -236,6 +236,10 @@ def test_screen_subset_props():
     assert experiment_subset.is_observed == True
     assert experiment_subset.size == 2
     assert experiment_subset.treatment_arity == 2
+    assert experiment_subset.sample_names.tolist() == ["a", "b"]
+    np.testing.assert_array_equal(
+        experiment_subset.treatment_names, np.array([["a", "b"], ["a", "b"]], dtype=str)
+    )
 
 
 def test_screen_resubset():
