@@ -56,8 +56,8 @@ def pad_ragged_arrays_to_dense_array(arrays: list[ArrayType], pad_value: float =
     Given a list of arrays, each with N dimensions,
     each of which have different sizes, return a dense array of N + 1 dimensions,
     of size (len(array), maximum_of_dimension_0, ... maximum_of_dimension_N)
-    where all the arrays are padded to the maximum size. 
-    Padding value defaults to 0.
+    where all the arrays are padded to the maximum size.
+    Padding value defaults to 0.0.
 
     :param arrays: A list of arrays
     :param pad_value: A floating point number (default is 0)
@@ -100,7 +100,9 @@ def dbal_fast_gauss_scoring_vec(
             "All plate_predictions in per_plate_predictions must have the same number of predictors"
         )
 
-    if not isinstance(variances, list) and (variances.shape[0] != per_plate_predictions[0].shape[0]):
+    if not isinstance(variances, list) and (
+        variances.shape[0] != per_plate_predictions[0].shape[0]
+    ):
         raise ValueError(
             "variances has unexpected shape, expected {} got {}".format(
                 per_plate_predictions[0].shape[0], variances.shape[0]
@@ -110,17 +112,23 @@ def dbal_fast_gauss_scoring_vec(
     if distance_matrix.shape[1] != distance_matrix.shape[0]:
         raise ValueError("dists must be square, got {}".format(distance_matrix.shape))
 
-    if not isinstance(variances, list): ## variances is not divided into plates
-        per_plate_variances = [variances[:,np.newaxis]*np.ones_like(x) for x in per_plate_predictions]
+    if not isinstance(variances, list):  ## variances is not divided into plates
+        per_plate_variances = [
+            variances[:, np.newaxis] * np.ones_like(x) for x in per_plate_predictions
+        ]
     else:
         per_plate_variances = variances
 
-    padded_variances = pad_ragged_arrays_to_dense_array(per_plate_variances, pad_value=np.nan)
+    padded_variances = pad_ragged_arrays_to_dense_array(
+        per_plate_variances, pad_value=np.nan
+    )
     mask = ~np.isnan(padded_variances)
     padded_variances = np.nan_to_num(padded_variances, nan=1.0)
 
     # for performance reasons, we will represent the per plate predictions in a single dense array
-    padded_predictions = pad_ragged_arrays_to_dense_array(per_plate_predictions, pad_value=0.0)
+    padded_predictions = pad_ragged_arrays_to_dense_array(
+        per_plate_predictions, pad_value=0.0
+    )
 
     n_plates, n_thetas, max_experiments_per_plate = padded_predictions.shape
     n_theta_combinations = comb(n_thetas, 3, exact=True)
@@ -145,24 +153,34 @@ def dbal_fast_gauss_scoring_vec(
         )
 
     alpha = (
-        padded_variances[:,idx1,:] * padded_variances[:,idx2,:]
-        + padded_variances[:,idx2,:] * padded_variances[:,idx3,:]
-        + padded_variances[:,idx1,:] * padded_variances[:,idx3,:]
+        padded_variances[:, idx1, :] * padded_variances[:, idx2, :]
+        + padded_variances[:, idx2, :] * padded_variances[:, idx3, :]
+        + padded_variances[:, idx1, :] * padded_variances[:, idx3, :]
     )
     exp_factor = (
-        0.5 * (padded_variances[:,idx1,:] * padded_variances[:,idx2,:] * padded_variances[:,idx3,:]) / np.square(alpha)
+        0.5
+        * (
+            padded_variances[:, idx1, :]
+            * padded_variances[:, idx2, :]
+            * padded_variances[:, idx3, :]
+        )
+        / np.square(alpha)
     )
 
-    log_norm_factor = np.sum(mask[:,idx1,:]*0.5 * np.log(1.0 / alpha), axis=-1)
+    log_norm_factor = np.sum(mask[:, idx1, :] * 0.5 * np.log(1.0 / alpha), axis=-1)
 
-    d12 = padded_variances[:,idx3,:] * np.square(padded_predictions[:, idx1, :] - padded_predictions[:, idx2, :])
-    d13 = padded_variances[:,idx2,:] * np.square(padded_predictions[:, idx1, :] - padded_predictions[:, idx3, :])
-    d23 = padded_variances[:,idx1,:] * np.square(padded_predictions[:, idx2, :] - padded_predictions[:, idx3, :])
-    ll = np.sum(-exp_factor * (d12 + d13 + d23), axis=-1) ## n_plates x n_combos
-
-    scores = logsumexp(
-        log_norm_factor + ll + log_triple_dists[np.newaxis,:], axis=1
+    d12 = padded_variances[:, idx3, :] * np.square(
+        padded_predictions[:, idx1, :] - padded_predictions[:, idx2, :]
     )
+    d13 = padded_variances[:, idx2, :] * np.square(
+        padded_predictions[:, idx1, :] - padded_predictions[:, idx3, :]
+    )
+    d23 = padded_variances[:, idx1, :] * np.square(
+        padded_predictions[:, idx2, :] - padded_predictions[:, idx3, :]
+    )
+    ll = np.sum(-exp_factor * (d12 + d13 + d23), axis=-1)  ## n_plates x n_combos
+
+    scores = logsumexp(log_norm_factor + ll + log_triple_dists[np.newaxis, :], axis=1)
     return scores
 
 
