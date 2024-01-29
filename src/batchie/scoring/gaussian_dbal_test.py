@@ -81,7 +81,7 @@ def test_iter_combination():
 def test_zero_pad_ragged_arrays_to_dense_array():
     arrs = [np.ones((2, 3)), np.ones((5, 5))]
 
-    result = gaussian_dbal.zero_pad_ragged_arrays_to_dense_array(arrs)
+    result = gaussian_dbal.pad_ragged_arrays_to_dense_array(arrs)
 
     assert result.sum() == 25 + 6
     assert result[0, :, :].sum() == 6
