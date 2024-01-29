@@ -29,6 +29,7 @@ class GridComboSample(Theta):
     combo_drug_sigma_embeddings: torch.FloatTensor
 
     mean_obs_sigma: torch.FloatTensor
+    obs_sigma: float
 
 
 class GridComboResults(ThetaHolder):
@@ -726,6 +727,70 @@ class ComboGridFactorModel(BayesianModel):
 
         return torch.concat(mus)
 
+    def variance(self, data: ScreenBase) -> ArrayType:
+        sample_ids, drug_ids_1, drug_ids_2, log_conc1, log_conc2 = self.unpack_data(
+            data=data, use_mask=False
+        )
+
+        ## Organize data
+        sample_ids = torch.from_numpy(sample_ids).long()
+        drug_ids_1 = torch.from_numpy(drug_ids_1).long()
+        drug_ids_2 = torch.from_numpy(drug_ids_2).long()
+
+        log_conc1 = torch.from_numpy(log_conc1).float()
+        log_conc2 = torch.from_numpy(log_conc1).float()
+
+        ub_idx_1, lin_p_1 = self.conc_grid.lookup_conc(
+            log_concs=log_conc1, drug_ids=self.drug_ids_1
+        )
+        ub_idx_2, lin_p_2 = self.conc_grid.lookup_conc(
+            log_concs=log_conc2, drug_ids=self.drug_ids_2
+        )
+
+        mu = self.predict(data)
+
+        n_data = sample_ids.shape[0]
+
+        batch_iterator = BatchIterator(
+            sample_ids,
+            drug_ids_1,
+            drug_ids_2,
+            mu,
+            n_grid=self.n_grid,
+            batch_size=self.batch_size,
+            n_epochs=1,
+            shuffle=False,
+            combo_smooth=False,
+        )
+
+        sigmas = []
+        for s_ids, d_ids_1, d_ids_2, m in batch_iterator:
+            samp = self.model_state.sample_sigma_embeddings[s_ids]
+            sdrug1 = self.model_state.single_drug_sigma_embeddings[d_ids_1]
+            sdrug2 = self.model_state.single_drug_sigma_embeddings[d_ids_2]
+
+            cdrug1 = self.model_state.combo_drug_sigma_embeddings[d_ids_1]
+            cdrug2 = self.model_state.combo_drug_sigma_embeddings[d_ids_2]
+
+            single_mask = d_ids_2 < 0
+
+            sigma = self.scale_combo(
+                sample_sigma_embeddings=samp,
+                single_drug_sigma_embeddings_1=sdrug1,
+                single_drug_sigma_embeddings_2=sdrug2,
+                combo_drug_sigma_embeddings_1=cdrug1,
+                combo_drug_sigma_embeddings_2=cdrug2,
+                obs_sigma=self.model_state.obs_sigma,
+                mu=m,
+                mean_obs_sigma=self.model_state.mean_obs_sigma,
+                single_mask=single_mask,
+            )
+
+            sigmas.append(sigma)
+
+        var = torch.square(torch.concat(var))
+        return var
+
     def add_observations(self, data: ScreenBase):
         if not (data.observations >= 0.0).all():
             raise ValueError(
@@ -803,7 +868,7 @@ class ComboGridFactorModel(BayesianModel):
 
         return losses
 
-    def sample_parameters(self, num_samples: int):
+    def sample_parameters(self, num_samples: int) -> list[GridComboSample]:
         predictive = Predictive(
             self.model,
             guide=self.auto_guide,
@@ -814,12 +879,13 @@ class ComboGridFactorModel(BayesianModel):
                 "single_drug_embed",
                 "mean_obs_sigma",
                 "sample_sigma_embed",
-                "drug_sigma_embed",
+                "single_drug_sigma_embed",
+                "combo_drug_sigma_embed",
                 "obs_sigma",
             ),
         )
 
-        res = predictive(
+        batch = (
             torch.LongTensor([0, 0]),
             torch.LongTensor([0, 0]),
             torch.LongTensor([1, 1]),
@@ -827,14 +893,34 @@ class ComboGridFactorModel(BayesianModel):
             torch.LongTensor([[1], [1]]),
             torch.FloatTensor([0.5, 0.5]),
             torch.FloatTensor([0.5, 0.5]),
-            torch.LongTensor([1, 1]),
         )
+
+        res = predictive(batch=batch, n_data=2)
 
         obs_sigma = res["obs_sigma"].squeeze()
         mean_obs_sigma = res["mean_obs_sigma"].squeeze()
 
-        drug_embed = res["drug_embed"].squeeze()
         sample_embed = res["sample_embed"].squeeze(1)
+        combo_drug_embed = res["combo_drug_embed"].squeeze()
+        single_drug_embed = res["single_drug_embed"].squeeze()
 
-        drug_sigma_embed = res["drug_sigma_embed"].squeeze()
         sample_sigma_embed = res["sample_sigma_embed"].squeeze()
+        combo_drug_sigma_embed = res["combo_drug_sigma_embed"].squeeze()
+        single_drug_sigma_embed = res["single_drug_sigma_embed"].squeeze()
+
+        samples = []
+        for i in range(num_samples):
+            x = GridComboSample(
+                sample_embeddings=sample_embed[i].detact().clone(),
+                single_drug_embeddings=single_drug_embed[i].detact().clone(),
+                combo_drug_embeddings=combo_drug_embed[i].detact().clone(),
+                sample_sigma_embeddings=sample_sigma_embed[i].detact().clone(),
+                single_drug_sigma_embeddings=single_drug_sigma_embed[i]
+                .detact()
+                .clone(),
+                combo_drug_sigma_embeddings=combo_drug_sigma_embed[i].detact().clone(),
+                mean_obs_sigma=mean_obs_sigma[i].detact().clone(),
+                obs_sigma=obs_sigma[i].detact().clone(),
+            )
+            samples.append(x)
+        return samples
