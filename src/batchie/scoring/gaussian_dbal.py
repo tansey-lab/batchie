@@ -1,5 +1,6 @@
 import numpy as np
 import tqdm
+from typing import Union
 from scipy.special import logsumexp, comb
 
 from batchie.common import ArrayType
@@ -50,18 +51,19 @@ def get_combination_at_sorted_index(index, n, k):
     return tuple(generate_combination_at_sorted_index(index, n, k))
 
 
-def zero_pad_ragged_arrays_to_dense_array(arrays: list[ArrayType]):
+def pad_ragged_arrays_to_dense_array(arrays: list[ArrayType], pad_value: float = 0.0):
     """
     Given a list of arrays, each with N dimensions,
     each of which have different sizes, return a dense array of N + 1 dimensions,
     of size (len(array), maximum_of_dimension_0, ... maximum_of_dimension_N)
-    where all the arrays are zero-padded to the maximum size.
+    where all the arrays are padded to the maximum size.
 
     :param arrays: A list of arrays
+    :param pad_value: A floating point number (default is 0)
     :return: A dense array of the arrays
     """
     max_sizes = np.max([np.array(array.shape) for array in arrays], axis=0)
-    result = np.zeros((len(arrays), *max_sizes), dtype=arrays[0].dtype)
+    result = pad_value * np.ones((len(arrays), *max_sizes), dtype=arrays[0].dtype)
     for i, array in enumerate(arrays):
         result[i, : array.shape[0], : array.shape[1]] = array
     return result
@@ -69,7 +71,7 @@ def zero_pad_ragged_arrays_to_dense_array(arrays: list[ArrayType]):
 
 def dbal_fast_gauss_scoring_vec(
     per_plate_predictions: list[ArrayType],
-    variances: ArrayType,
+    variances: Union[ArrayType, list[ArrayType]],
     distance_matrix: ArrayType,
     rng: np.random.Generator,
     max_combos: int = 5000,
@@ -82,7 +84,7 @@ def dbal_fast_gauss_scoring_vec(
     $$\widehat{s}_n(P) = \frac{1}{{m \choose 3}} \sum_{i < j < k} d(\theta_i, \theta_j) L_{\theta_i}(\theta_j, \theta_k ; P ) e^{2H_{\theta_i}(P)}$$
 
     :param per_plate_predictions: a list of arrays (one for each plate) of shape (n_thetas, n_experiments)
-    :param variances: an array of shape (n_thetas,) of variances for each model parameterization
+    :param variances: an array of shape (n_thetas,) of variances for each model parameterization, or a list of arrays (one for each plate) of shape (n_thetas, n_experiments)
     :param distance_matrix: a square array of shape (n_thetas, n_thetas) of distances between model parameterizations
     :param rng: PRNG
     :param max_combos: the maximum number of theta triplets to sample
@@ -97,7 +99,7 @@ def dbal_fast_gauss_scoring_vec(
             "All plate_predictions in per_plate_predictions must have the same number of predictors"
         )
 
-    if variances.shape[0] != per_plate_predictions[0].shape[0]:
+    if not isinstance(variances, list) and (variances.shape[0] != per_plate_predictions[0].shape[0]):
         raise ValueError(
             "variances has unexpected shape, expected {} got {}".format(
                 per_plate_predictions[0].shape[0], variances.shape[0]
@@ -107,8 +109,17 @@ def dbal_fast_gauss_scoring_vec(
     if distance_matrix.shape[1] != distance_matrix.shape[0]:
         raise ValueError("dists must be square, got {}".format(distance_matrix.shape))
 
+    if not isinstance(variances, list): ## variances is not divided into plates
+        per_plate_variances = [variances[:,np.newaxis]*np.ones_like(x) for x in per_plate_predictions]
+    else:
+        per_plate_variances = variances
+
+    padded_variances = pad_ragged_arrays_to_dense_array(per_plate_variances, pad_value=np.nan)
+    mask = ~np.isnan(padded_variances)
+    padded_variances = np.nan_to_num(padded_variances, nan=1.0)
+
     # for performance reasons, we will represent the per plate predictions in a single dense array
-    padded_predictions = zero_pad_ragged_arrays_to_dense_array(per_plate_predictions)
+    padded_predictions = pad_ragged_arrays_to_dense_array(per_plate_predictions, pad_value=0.0)
 
     n_plates, n_thetas, max_experiments_per_plate = padded_predictions.shape
     n_theta_combinations = comb(n_thetas, 3, exact=True)
@@ -133,35 +144,24 @@ def dbal_fast_gauss_scoring_vec(
         )
 
     alpha = (
-        variances[idx1] * variances[idx2]
-        + variances[idx2] * variances[idx3]
-        + variances[idx1] * variances[idx3]
+        padded_variances[:,idx1,:] * padded_variances[:,idx2,:]
+        + padded_variances[:,idx2,:] * padded_variances[:,idx3,:]
+        + padded_variances[:,idx1,:] * padded_variances[:,idx3,:]
     )
     exp_factor = (
-        0.5 * (variances[idx1] * variances[idx2] * variances[idx3]) / np.square(alpha)
-    )
-    log_norm_factor = 0.5 * max_experiments_per_plate * np.log(1.0 / alpha)
-    d12 = np.sum(
-        np.square(padded_predictions[:, idx1, :] - padded_predictions[:, idx2, :]),
-        axis=-1,
-    )
-    d13 = np.sum(
-        np.square(padded_predictions[:, idx1, :] - padded_predictions[:, idx3, :]),
-        axis=-1,
-    )
-    d23 = np.sum(
-        np.square(padded_predictions[:, idx2, :] - padded_predictions[:, idx3, :]),
-        axis=-1,
-    )
-    ll = -exp_factor[np.newaxis, :] * (
-        variances[np.newaxis, idx3] * d12
-        + variances[np.newaxis, idx2] * d13
-        + variances[np.newaxis, idx1] * d23
-    )  ## n_triples x m
-    scores = logsumexp(
-        log_norm_factor[:, np.newaxis] + ll.T + log_triple_dists[:, np.newaxis], axis=0
+        0.5 * (padded_variances[:,idx1,:] * padded_variances[:,idx2,:] * padded_variances[:,idx3,:]) / np.square(alpha)
     )
 
+    log_norm_factor = np.sum(mask[:,idx1,:]*0.5 * np.log(1.0 / alpha), axis=-1)
+
+    d12 = padded_variances[:,idx3,:] * np.square(padded_predictions[:, idx1, :] - padded_predictions[:, idx2, :])
+    d13 = padded_variances[:,idx2,:] * np.square(padded_predictions[:, idx1, :] - padded_predictions[:, idx3, :])
+    d23 = padded_variances[:,idx1,:] * np.square(padded_predictions[:, idx2, :] - padded_predictions[:, idx3, :])
+    ll = np.sum(-exp_factor * (d12 + d13 + d23), axis=-1) ## n_plates x n_combos
+
+    scores = logsumexp(
+        log_norm_factor + ll + log_triple_dists[np.newaxis,:], axis=1
+    )
     return scores
 
 
