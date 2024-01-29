@@ -56,7 +56,8 @@ def pad_ragged_arrays_to_dense_array(arrays: list[ArrayType], pad_value: float =
     Given a list of arrays, each with N dimensions,
     each of which have different sizes, return a dense array of N + 1 dimensions,
     of size (len(array), maximum_of_dimension_0, ... maximum_of_dimension_N)
-    where all the arrays are padded to the maximum size.
+    where all the arrays are padded to the maximum size. 
+    Padding value defaults to 0.
 
     :param arrays: A list of arrays
     :param pad_value: A floating point number (default is 0)
