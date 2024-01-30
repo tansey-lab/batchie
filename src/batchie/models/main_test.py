@@ -74,7 +74,7 @@ def test_model_evaluation_rmse():
     assert me.rmse() > 0
 
 
-def test_predict_all(mocker):
+def test_predict_all(mocker, screen):
     model = mocker.MagicMock(spec=BayesianModel)
     thetas = mocker.MagicMock(spec=ThetaHolder)
 

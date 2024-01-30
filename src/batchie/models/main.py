@@ -150,7 +150,7 @@ def get_heteroescedastic_variances(
     :param model: The model to use for prediction
     :param screen: The data to predict
     :param thetas: The set of model parameters to use for prediction
-    :return: A matrix of shape (n_samples, n_experiments) containing the
+    :return: A matrix of shape (n_thetas, n_experiments) containing the
              prediction variances for each model / experiment combination.
     """
 

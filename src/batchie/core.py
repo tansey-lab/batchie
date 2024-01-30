@@ -1,7 +1,6 @@
 import json
 import logging
 from abc import ABC, abstractmethod
-from typing import Generic, TypeVar
 import numpy as np
 
 from batchie.common import ArrayType, FloatingPointType
@@ -124,10 +123,7 @@ class ThetaHolder(ABC):
         return first
 
 
-V = TypeVar("V")
-
-
-class BayesianModel(ABC, Generic[V]):
+class BayesianModel(ABC):
     """
     This class represents a Bayesian model.
 
@@ -186,13 +182,6 @@ class BayesianModel(ABC, Generic[V]):
         Predict the outcome of an :py:class:`batchie.data.ExperimentBase`.
 
         :return: An array of predictions for each item in the Experiment.
-        """
-        raise NotImplementedError
-
-    @abstractmethod
-    def variance(self, data: ScreenBase) -> V:
-        """
-        Return the variance of the model.
         """
         raise NotImplementedError
 
@@ -272,17 +261,6 @@ class MCMCModel(BayesianModel):
         raise NotImplementedError
 
 
-class HomoscedasticBayesianModel(BayesianModel):
-    @abstractmethod
-    def variance(self, data: ScreenBase) -> FloatingPointType:
-        """
-        Return the variance of the model.
-
-        :return: A single floating point number representing the variance of this models predictions.
-        """
-        raise NotImplementedError
-
-
 class VIModel(BayesianModel):
     """
     This class subclasses BayesianModel and implements :py:meth:`batchie.core.VIModel.sample`
@@ -293,6 +271,17 @@ class VIModel(BayesianModel):
         """
         Returns a list of Theta samples. Length of the list should be num_samples.
 
+        """
+        raise NotImplementedError
+
+
+class HomoscedasticBayesianModel(BayesianModel):
+    @abstractmethod
+    def variance(self, data: ScreenBase) -> FloatingPointType:
+        """
+        Return the variance of the model.
+
+        :return: A single floating point number representing the variance of this models predictions.
         """
         raise NotImplementedError
 
