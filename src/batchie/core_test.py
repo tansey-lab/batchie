@@ -35,9 +35,6 @@ class TestThetaHolderImpl(ThetaHolder):
     def get_theta(self, step_index: int) -> TestBayesianModelParamsImpl:
         return TestBayesianModelParamsImpl(W=self.W[step_index])
 
-    def get_variance(self, step_index: int) -> float:
-        return 1.0
-
     def save_h5(self, fn: str):
         pass
 
@@ -51,12 +48,10 @@ class TestThetaHolderImpl(ThetaHolder):
 
         for i in range(self.n_thetas):
             sample = self.get_theta(i)
-            variance = self.get_variance(i)
             output.add_theta(sample, variance)
 
         for i in range(other.n_thetas):
             sample = other.get_theta(i)
-            variance = other.get_variance(i)
             output.add_theta(sample, variance)
 
         return output

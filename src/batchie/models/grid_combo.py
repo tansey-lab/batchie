@@ -130,9 +130,6 @@ class GridComboResults(ThetaHolder):
             mean_obs_sigma=self.mean_obs_sigma[step_index],
         )
 
-    def get_variance(self, step_index: int) -> float:
-        return 1.0
-
     def _save_theta(self, sample: GridComboSample, sample_index: int):
         self.sample_embeddings[sample_index] = sample.sample_embeddings
         self.single_drug_embeddings[sample_index] = sample.single_drug_embeddings
