@@ -64,7 +64,7 @@ def test_samples_holder():
 
     for i in range(3):
         sample = TestBayesianModelParamsImpl(W=np.ones((2, 2)) * i)
-        holder.add_theta(sample, 1.0)
+        holder.add_theta(sample)
 
     assert holder.is_complete
 
