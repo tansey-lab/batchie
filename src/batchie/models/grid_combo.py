@@ -107,13 +107,11 @@ class GridComboResults(ThetaHolder):
 
         for i in range(self.n_thetas):
             sample = self.get_theta(i)
-            variance = self.get_variance(i)
-            output.add_theta(sample, variance)
+            output.add_theta(sample)
 
         for i in range(other.n_thetas):
             sample = other.get_theta(i)
-            variance = other.get_variance(i)
-            output.add_theta(sample, variance)
+            output.add_theta(sample)
 
         return output
 
@@ -135,7 +133,7 @@ class GridComboResults(ThetaHolder):
     def get_variance(self, step_index: int) -> float:
         return 1.0
 
-    def _save_theta(self, sample: GridComboSample, variance: float, sample_index: int):
+    def _save_theta(self, sample: GridComboSample, sample_index: int):
         self.sample_embeddings[sample_index] = sample.sample_embeddings
         self.single_drug_embeddings[sample_index] = sample.single_drug_embeddings
         self.combo_drug_embeddings[sample_index] = sample.combo_drug_embeddings

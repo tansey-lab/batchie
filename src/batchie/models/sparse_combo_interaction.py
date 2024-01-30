@@ -68,13 +68,9 @@ class SparseDrugComboInteractionResults(ThetaHolder):
             precision=self.precision[step_index].item(),
         )
 
-    def get_variance(self, step_index: int) -> float:
-        return 1.0 / self.precision[step_index].item()
-
     def _save_theta(
         self,
         sample: SparseDrugComboInteractionMCMCSample,
-        variance: float,
         sample_index: int,
     ):
         self.V2[sample_index] = sample.V2
@@ -105,13 +101,11 @@ class SparseDrugComboInteractionResults(ThetaHolder):
 
         for i in range(self.n_thetas):
             sample = self.get_theta(i)
-            variance = self.get_variance(i)
-            output.add_theta(sample, variance)
+            output.add_theta(sample)
 
         for i in range(other.n_thetas):
             sample = other.get_theta(i)
-            variance = other.get_variance(i)
-            output.add_theta(sample, variance)
+            output.add_theta(sample)
 
         return output
 
@@ -503,7 +497,7 @@ class SparseDrugComboInteraction(BayesianModel):
         viability = np.exp(interaction + np.log(single_effect))
         return np.clip(viability, a_min=0.01, a_max=0.99)
 
-    def variance(self) -> FloatingPointType:
+    def variance(self, data: ScreenBase) -> FloatingPointType:
         return 1.0 / self.wrapped_model.prec
 
     def step(self):
