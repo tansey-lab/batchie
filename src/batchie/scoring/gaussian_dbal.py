@@ -7,11 +7,13 @@ from batchie.common import ArrayType
 from batchie.core import (
     Scorer,
     BayesianModel,
+    HomoscedasticBayesianModel,
+    HeteroscedasticBayesianModel,
     ThetaHolder,
 )
 from batchie.data import ScreenSubset
 from batchie.distance_calculation import ChunkedDistanceMatrix
-from batchie.models.main import predict_all, variance_all
+from batchie.models.main import predict_all, get_heteroescedastic_variances
 
 
 def generate_combination_at_sorted_index(index, n, k):
@@ -225,11 +227,21 @@ class GaussianDBALScorer(Scorer):
             ]
 
             variances = [
-                variance_all(model=model, screen=plate, thetas=samples)
+                get_heteroescedastic_variances(
+                    model=model, screen=plate, thetas=samples
+                )
                 for plate in current_plates
             ]
-            if len(variances[0].shape) == 1:  ## Homoscedastic setting
-                variances = variances[0]
+
+            match model:
+                case HomoscedasticBayesianModel():
+                    variances = variances[0]
+                case HeteroscedasticBayesianModel():
+                    pass
+                case other:
+                    raise ValueError(
+                        f"Method not supported for model type: {type(other)}"
+                    )
 
             vals = dbal_fast_gauss_scoring_vec(
                 per_plate_predictions=per_plate_predictions,

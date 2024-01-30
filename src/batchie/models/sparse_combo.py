@@ -8,7 +8,7 @@ import numpy as np
 from numpy.random import Generator
 from scipy.special import logit, expit
 
-from batchie.core import MCMCModel, Theta, ThetaHolder
+from batchie.core import HomoscedasticBayesianModel, MCMCModel, Theta, ThetaHolder
 from batchie.data import ScreenBase
 from batchie.fast_mvn import sample_mvn_from_precision
 from batchie.common import (

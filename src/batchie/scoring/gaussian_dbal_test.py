@@ -3,7 +3,13 @@ from unittest import mock
 import numpy as np
 import pytest
 
-from batchie.core import BayesianModel, Screen, ThetaHolder, ScreenSubset
+from batchie.core import (
+    BayesianModel,
+    HomoscedasticBayesianModel,
+    Screen,
+    ThetaHolder,
+    ScreenSubset,
+)
 from batchie.distance_calculation import ChunkedDistanceMatrix
 from batchie.scoring import gaussian_dbal
 
@@ -88,7 +94,7 @@ def test_zero_pad_ragged_arrays_to_dense_array():
     assert result[1, :, :].sum() == 25
 
 
-def test_dbal_fast_gauss_scoring_vec():
+def test_dbal_fast_gauss_scoring_vec_scalar_variance():
     rng = np.random.default_rng(0)
 
     n_thetas = 10
@@ -109,6 +115,36 @@ def test_dbal_fast_gauss_scoring_vec():
     result = gaussian_dbal.dbal_fast_gauss_scoring_vec(
         per_plate_predictions=per_plate_predictions,
         variances=variances,
+        distance_matrix=dists,
+        rng=rng,
+    )
+
+    assert result.shape == (n_plates,)
+
+
+def test_dbal_fast_gauss_scoring_vec_scalar_variance():
+    rng = np.random.default_rng(0)
+
+    n_thetas = 10
+    n_plates = 5
+    max_n_experiments = 96
+
+    def create_plate():
+        n_experiments = rng.choice(range(1, max_n_experiments))
+
+        return rng.random((n_thetas, n_experiments)), rng.random(
+            (n_thetas, n_experiments)
+        )
+
+    per_plate_predictions_and_variances = [create_plate() for _ in range(n_plates)]
+    per_plate_predictions = [x[0] for x in per_plate_predictions_and_variances]
+    per_plate_variances = [x[1] for x in per_plate_predictions_and_variances]
+
+    dists = rng.random((n_thetas, n_thetas))
+
+    result = gaussian_dbal.dbal_fast_gauss_scoring_vec(
+        per_plate_predictions=per_plate_predictions,
+        variances=per_plate_variances,
         distance_matrix=dists,
         rng=rng,
     )
@@ -206,10 +242,9 @@ def test_gaussian_dbal_scorer_plates(
 
     assert chunked_distance_matrix.is_complete()
 
-    model = mock.MagicMock(BayesianModel)
+    model = mock.Mock(spec=HomoscedasticBayesianModel)
     theta_holder = mock.MagicMock(ThetaHolder)
 
-    # theta_holder.get_variance.return_value = 1.0
     theta_holder.n_thetas = chunked_distance_matrix.size
     model.predict.return_value = 1.0
     model.variance.return_value = 1.0
@@ -243,7 +278,6 @@ def test_gaussian_dbal_scorer_subsets(
     model = mock.MagicMock(BayesianModel)
     theta_holder = mock.MagicMock(ThetaHolder)
 
-    # theta_holder.get_variance.return_value = 1.0
     theta_holder.n_thetas = chunked_distance_matrix.size
     model.predict.return_value = 1.0
     model.variance.return_value = 1.0
@@ -278,7 +312,6 @@ def test_gaussian_dbal_scorer_empty(unobserved_dataset, chunked_distance_matrix)
     model = mock.MagicMock(BayesianModel)
     theta_holder = mock.MagicMock(ThetaHolder)
 
-    # theta_holder.get_variance.return_value = 1.0
     theta_holder.n_thetas = chunked_distance_matrix.size
     model.predict.return_value = 1.0
     model.variance.return_value = 1.0
