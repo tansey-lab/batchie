@@ -1,7 +1,7 @@
 import h5py
 import numpy as np
 import math
-
+from numbers import Number
 from itertools import combinations
 
 import pandas
@@ -108,6 +108,32 @@ def predict_all(model: BayesianModel, screen: ScreenBase, thetas: ThetaHolder):
                 "NaN predictions were created, please check screen and theta values"
             )
 
+    return result
+
+
+def variance_all(model: BayesianModel, screen: ScreenBase, thetas: ThetaHolder):
+    """
+    Get the variance for the experiment data using the model parameterized with each theta in thetas.
+
+    :param model: The model to use for prediction
+    :param screen: The data to predict
+    :param thetas: The set of model parameters to use for prediction
+    :return: A matrix of shape (n_samples, n_experiments) containing the
+             predictions for each model / experiment combination,
+             or a vector of shape (n_samples,).
+    """
+
+    results = []
+    for theta_index in range(thetas.n_thetas):
+        model.set_model_state(thetas.get_theta(theta_index))
+        result = model.variance(screen)
+        results.append(result)
+        if np.any(np.isnan(result)):
+            raise ValueError(
+                "NaN predictions were created, please check screen and theta values"
+            )
+
+    result = np.stack(results, dtype=FloatingPointType)
     return result
 
 

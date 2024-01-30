@@ -50,6 +50,6 @@ def sample(
     for step_index in trange(total_steps, disable=not progress_bar):
         model.step()
         if ((step_index + 1) % thin) == 0:
-            results.add_theta(model.get_model_state(), model.variance())
+            results.add_theta(model.get_model_state())
 
     return results
