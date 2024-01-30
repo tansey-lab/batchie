@@ -85,8 +85,8 @@ def test_results_holder_serde(test_dataset):
         n_unique_treatments=test_dataset.treatment_arity,
         n_unique_samples=test_dataset.n_unique_samples,
     )
-    results_holder.add_theta(model.get_model_state(), model.variance())
-    results_holder.add_theta(model.get_model_state(), model.variance())
+    results_holder.add_theta(model.get_model_state())
+    results_holder.add_theta(model.get_model_state())
 
     # create temporary file
 
@@ -108,6 +108,6 @@ def test_results_holder_serde(test_dataset):
         n_unique_samples=test_dataset.n_unique_samples,
     )
 
-    results_holder2.add_theta(model.get_model_state(), model.variance())
-    results_holder2.add_theta(model.get_model_state(), model.variance())
+    results_holder2.add_theta(model.get_model_state())
+    results_holder2.add_theta(model.get_model_state())
     assert results_holder.combine(results_holder2).n_thetas == 4

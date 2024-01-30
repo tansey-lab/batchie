@@ -11,7 +11,7 @@ from batchie.core import (
 )
 from batchie.data import ScreenSubset
 from batchie.distance_calculation import ChunkedDistanceMatrix
-from batchie.models.main import predict_all
+from batchie.models.main import predict_all, variance_all
 
 
 def generate_combination_at_sorted_index(index, n, k):
@@ -202,8 +202,6 @@ class GaussianDBALScorer(Scorer):
         if not len(plates):
             return {}
 
-        variances = np.array([samples.get_variance(i) for i in range(samples.n_thetas)])
-
         n_subs = np.ceil(len(plates) / self.max_chunk)
         plate_subgroups = np.array_split(list(plates.keys()), n_subs)
         dense_distance_matrix = distance_matrix.to_dense()
@@ -225,6 +223,13 @@ class GaussianDBALScorer(Scorer):
                 predict_all(screen=plate, model=model, thetas=samples)
                 for plate in current_plates
             ]
+
+            variances = [
+                variance_all(model=model, screen=plate, thetas=samples)
+                for plate in current_plates
+            ]
+            if len(variances[0].shape) == 1:  ## Homoscedastic setting
+                variances = variances[0]
 
             vals = dbal_fast_gauss_scoring_vec(
                 per_plate_predictions=per_plate_predictions,

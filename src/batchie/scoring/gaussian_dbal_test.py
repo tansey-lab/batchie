@@ -209,9 +209,10 @@ def test_gaussian_dbal_scorer_plates(
     model = mock.MagicMock(BayesianModel)
     theta_holder = mock.MagicMock(ThetaHolder)
 
-    theta_holder.get_variance.return_value = 1.0
+    # theta_holder.get_variance.return_value = 1.0
     theta_holder.n_thetas = chunked_distance_matrix.size
     model.predict.return_value = 1.0
+    model.variance.return_value = 1.0
 
     plates = {p.plate_id: p for p in unobserved_dataset.plates}
 
@@ -242,9 +243,10 @@ def test_gaussian_dbal_scorer_subsets(
     model = mock.MagicMock(BayesianModel)
     theta_holder = mock.MagicMock(ThetaHolder)
 
-    theta_holder.get_variance.return_value = 1.0
+    # theta_holder.get_variance.return_value = 1.0
     theta_holder.n_thetas = chunked_distance_matrix.size
     model.predict.return_value = 1.0
+    model.variance.return_value = 1.0
 
     plates = {p.plate_id: p for p in unobserved_dataset.plates}
     subsets = {}
@@ -276,9 +278,10 @@ def test_gaussian_dbal_scorer_empty(unobserved_dataset, chunked_distance_matrix)
     model = mock.MagicMock(BayesianModel)
     theta_holder = mock.MagicMock(ThetaHolder)
 
-    theta_holder.get_variance.return_value = 1.0
+    # theta_holder.get_variance.return_value = 1.0
     theta_holder.n_thetas = chunked_distance_matrix.size
     model.predict.return_value = 1.0
+    model.variance.return_value = 1.0
 
     res = scorer.score(
         model=model,
