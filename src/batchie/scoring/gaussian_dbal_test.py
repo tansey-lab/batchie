@@ -94,85 +94,71 @@ def test_zero_pad_ragged_arrays_to_dense_array():
     assert result[1, :, :].sum() == 25
 
 
-def test_dbal_fast_gauss_scoring_vec_scalar_variance():
+def test_dbal_fast_gauss_scoring_vec():
     rng = np.random.default_rng(0)
 
     n_thetas = 10
-    n_plates = 5
+    n_plates = 10
     max_n_experiments = 96
 
-    def create_plate():
-        n_experiments = rng.choice(range(1, max_n_experiments))
+    # Given 10 plates, one of which has very high prediction variance
+    variances = np.vstack(
+        [
+            rng.gamma(1, 1, size=(n_plates - 1, n_thetas, max_n_experiments)),
+            rng.gamma(10, 1, size=(1, n_thetas, max_n_experiments)),
+        ]
+    )
 
-        return rng.random((n_thetas, n_experiments))
-
-    per_plate_predictions = [create_plate() for _ in range(n_plates)]
-
-    variances = rng.random((n_thetas,))
+    predictions = rng.normal(
+        loc=0.0,
+        scale=1.0,
+        size=(
+            n_plates,
+            n_thetas,
+            max_n_experiments,
+        ),
+    )
 
     dists = rng.random((n_thetas, n_thetas))
 
+    # When: we calculate the gaussian DBAL scores
     result = gaussian_dbal.dbal_fast_gauss_scoring_vec(
-        per_plate_predictions=per_plate_predictions,
+        predictions=predictions,
         variances=variances,
         distance_matrix=dists,
         rng=rng,
+        max_combos=120,
     )
 
+    # Then: we expect the plate with the highest variance to have the lowest score
     assert result.shape == (n_plates,)
-
-
-def test_dbal_fast_gauss_scoring_vec_scalar_variance():
-    rng = np.random.default_rng(0)
-
-    n_thetas = 10
-    n_plates = 5
-    max_n_experiments = 96
-
-    def create_plate():
-        n_experiments = rng.choice(range(1, max_n_experiments))
-
-        return rng.random((n_thetas, n_experiments)), rng.random(
-            (n_thetas, n_experiments)
-        )
-
-    per_plate_predictions_and_variances = [create_plate() for _ in range(n_plates)]
-    per_plate_predictions = [x[0] for x in per_plate_predictions_and_variances]
-    per_plate_variances = [x[1] for x in per_plate_predictions_and_variances]
-
-    dists = rng.random((n_thetas, n_thetas))
-
-    result = gaussian_dbal.dbal_fast_gauss_scoring_vec(
-        per_plate_predictions=per_plate_predictions,
-        variances=per_plate_variances,
-        distance_matrix=dists,
-        rng=rng,
-    )
-
-    assert result.shape == (n_plates,)
+    assert np.argmin(result) == 9
 
 
 def test_dbal_fast_gauss_scoring_vec_fails_if_not_enough_thetas():
     rng = np.random.default_rng(0)
 
-    n_thetas = 2
+    n_thetas = 10
     n_plates = 10
     max_n_experiments = 96
 
-    def create_plate():
-        n_experiments = rng.choice(range(1, max_n_experiments))
+    variances = rng.gamma(1, 1, size=(n_plates, n_thetas, max_n_experiments))
 
-        return rng.random((n_thetas, n_experiments))
+    predictions = rng.normal(
+        loc=0.0,
+        scale=1.0,
+        size=(
+            n_plates,
+            n_thetas,
+            max_n_experiments,
+        ),
+    )
 
-    per_plate_predictions = [create_plate() for _ in range(n_plates)]
-
-    variances = rng.random((n_thetas,))
-
-    dists = rng.random((n_thetas, n_thetas))
+    dists = rng.random((n_thetas - 1, n_thetas - 1))
 
     with pytest.raises(ValueError):
         gaussian_dbal.dbal_fast_gauss_scoring_vec(
-            per_plate_predictions=per_plate_predictions,
+            predictions=predictions,
             variances=variances,
             distance_matrix=dists,
             rng=rng,
@@ -186,21 +172,23 @@ def test_dbal_fast_gauss_scoring_vec_fails_if_theta_mismatch():
     n_plates = 10
     max_n_experiments = 96
 
-    def create_plate():
-        n_experiments = rng.choice(range(1, max_n_experiments))
-        random_n_thetas = rng.choice(range(1, n_thetas))
+    variances = rng.gamma(1, 1, size=(n_plates, n_thetas, max_n_experiments))
 
-        return rng.random((random_n_thetas, n_experiments))
+    predictions = rng.normal(
+        loc=0.0,
+        scale=1.0,
+        size=(
+            n_plates,
+            n_thetas,
+            max_n_experiments,
+        ),
+    )
 
-    per_plate_predictions = [create_plate() for _ in range(n_plates)]
-
-    variances = rng.random((n_thetas,))
-
-    dists = rng.random((n_thetas, n_thetas))
+    dists = rng.random((n_thetas - 1, n_thetas))
 
     with pytest.raises(ValueError):
         gaussian_dbal.dbal_fast_gauss_scoring_vec(
-            per_plate_predictions=per_plate_predictions,
+            predictions=predictions,
             variances=variances,
             distance_matrix=dists,
             rng=rng,
@@ -214,24 +202,111 @@ def test_dbal_fast_gauss_scoring_vec_fails_if_variance_dimension_is_wrong():
     n_plates = 10
     max_n_experiments = 96
 
-    def create_plate():
-        n_experiments = rng.choice(range(1, max_n_experiments))
+    variances = rng.gamma(1, 1, size=(n_plates, n_thetas - 1, max_n_experiments))
 
-        return rng.random((n_thetas, n_experiments))
+    predictions = rng.normal(
+        loc=0.0,
+        scale=1.0,
+        size=(
+            n_plates,
+            n_thetas,
+            max_n_experiments,
+        ),
+    )
 
-    per_plate_predictions = [create_plate() for _ in range(n_plates)]
-
-    variances = rng.random((n_thetas - 1,))
-
-    dists = rng.random((n_thetas, n_thetas))
+    dists = rng.random((n_thetas - 1, n_thetas))
 
     with pytest.raises(ValueError):
         gaussian_dbal.dbal_fast_gauss_scoring_vec(
-            per_plate_predictions=per_plate_predictions,
+            predictions=predictions,
             variances=variances,
             distance_matrix=dists,
             rng=rng,
         )
+
+
+def test_dbal_fast_gaussian_scoring_homoscedastic():
+    rng = np.random.default_rng(0)
+
+    n_thetas = 10
+    n_plates = 10
+    max_n_experiments = 96
+
+    predictions = []
+
+    for i in range(n_plates):
+        plate_size = rng.choice(np.arange(10, max_n_experiments))
+        predictions.append(
+            rng.normal(
+                loc=0.0,
+                scale=1.0,
+                size=(
+                    n_thetas,
+                    plate_size,
+                ),
+            )
+        )
+
+    variances = np.vstack(
+        [
+            rng.gamma(1, 1, size=(n_plates - 1, n_thetas)),
+            rng.gamma(10, 1, size=(1, n_thetas)),
+        ]
+    )
+
+    dists = rng.random((n_thetas, n_thetas))
+
+    result = gaussian_dbal.dbal_fast_gaussian_scoring_homoscedastic(
+        per_plate_predictions=predictions,
+        variances=variances,
+        distance_matrix=dists,
+        rng=rng,
+        max_combos=120,
+    )
+
+    assert result.shape == (n_plates,)
+    assert np.argmin(result) == 9
+
+
+def test_dbal_fast_gaussian_scoring_heteroscedastic():
+    rng = np.random.default_rng(0)
+
+    n_thetas = 10
+    n_plates = 10
+    max_n_experiments = 96
+
+    predictions = []
+    variances = []
+
+    for i in range(n_plates):
+        plate_size = rng.choice(np.arange(10, max_n_experiments))
+        predictions.append(
+            rng.normal(
+                loc=0.0,
+                scale=1.0,
+                size=(
+                    n_thetas,
+                    plate_size,
+                ),
+            )
+        )
+        if i < 9:
+            variances.append(rng.gamma(1, 1, size=(n_thetas, plate_size)))
+        else:
+            variances.append(rng.gamma(10, 1, size=(n_thetas, plate_size)))
+
+    dists = rng.random((n_thetas, n_thetas))
+
+    result = gaussian_dbal.dbal_fast_gaussian_scoring_heteroscedastic(
+        per_plate_predictions=predictions,
+        variances=variances,
+        distance_matrix=dists,
+        rng=rng,
+        max_combos=120,
+    )
+
+    assert result.shape == (n_plates,)
+    assert np.argmin(result) == 9
 
 
 def test_gaussian_dbal_scorer_plates(

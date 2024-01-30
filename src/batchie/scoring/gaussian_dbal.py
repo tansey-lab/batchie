@@ -97,7 +97,7 @@ def dbal_fast_gaussian_scoring_heteroscedastic(
     padded_variances = pad_ragged_arrays_to_dense_array(variances, pad_value=np.nan)
 
     return dbal_fast_gauss_scoring_vec(
-        per_plate_predictions=padded_predictions,
+        predictions=padded_predictions,
         variances=padded_variances,
         distance_matrix=distance_matrix,
         rng=rng,
@@ -155,7 +155,7 @@ def dbal_fast_gaussian_scoring_homoscedastic(
     )
 
     return dbal_fast_gauss_scoring_vec(
-        per_plate_predictions=padded_predictions,
+        predictions=padded_predictions,
         variances=padded_variances,
         distance_matrix=distance_matrix,
         rng=rng,
@@ -165,7 +165,7 @@ def dbal_fast_gaussian_scoring_homoscedastic(
 
 
 def dbal_fast_gauss_scoring_vec(
-    per_plate_predictions: ArrayType,
+    predictions: ArrayType,
     variances: ArrayType,
     distance_matrix: ArrayType,
     rng: np.random.Generator,
@@ -178,7 +178,7 @@ def dbal_fast_gauss_scoring_vec(
 
     $$\widehat{s}_n(P) = \frac{1}{{m \choose 3}} \sum_{i < j < k} d(\theta_i, \theta_j) L_{\theta_i}(\theta_j, \theta_k ; P ) e^{2H_{\theta_i}(P)}$$
 
-    :param per_plate_predictions: model predictions over all plates of shape (n_plates, n_thetas, n_experiments)
+    :param predictions: model predictions over all plates of shape (n_plates, n_thetas, n_experiments)
     :param variances: an array of variances for model predictions over all plates, of size (n_plate, n_thetas, max_n_experiments).
                       For plates smaller than the maximum size, the variances should be padded with NaNs up to the maximum size.
     :param distance_matrix: a square array of shape (n_thetas, n_thetas) of distances between model parameterizations
@@ -187,44 +187,25 @@ def dbal_fast_gauss_scoring_vec(
     :param distance_factor: a multiplicative factor for the distance matrix
     :return: an array of shape (n_plates,) of approximated scores for each plate in per_plate_predictions
     """
-    if not len(per_plate_predictions):
-        raise ValueError("per_plate_predictions must be non-empty")
-
-    if not len(set([x.shape[0] for x in per_plate_predictions])):
+    if variances.shape != predictions.shape:
         raise ValueError(
-            "All plate_predictions in per_plate_predictions must have the same number of predictors"
-        )
-
-    max_n_experiments = max([x.shape[1] for x in per_plate_predictions])
-
-    if variances.shape != (len(per_plate_predictions), max_n_experiments):
-        raise ValueError(
-            "variances has unexpected shape, expected {} got {}".format(
-                (len(per_plate_predictions), max_n_experiments), variances.shape
-            )
-        )
-
-    if not isinstance(variances, list) and (
-        variances.shape[0] != per_plate_predictions[0].shape[0]
-    ):
-        raise ValueError(
-            "variances has unexpected shape, expected {} got {}".format(
-                per_plate_predictions[0].shape[0], variances.shape[0]
+            "variances and predictions should have same shape, got {} and {}".format(
+                variances.shape, predictions.shape
             )
         )
 
     if distance_matrix.shape[1] != distance_matrix.shape[0]:
         raise ValueError("dists must be square, got {}".format(distance_matrix.shape))
 
+    if distance_matrix.shape[0] != predictions.shape[1]:
+        raise ValueError(
+            "distance_matrix, predictions, and variances must have the same n_thetas dimension"
+        )
+
     mask = ~np.isnan(variances)
     padded_variances = np.nan_to_num(variances, nan=1.0)
 
-    # for performance reasons, we will represent the per plate predictions in a single dense array
-    padded_predictions = pad_ragged_arrays_to_dense_array(
-        per_plate_predictions, pad_value=0.0
-    )
-
-    n_plates, n_thetas, max_experiments_per_plate = padded_predictions.shape
+    n_plates, n_thetas, max_experiments_per_plate = predictions.shape
     n_theta_combinations = comb(n_thetas, 3, exact=True)
 
     if not n_theta_combinations:
@@ -264,13 +245,13 @@ def dbal_fast_gauss_scoring_vec(
     log_norm_factor = np.sum(mask[:, idx1, :] * 0.5 * np.log(1.0 / alpha), axis=-1)
 
     d12 = padded_variances[:, idx3, :] * np.square(
-        padded_predictions[:, idx1, :] - padded_predictions[:, idx2, :]
+        predictions[:, idx1, :] - predictions[:, idx2, :]
     )
     d13 = padded_variances[:, idx2, :] * np.square(
-        padded_predictions[:, idx1, :] - padded_predictions[:, idx3, :]
+        predictions[:, idx1, :] - predictions[:, idx3, :]
     )
     d23 = padded_variances[:, idx1, :] * np.square(
-        padded_predictions[:, idx2, :] - padded_predictions[:, idx3, :]
+        predictions[:, idx2, :] - predictions[:, idx3, :]
     )
     ll = np.sum(-exp_factor * (d12 + d13 + d23), axis=-1)  ## n_plates x n_combos
 
@@ -339,7 +320,7 @@ class GaussianDBALScorer(Scorer):
                     )
 
             vals = dbal_fast_gauss_scoring_vec(
-                per_plate_predictions=per_plate_predictions,
+                predictions=per_plate_predictions,
                 variances=variances,
                 distance_matrix=dense_distance_matrix,
                 max_combos=self.max_triples,
