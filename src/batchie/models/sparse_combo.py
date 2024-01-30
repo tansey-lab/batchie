@@ -8,7 +8,7 @@ import numpy as np
 from numpy.random import Generator
 from scipy.special import logit, expit
 
-from batchie.core import BayesianModel, Theta, ThetaHolder
+from batchie.core import MCMCModel, Theta, ThetaHolder
 from batchie.data import ScreenBase
 from batchie.fast_mvn import sample_mvn_from_precision
 from batchie.common import (
@@ -691,7 +691,7 @@ class LegacySparseDrugComboImpl:
         return [1.0 / np.sqrt(self.prec)] + self.Mu.tolist()
 
 
-class SparseDrugCombo(BayesianModel):
+class SparseDrugCombo(MCMCModel):
     def __init__(
         self,
         n_embedding_dimensions: int,  # embedding dimension

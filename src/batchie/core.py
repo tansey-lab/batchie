@@ -196,16 +196,6 @@ class BayesianModel(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def step(self):
-        """
-        Advance the internal state of the model by one step.
-
-        In the case of an MCMC model, this would mean taking one more MCMC step. Other types
-        of models should implement accordingly.
-        """
-        raise NotImplementedError
-
-    @abstractmethod
     def set_rng(self, rng: np.random.Generator):
         """
         Set the PRNG for this model instance.
@@ -260,6 +250,35 @@ class BayesianModel(ABC):
         with this mode and has capacity n_samples.
 
         :param n_samples: The number of samples to allocate space for.
+        """
+        raise NotImplementedError
+
+
+class MCMCModel(BayesianModel):
+    """
+    This class subclasses BayesianModel and implements :py:meth:`batchie.core.MCMCModel.step`
+    """
+
+    @abstractmethod
+    def step(self):
+        """
+        Advance the internal state of the model by one step.
+
+        In the case of an MCMC model, this would mean taking one more MCMC step. Other types
+        of models should implement accordingly.
+        """
+        raise NotImplementedError
+
+
+class VIModel(BayesianModel):
+    """
+    This class subclasses BayesianModel and implements :py:meth:`batchie.core.VIModel.sample`
+    """
+
+    @abstractmethod
+    def sample(self, num_samples: int) -> list[Theta]:
+        """
+        Returns a list of Theta samples. Length of the list should be num_samples.
         """
         raise NotImplementedError
 
