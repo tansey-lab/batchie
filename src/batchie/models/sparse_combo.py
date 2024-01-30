@@ -8,7 +8,7 @@ import numpy as np
 from numpy.random import Generator
 from scipy.special import logit, expit
 
-from batchie.core import BayesianModel, Theta, ThetaHolder
+from batchie.core import MCMCModel, Theta, ThetaHolder
 from batchie.data import ScreenBase
 from batchie.fast_mvn import sample_mvn_from_precision
 from batchie.common import (
@@ -100,13 +100,11 @@ class SparseDrugComboResults(ThetaHolder):
 
         for i in range(self.n_thetas):
             sample = self.get_theta(i)
-            variance = self.get_variance(i)
-            output.add_theta(sample, variance)
+            output.add_theta(sample)
 
         for i in range(other.n_thetas):
             sample = other.get_theta(i)
-            variance = other.get_variance(i)
-            output.add_theta(sample, variance)
+            output.add_theta(sample)
 
         return output
 
@@ -125,12 +123,7 @@ class SparseDrugComboResults(ThetaHolder):
             precision=self.precision[step_index].item(),
         )
 
-    def get_variance(self, step_index: int) -> float:
-        return 1.0 / self.precision[step_index].item()
-
-    def _save_theta(
-        self, sample: SparseDrugComboMCMCSample, variance: float, sample_index: int
-    ):
+    def _save_theta(self, sample: SparseDrugComboMCMCSample, sample_index: int):
         self.V2[sample_index] = sample.V2
         self.V1[sample_index] = sample.V1
         self.W[sample_index] = sample.W
@@ -698,7 +691,7 @@ class LegacySparseDrugComboImpl:
         return [1.0 / np.sqrt(self.prec)] + self.Mu.tolist()
 
 
-class SparseDrugCombo(BayesianModel):
+class SparseDrugCombo(MCMCModel):
     def __init__(
         self,
         n_embedding_dimensions: int,  # embedding dimension
@@ -782,7 +775,7 @@ class SparseDrugCombo(BayesianModel):
         else:
             raise NotImplementedError("SparseDrugCombo only supports 1 or 2 treatments")
 
-    def variance(self) -> FloatingPointType:
+    def variance(self, data: ScreenBase) -> FloatingPointType:
         return 1.0 / self.wrapped_model.prec
 
     def step(self):

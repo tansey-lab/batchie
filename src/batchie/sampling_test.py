@@ -1,9 +1,9 @@
 import batchie.sampling
-from batchie.core import BayesianModel, ThetaHolder
+from batchie.core import MCMCModel, ThetaHolder
 
 
 def test_sample(mocker):
-    fake_model = mocker.MagicMock(spec=BayesianModel)
+    fake_model = mocker.MagicMock(spec=MCMCModel)
     fake_results_holder = mocker.MagicMock(spec=ThetaHolder)
 
     fake_results_holder.n_thetas = 10

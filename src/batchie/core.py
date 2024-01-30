@@ -1,7 +1,7 @@
 import json
 import logging
 from abc import ABC, abstractmethod
-
+from typing import Union
 import numpy as np
 
 from batchie.common import ArrayType, FloatingPointType
@@ -30,7 +30,7 @@ class ThetaHolder(ABC):
         self._n_thetas = n_thetas
 
     @abstractmethod
-    def _save_theta(self, theta: Theta, variance: float, sample_index: int):
+    def _save_theta(self, theta: Theta, sample_index: int):
         raise NotImplementedError
 
     @abstractmethod
@@ -39,17 +39,6 @@ class ThetaHolder(ABC):
         Returns the parameter set at the given index.
 
         :param step_index: The index of the parameter set to return.
-        """
-        raise NotImplementedError
-
-    @abstractmethod
-    def get_variance(self, step_index: int) -> float:
-        """
-        Return the variance of the model with the parameter set at the given
-        index
-
-        :param step_index: The index of the parameter set, variance of the model with
-        those parameters will be returned.
         """
         raise NotImplementedError
 
@@ -81,18 +70,17 @@ class ThetaHolder(ABC):
         """
         raise NotImplementedError
 
-    def add_theta(self, theta: Theta, variance: float):
+    def add_theta(self, theta: Theta):
         """
         Add a new parameter set to the container.
 
         :param theta: The parameter set to add.
-        :param variance: The variance of the model with the given parameter set.
         """
         # test if we are at the end of the chain
         if self._cursor >= self.n_thetas:
             raise ValueError("Cannot add more samples to the results object")
 
-        self._save_theta(theta, variance, self._cursor)
+        self._save_theta(theta, self._cursor)
         self._cursor += 1
 
     @property
@@ -199,21 +187,11 @@ class BayesianModel(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def variance(self) -> FloatingPointType:
+    def variance(self, data: ScreenBase) -> Union[FloatingPointType, ArrayType]:
         """
         Return the variance of the model.
 
-        :return: The variance of the model.
-        """
-        raise NotImplementedError
-
-    @abstractmethod
-    def step(self):
-        """
-        Advance the internal state of the model by one step.
-
-        In the case of an MCMC model, this would mean taking one more MCMC step. Other types
-        of models should implement accordingly.
+        :return: A single floating point number or an array of variances for each item in the Experiment.
         """
         raise NotImplementedError
 
@@ -272,6 +250,35 @@ class BayesianModel(ABC):
         with this mode and has capacity n_samples.
 
         :param n_samples: The number of samples to allocate space for.
+        """
+        raise NotImplementedError
+
+
+class MCMCModel(BayesianModel):
+    """
+    This class subclasses BayesianModel and implements :py:meth:`batchie.core.MCMCModel.step`
+    """
+
+    @abstractmethod
+    def step(self):
+        """
+        Advance the internal state of the model by one step.
+
+        In the case of an MCMC model, this would mean taking one more MCMC step. Other types
+        of models should implement accordingly.
+        """
+        raise NotImplementedError
+
+
+class VIModel(BayesianModel):
+    """
+    This class subclasses BayesianModel and implements :py:meth:`batchie.core.VIModel.sample`
+    """
+
+    @abstractmethod
+    def sample(self, num_samples: int) -> list[Theta]:
+        """
+        Returns a list of Theta samples. Length of the list should be num_samples.
         """
         raise NotImplementedError
 

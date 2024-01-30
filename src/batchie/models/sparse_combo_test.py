@@ -121,11 +121,11 @@ def test_variance_and_set_model_state(
 
     model.step()
     sample = model.get_model_state()
-    variance = model.variance()
+    variance = model.variance(test_dataset)
 
     model.reset_model()
     model.set_model_state(sample)
-    variance2 = model.variance()
+    variance2 = model.variance(test_dataset)
 
     np.testing.assert_array_equal(variance, variance2)
 
@@ -147,7 +147,7 @@ def test_results_holder_accumulate(test_dataset):
     while not results_holder.is_complete:
         model.step()
         sample = model.get_model_state()
-        results_holder.add_theta(sample, model.variance())
+        results_holder.add_theta(sample)
 
 
 def test_results_holder_serde(test_dataset):
@@ -163,7 +163,7 @@ def test_results_holder_serde(test_dataset):
         n_unique_treatments=test_dataset.treatment_arity,
         n_unique_samples=test_dataset.n_unique_samples,
     )
-    results_holder.add_theta(model.get_model_state(), model.variance())
+    results_holder.add_theta(model.get_model_state())
 
     # create temporary file
 
