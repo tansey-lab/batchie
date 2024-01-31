@@ -32,7 +32,8 @@ dependencies = [
     "scipy>=1.7,<2",
     "tqdm",
     "h5py>=3.8,<4",
-    "seaborn"
+    "seaborn",
+    "torch"
 ]
 
 [project.optional-dependencies]
