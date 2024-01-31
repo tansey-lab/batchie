@@ -436,6 +436,10 @@ class ScreenSubset(ScreenBase):
         return self.screen.plate_ids[self.selection_vector]
 
     @property
+    def control_treatment_name(self):
+        return self.screen.control_treatment_name
+
+    @property
     def sample_ids(self):
         return self.screen.sample_ids[self.selection_vector]
 

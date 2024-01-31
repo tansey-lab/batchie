@@ -103,12 +103,12 @@ class ConcentrationGrid:
         n_grid: int,
         log_conc_padding: float = 2.0,
     ):
-        n_drugs = len(log_conc_range)
+        n_drugs = len(drugname2idx)
         if isinstance(log_conc_range, (list, tuple)) and (len(log_conc_range) == 2):
             lower, upper = log_conc_range
             min_conc = {i: lower for i in range(n_drugs)}
             max_conc = {i: upper for i in range(n_drugs)}
-        elif isinstance(log_conc_range, dict) and (len(drugname2idx) == n_drugs):
+        elif isinstance(log_conc_range, dict) and (len(log_conc_range) == n_drugs):
             min_conc = {
                 drugname2idx[drugname]: lower
                 for drugname, (lower, upper) in log_conc_range.items()
@@ -163,7 +163,6 @@ class ConcentrationGrid:
         lin_p = torch.clip(
             torch.where(ub == lb, 1.0, (log_concs - lb) / (ub - lb)), 0.0, 1.0
         )
-
         return (ub_idx, lin_p)
 
     def grid_scale(self):

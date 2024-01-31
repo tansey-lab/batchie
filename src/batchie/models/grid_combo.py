@@ -4,7 +4,14 @@ import math
 from dataclasses import dataclass
 import h5py
 
-from batchie.core import BayesianModel, Theta, ThetaHolder
+from batchie.core import (
+    BayesianModel,
+    HeteroscedasticModel,
+    VIModel,
+    Theta,
+    ThetaHolder,
+)
+from numpy.random._generator import Generator as Generator
 import torch
 from torch.nn.functional import softplus
 import pyro
@@ -56,26 +63,25 @@ class GridComboResults(ThetaHolder):
             n_thetas, self.n_unique_drugs, self.n_grid - 1, self.n_embedding_dimensions
         )
         self.combo_drug_embeddings = torch.zeros(
-            n_thetas, self.n_unique_drugs, self.n_grid - 1, self.n_embedding_dimensions
+            n_thetas, self.n_unique_drugs, self.n_grid, self.n_embedding_dimensions
         )
 
         self.sample_sigma_embeddings = torch.zeros(
-            n_thetas, self.n_unique_samples, 1, self.n_sigma_embedding_dimensions
+            n_thetas, self.n_unique_samples, self.n_sigma_embedding_dimensions
         )
         self.single_drug_sigma_embeddings = torch.zeros(
             n_thetas,
             self.n_unique_drugs,
-            self.n_grid - 1,
             self.n_sigma_embedding_dimensions,
         )
         self.combo_drug_sigma_embeddings = torch.zeros(
             n_thetas,
             self.n_unique_drugs,
-            self.n_grid - 1,
             self.n_sigma_embedding_dimensions,
         )
 
         self.mean_obs_sigma = torch.zeros(n_thetas, self.n_grid)
+        self.obs_sigma = torch.zeros(n_thetas)
 
     def combine(self, other):
         if type(self) != type(other):
@@ -107,13 +113,11 @@ class GridComboResults(ThetaHolder):
 
         for i in range(self.n_thetas):
             sample = self.get_theta(i)
-            variance = self.get_variance(i)
-            output.add_theta(sample, variance)
+            output.add_theta(sample)
 
         for i in range(other.n_thetas):
             sample = other.get_theta(i)
-            variance = other.get_variance(i)
-            output.add_theta(sample, variance)
+            output.add_theta(sample)
 
         return output
 
@@ -130,23 +134,22 @@ class GridComboResults(ThetaHolder):
             combo_drug_sigma_embeddings=self.combo_drug_sigma_embeddings[step_index],
             sample_sigma_embeddings=self.sample_sigma_embeddings[step_index],
             mean_obs_sigma=self.mean_obs_sigma[step_index],
+            obs_sigma=self.obs_sigma[step_index],
         )
 
-    def get_variance(self, step_index: int) -> float:
-        return 1.0
-
-    def _save_theta(self, sample: GridComboSample, variance: float, sample_index: int):
+    def _save_theta(self, sample: GridComboSample, sample_index: int):
         self.sample_embeddings[sample_index] = sample.sample_embeddings
         self.single_drug_embeddings[sample_index] = sample.single_drug_embeddings
         self.combo_drug_embeddings[sample_index] = sample.combo_drug_embeddings
-        self.single_drug_sigma_embeddings[
-            sample_index
-        ] = sample.single_drug_sigma_embeddings
-        self.combo_drug_sigma_embeddings[
-            sample_index
-        ] = sample.combo_drug_sigma_embeddings
+        self.single_drug_sigma_embeddings[sample_index] = (
+            sample.single_drug_sigma_embeddings
+        )
+        self.combo_drug_sigma_embeddings[sample_index] = (
+            sample.combo_drug_sigma_embeddings
+        )
         self.sample_sigma_embeddings[sample_index] = sample.sample_sigma_embeddings
         self.mean_obs_sigma[sample_index] = sample.mean_obs_sigma
+        self.obs_sigma[sample_index] = sample.obs_sigma
 
     def save_h5(self, fn: str):
         with h5py.File(fn, "w") as f:
@@ -216,7 +219,7 @@ class GridComboResults(ThetaHolder):
         return results
 
 
-class ComboGridFactorModel(BayesianModel):
+class ComboGridFactorModel(BayesianModel, HeteroscedasticModel, VIModel):
     def __init__(
         self,
         n_unique_samples: int,
@@ -266,6 +269,29 @@ class ComboGridFactorModel(BayesianModel):
         self.log_concs_1 = np.array([], dtype=np.float32)
         self.log_concs_2 = np.array([], dtype=np.float32)
         self.y = np.array([], dtype=np.float32)
+
+    def reset_model(self):
+        self.auto_guide = None
+        pyro.clear_param_store()
+
+    def n_obs(self) -> int:
+        return self.sample_ids.shape[0]
+
+    def get_results_holder(self, n_samples: int) -> ThetaHolder:
+        return GridComboResults(
+            n_unique_samples=self.n_samples,
+            n_unique_drugs=self.n_drugs,
+            n_grid=self.n_grid,
+            n_embedding_dimensions=self.n_dims,
+            n_sigma_embedding_dimensions=self.n_sigma_dims,
+            n_thetas=n_samples,
+        )
+
+    def rng(self):
+        return self.rng_
+
+    def set_rng(self, rng: Generator):
+        self.rng_ = rng
 
     def predict_grid(
         self, sample_embeddings: torch.FloatTensor, drug_embeddings: torch.FloatTensor
@@ -541,7 +567,7 @@ class ComboGridFactorModel(BayesianModel):
         sample_sigma_embed = pyro.sample(
             "sample_sigma_embed",
             dist.Normal(
-                torch.zeros(self.n_samples, self.var_dims), sample_sigma_embed_sigma
+                torch.zeros(self.n_samples, self.n_sigma_dims), sample_sigma_embed_sigma
             ).to_event(2),
         )
 
@@ -552,7 +578,8 @@ class ComboGridFactorModel(BayesianModel):
         single_drug_sigma_embed = pyro.sample(
             "single_drug_sigma_embed",
             dist.Normal(
-                torch.zeros(self.n_drugs, self.var_dims), single_drug_sigma_embed_sigma
+                torch.zeros(self.n_drugs, self.n_sigma_dims),
+                single_drug_sigma_embed_sigma,
             ).to_event(2),
         )
 
@@ -562,7 +589,8 @@ class ComboGridFactorModel(BayesianModel):
         combo_drug_sigma_embed = pyro.sample(
             "combo_drug_sigma_embed",
             dist.Normal(
-                torch.zeros(self.n_drugs, self.var_dims), combo_drug_sigma_embed_sigma
+                torch.zeros(self.n_drugs, self.n_sigma_dims),
+                combo_drug_sigma_embed_sigma,
             ).to_event(2),
         )
 
@@ -638,7 +666,7 @@ class ComboGridFactorModel(BayesianModel):
 
         sample_ids = data.sample_ids[mask]
 
-        with np.errstate(divide="ignore"):
+        with np.errstate(divide="ignore", invalid="ignore"):
             log_conc1 = np.log10(data.treatment_doses[mask, 0])
             log_conc2 = np.log10(data.treatment_doses[mask, 1])
 
@@ -654,6 +682,10 @@ class ComboGridFactorModel(BayesianModel):
         ## Make sure all 0-dose drugs are correctly labeled as control
         drug_ids_1[log_conc1 == -np.inf] = -1
         drug_ids_2[log_conc2 == -np.inf] = -1
+
+        ## Make sure all negative-dose drugs are correctly labeled as control
+        drug_ids_1[np.isnan(log_conc1)] = -1
+        drug_ids_2[np.isnan(log_conc2)] = -1
 
         ## Rearrange so that single drugs only occur in drug_ids_2
         mask = drug_ids_1 < 0
@@ -674,13 +706,14 @@ class ComboGridFactorModel(BayesianModel):
         drug_ids_2 = torch.from_numpy(drug_ids_2).long()
 
         log_conc1 = torch.from_numpy(log_conc1).float()
-        log_conc2 = torch.from_numpy(log_conc1).float()
+        log_conc2 = torch.from_numpy(log_conc2).float()
+        log_conc2 = torch.nan_to_num(log_conc2)  ## Just 0 out the nans
 
         ub_idx_1, lin_p_1 = self.conc_grid.lookup_conc(
-            log_concs=log_conc1, drug_ids=self.drug_ids_1
+            log_concs=log_conc1, drug_ids=drug_ids_1
         )
         ub_idx_2, lin_p_2 = self.conc_grid.lookup_conc(
-            log_concs=log_conc2, drug_ids=self.drug_ids_2
+            log_concs=log_conc2, drug_ids=drug_ids_2
         )
 
         n_data = sample_ids.shape[0]
@@ -724,8 +757,9 @@ class ComboGridFactorModel(BayesianModel):
                 single_mask=single_mask,
             )
             mus.append(mu)
-
-        return torch.concat(mus)
+        mu = torch.concat(mus)
+        mu = mu.detach().numpy()
+        return mu
 
     def variance(self, data: ScreenBase) -> ArrayType:
         sample_ids, drug_ids_1, drug_ids_2, log_conc1, log_conc2 = self.unpack_data(
@@ -738,16 +772,10 @@ class ComboGridFactorModel(BayesianModel):
         drug_ids_2 = torch.from_numpy(drug_ids_2).long()
 
         log_conc1 = torch.from_numpy(log_conc1).float()
-        log_conc2 = torch.from_numpy(log_conc1).float()
+        log_conc2 = torch.from_numpy(log_conc2).float()
+        log_conc2 = torch.nan_to_num(log_conc2)  ## Just 0 out the nans
 
-        ub_idx_1, lin_p_1 = self.conc_grid.lookup_conc(
-            log_concs=log_conc1, drug_ids=self.drug_ids_1
-        )
-        ub_idx_2, lin_p_2 = self.conc_grid.lookup_conc(
-            log_concs=log_conc2, drug_ids=self.drug_ids_2
-        )
-
-        mu = self.predict(data)
+        mu = torch.from_numpy(self.predict(data)).float()
 
         n_data = sample_ids.shape[0]
 
@@ -787,11 +815,11 @@ class ComboGridFactorModel(BayesianModel):
             )
 
             sigmas.append(sigma)
-
-        var = torch.square(torch.concat(var))
+        var = torch.square(torch.concat(sigmas))
+        var = var.detach().numpy()
         return var
 
-    def add_observations(self, data: ScreenBase):
+    def _add_observations(self, data: ScreenBase):
         if not (data.observations >= 0.0).all():
             raise ValueError(
                 "Observations should be non-negative, please check input data"
@@ -802,8 +830,8 @@ class ComboGridFactorModel(BayesianModel):
 
         self.sample_ids = np.concatenate([self.sample_ids, sample_ids])
 
-        self.log_conc1 = np.concatenate([self.log_concs_1, log_conc1])
-        self.log_conc2 = np.concatenate([self.log_concs_2, log_conc2])
+        self.log_concs_1 = np.concatenate([self.log_concs_1, log_conc1])
+        self.log_concs_2 = np.concatenate([self.log_concs_2, log_conc2])
 
         self.drug_ids_1 = np.concatenate([self.drug_ids_1, drug_ids_1])
         self.drug_ids_2 = np.concatenate([self.drug_ids_2, drug_ids_2])
@@ -823,8 +851,9 @@ class ComboGridFactorModel(BayesianModel):
         drug_ids_1 = torch.from_numpy(self.drug_ids_1).long()
         drug_ids_2 = torch.from_numpy(self.drug_ids_2).long()
 
-        log_conc1 = torch.from_numpy(self.log_conc1).float()
-        log_conc2 = torch.from_numpy(self.log_conc1).float()
+        log_conc1 = torch.from_numpy(self.log_concs_1).float()
+        log_conc2 = torch.from_numpy(self.log_concs_2).float()
+        log_conc2 = torch.nan_to_num(log_conc2)  ## Just 0 out the nans
 
         ub_idx_1, lin_p_1 = self.conc_grid.lookup_conc(
             log_concs=log_conc1, drug_ids=self.drug_ids_1
@@ -850,6 +879,7 @@ class ComboGridFactorModel(BayesianModel):
             lin_p_1,
             lin_p_2,
             obs,
+            n_grid=self.n_grid,
             batch_size=self.batch_size,
             n_epochs=self.n_epochs,
             min_steps=self.min_steps,
@@ -868,7 +898,9 @@ class ComboGridFactorModel(BayesianModel):
 
         return losses
 
-    def sample_parameters(self, num_samples: int) -> list[GridComboSample]:
+    def sample(self, num_samples: int) -> list[GridComboSample]:
+        losses = self.fit()
+
         predictive = Predictive(
             self.model,
             guide=self.auto_guide,
@@ -911,16 +943,16 @@ class ComboGridFactorModel(BayesianModel):
         samples = []
         for i in range(num_samples):
             x = GridComboSample(
-                sample_embeddings=sample_embed[i].detact().clone(),
-                single_drug_embeddings=single_drug_embed[i].detact().clone(),
-                combo_drug_embeddings=combo_drug_embed[i].detact().clone(),
-                sample_sigma_embeddings=sample_sigma_embed[i].detact().clone(),
+                sample_embeddings=sample_embed[i].detach().clone(),
+                single_drug_embeddings=single_drug_embed[i].detach().clone(),
+                combo_drug_embeddings=combo_drug_embed[i].detach().clone(),
+                sample_sigma_embeddings=sample_sigma_embed[i].detach().clone(),
                 single_drug_sigma_embeddings=single_drug_sigma_embed[i]
-                .detact()
+                .detach()
                 .clone(),
-                combo_drug_sigma_embeddings=combo_drug_sigma_embed[i].detact().clone(),
-                mean_obs_sigma=mean_obs_sigma[i].detact().clone(),
-                obs_sigma=obs_sigma[i].detact().clone(),
+                combo_drug_sigma_embeddings=combo_drug_sigma_embed[i].detach().clone(),
+                mean_obs_sigma=mean_obs_sigma[i].detach().clone(),
+                obs_sigma=obs_sigma[i].detach().clone(),
             )
             samples.append(x)
         return samples
