@@ -33,7 +33,8 @@ dependencies = [
     "tqdm",
     "h5py>=3.8,<4",
     "seaborn",
-    "torch"
+    "torch",
+    "pyro-ppl"
 ]
 
 [project.optional-dependencies]
