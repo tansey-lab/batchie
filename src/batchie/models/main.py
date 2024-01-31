@@ -9,8 +9,8 @@ import pandas
 from batchie.common import FloatingPointType, ArrayType, CONTROL_SENTINEL_VALUE
 from batchie.core import (
     BayesianModel,
-    HomoscedasticBayesianModel,
-    HeteroscedasticBayesianModel,
+    HomoscedasticModel,
+    HeteroscedasticModel,
     ThetaHolder,
 )
 from batchie.data import ScreenBase, Screen
@@ -116,9 +116,7 @@ def predict_all(model: BayesianModel, screen: ScreenBase, thetas: ThetaHolder):
     return result
 
 
-def get_homoescedastic_variances(
-    model: HomoscedasticBayesianModel, screen: ScreenBase, thetas: ThetaHolder
-):
+def get_homoescedastic_variances(model, screen: ScreenBase, thetas: ThetaHolder):
     """
     Get the variance for the experiment data using the model parameterized with each theta in thetas.
 
@@ -141,9 +139,7 @@ def get_homoescedastic_variances(
     return np.array(results, dtype=FloatingPointType)
 
 
-def get_heteroescedastic_variances(
-    model: HeteroscedasticBayesianModel, screen: ScreenBase, thetas: ThetaHolder
-):
+def get_heteroescedastic_variances(model, screen: ScreenBase, thetas: ThetaHolder):
     """
     Get the variance for the experiment data using the model parameterized with each theta in thetas.
 

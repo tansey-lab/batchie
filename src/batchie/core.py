@@ -244,7 +244,7 @@ class BayesianModel(ABC):
         raise NotImplementedError
 
 
-class MCMCModel(BayesianModel):
+class MCMCModel:
     """
     This class subclasses BayesianModel and implements :py:meth:`batchie.core.MCMCModel.step`
     """
@@ -261,7 +261,7 @@ class MCMCModel(BayesianModel):
         raise NotImplementedError
 
 
-class VIModel(BayesianModel):
+class VIModel:
     """
     This class subclasses BayesianModel and implements :py:meth:`batchie.core.VIModel.sample`
     """
@@ -275,7 +275,7 @@ class VIModel(BayesianModel):
         raise NotImplementedError
 
 
-class HomoscedasticBayesianModel(BayesianModel):
+class HomoscedasticModel:
     @abstractmethod
     def variance(self, data: ScreenBase) -> FloatingPointType:
         """
@@ -286,7 +286,7 @@ class HomoscedasticBayesianModel(BayesianModel):
         raise NotImplementedError
 
 
-class HeteroscedasticBayesianModel(BayesianModel):
+class HeteroscedasticModel:
     @abstractmethod
     def variance(self, data: ScreenBase) -> ArrayType:
         """

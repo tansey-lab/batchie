@@ -7,8 +7,8 @@ from batchie.common import ArrayType
 from batchie.core import (
     Scorer,
     BayesianModel,
-    HomoscedasticBayesianModel,
-    HeteroscedasticBayesianModel,
+    HomoscedasticModel,
+    HeteroscedasticModel,
     ThetaHolder,
 )
 from batchie.data import ScreenSubset
@@ -96,7 +96,7 @@ def dbal_fast_gaussian_scoring_heteroscedastic(
 
     padded_variances = pad_ragged_arrays_to_dense_array(variances, pad_value=np.nan)
 
-    return dbal_fast_gauss_scoring_vec(
+    return dbal_fast_gauss_scoring_vectorized(
         predictions=padded_predictions,
         variances=padded_variances,
         distance_matrix=distance_matrix,
@@ -154,7 +154,7 @@ def dbal_fast_gaussian_scoring_homoscedastic(
         variances_ragged_array, pad_value=np.nan
     )
 
-    return dbal_fast_gauss_scoring_vec(
+    return dbal_fast_gauss_scoring_vectorized(
         predictions=padded_predictions,
         variances=padded_variances,
         distance_matrix=distance_matrix,
@@ -164,7 +164,7 @@ def dbal_fast_gaussian_scoring_homoscedastic(
     )
 
 
-def dbal_fast_gauss_scoring_vec(
+def dbal_fast_gauss_scoring_vectorized(
     predictions: ArrayType,
     variances: ArrayType,
     distance_matrix: ArrayType,
@@ -300,32 +300,41 @@ class GaussianDBALScorer(Scorer):
             ]
 
             match model:
-                case HomoscedasticBayesianModel():
-                    variances = [
-                        get_homoescedastic_variances(
-                            model=model, screen=plate, thetas=samples
-                        )
-                        for plate in current_plates
-                    ]
-                case HeteroscedasticBayesianModel():
+                case HomoscedasticModel():
+                    variances = np.vstack(
+                        [
+                            get_homoescedastic_variances(
+                                model=model, screen=plate, thetas=samples
+                            )
+                            for plate in current_plates
+                        ]
+                    )
+                    vals = dbal_fast_gaussian_scoring_homoscedastic(
+                        per_plate_predictions=per_plate_predictions,
+                        variances=variances,
+                        distance_matrix=dense_distance_matrix,
+                        rng=rng,
+                        max_combos=self.max_triples,
+                    )
+                case HeteroscedasticModel():
                     variances = [
                         get_heteroescedastic_variances(
                             model=model, screen=plate, thetas=samples
                         )
                         for plate in current_plates
                     ]
+                    vals = dbal_fast_gaussian_scoring_heteroscedastic(
+                        per_plate_predictions=per_plate_predictions,
+                        variances=variances,
+                        distance_matrix=dense_distance_matrix,
+                        rng=rng,
+                        max_combos=self.max_triples,
+                    )
                 case other:
                     raise ValueError(
                         f"Method not supported for model type: {type(other)}"
                     )
 
-            vals = dbal_fast_gauss_scoring_vec(
-                predictions=per_plate_predictions,
-                variances=variances,
-                distance_matrix=dense_distance_matrix,
-                max_combos=self.max_triples,
-                rng=rng,
-            )
             result.update(dict(zip(plate_subgroup, vals)))
             progress_bar.update(len(current_plates))
 

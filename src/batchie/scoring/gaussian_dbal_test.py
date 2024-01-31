@@ -5,7 +5,8 @@ import pytest
 
 from batchie.core import (
     BayesianModel,
-    HomoscedasticBayesianModel,
+    HomoscedasticModel,
+    HeteroscedasticModel,
     Screen,
     ThetaHolder,
     ScreenSubset,
@@ -122,7 +123,7 @@ def test_dbal_fast_gauss_scoring_vec():
     dists = rng.random((n_thetas, n_thetas))
 
     # When: we calculate the gaussian DBAL scores
-    result = gaussian_dbal.dbal_fast_gauss_scoring_vec(
+    result = gaussian_dbal.dbal_fast_gauss_scoring_vectorized(
         predictions=predictions,
         variances=variances,
         distance_matrix=dists,
@@ -157,7 +158,7 @@ def test_dbal_fast_gauss_scoring_vec_fails_if_not_enough_thetas():
     dists = rng.random((n_thetas - 1, n_thetas - 1))
 
     with pytest.raises(ValueError):
-        gaussian_dbal.dbal_fast_gauss_scoring_vec(
+        gaussian_dbal.dbal_fast_gauss_scoring_vectorized(
             predictions=predictions,
             variances=variances,
             distance_matrix=dists,
@@ -187,7 +188,7 @@ def test_dbal_fast_gauss_scoring_vec_fails_if_theta_mismatch():
     dists = rng.random((n_thetas - 1, n_thetas))
 
     with pytest.raises(ValueError):
-        gaussian_dbal.dbal_fast_gauss_scoring_vec(
+        gaussian_dbal.dbal_fast_gauss_scoring_vectorized(
             predictions=predictions,
             variances=variances,
             distance_matrix=dists,
@@ -217,7 +218,7 @@ def test_dbal_fast_gauss_scoring_vec_fails_if_variance_dimension_is_wrong():
     dists = rng.random((n_thetas - 1, n_thetas))
 
     with pytest.raises(ValueError):
-        gaussian_dbal.dbal_fast_gauss_scoring_vec(
+        gaussian_dbal.dbal_fast_gauss_scoring_vectorized(
             predictions=predictions,
             variances=variances,
             distance_matrix=dists,
@@ -309,7 +310,7 @@ def test_dbal_fast_gaussian_scoring_heteroscedastic():
     assert np.argmin(result) == 9
 
 
-def test_gaussian_dbal_scorer_plates(
+def test_gaussian_dbal_scorer_homoscedastic(
     mocker, unobserved_dataset, chunked_distance_matrix
 ):
     rng = np.random.default_rng(0)
@@ -317,7 +318,10 @@ def test_gaussian_dbal_scorer_plates(
 
     assert chunked_distance_matrix.is_complete()
 
-    model = mock.Mock(spec=HomoscedasticBayesianModel)
+    class M(BayesianModel, HomoscedasticModel):
+        pass
+
+    model = mock.Mock(spec=M)
     theta_holder = mock.MagicMock(ThetaHolder)
 
     theta_holder.n_thetas = chunked_distance_matrix.size
@@ -327,7 +331,43 @@ def test_gaussian_dbal_scorer_plates(
     plates = {p.plate_id: p for p in unobserved_dataset.plates}
 
     mocker.patch(
-        "batchie.scoring.gaussian_dbal.dbal_fast_gauss_scoring_vec",
+        "batchie.scoring.gaussian_dbal.dbal_fast_gauss_scoring_vectorized",
+        return_value=np.array([1.0, 2.0, 3.0, 4.0]),
+    )
+
+    result = scorer.score(
+        model=model,
+        plates=plates,
+        distance_matrix=chunked_distance_matrix,
+        samples=theta_holder,
+        rng=rng,
+        progress_bar=False,
+    )
+    assert result == {0: 1.0, 1: 2.0, 2: 1.0, 3: 2.0}
+
+
+def test_gaussian_dbal_scorer_heteroscedastic(
+    mocker, unobserved_dataset, chunked_distance_matrix
+):
+    rng = np.random.default_rng(0)
+    scorer = gaussian_dbal.GaussianDBALScorer(max_chunk=2, max_triples=5000)
+
+    assert chunked_distance_matrix.is_complete()
+
+    class M(BayesianModel, HeteroscedasticModel):
+        pass
+
+    model = mock.Mock(spec=M)
+    theta_holder = mock.MagicMock(ThetaHolder)
+
+    theta_holder.n_thetas = chunked_distance_matrix.size
+    model.predict.return_value = 1.0
+    model.variance.return_value = np.ones((2,))
+
+    plates = {p.plate_id: p for p in unobserved_dataset.plates}
+
+    mocker.patch(
+        "batchie.scoring.gaussian_dbal.dbal_fast_gauss_scoring_vectorized",
         return_value=np.array([1.0, 2.0, 3.0, 4.0]),
     )
 
@@ -350,7 +390,10 @@ def test_gaussian_dbal_scorer_subsets(
 
     assert chunked_distance_matrix.is_complete()
 
-    model = mock.MagicMock(BayesianModel)
+    class M(BayesianModel, HomoscedasticModel):
+        pass
+
+    model = mock.Mock(spec=M)
     theta_holder = mock.MagicMock(ThetaHolder)
 
     theta_holder.n_thetas = chunked_distance_matrix.size
@@ -363,7 +406,7 @@ def test_gaussian_dbal_scorer_subsets(
         subsets[k] = ScreenSubset(v.screen, v.selection_vector)
 
     mocker.patch(
-        "batchie.scoring.gaussian_dbal.dbal_fast_gauss_scoring_vec",
+        "batchie.scoring.gaussian_dbal.dbal_fast_gauss_scoring_vectorized",
         return_value=np.array([1.0, 2.0, 3.0, 4.0]),
     )
 
@@ -384,7 +427,10 @@ def test_gaussian_dbal_scorer_empty(unobserved_dataset, chunked_distance_matrix)
 
     assert chunked_distance_matrix.is_complete()
 
-    model = mock.MagicMock(BayesianModel)
+    class M(BayesianModel, HomoscedasticModel):
+        pass
+
+    model = mock.Mock(spec=M)
     theta_holder = mock.MagicMock(ThetaHolder)
 
     theta_holder.n_thetas = chunked_distance_matrix.size

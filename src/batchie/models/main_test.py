@@ -7,8 +7,8 @@ import numpy as np
 from batchie.common import FloatingPointType
 from batchie.core import (
     BayesianModel,
-    HomoscedasticBayesianModel,
-    HeteroscedasticBayesianModel,
+    HomoscedasticModel,
+    HeteroscedasticModel,
     ThetaHolder,
 )
 from batchie.data import Screen
@@ -143,7 +143,7 @@ def test_correlation_matrix(mocker, screen):
 
 
 def test_get_homoescedastic_variances(mocker, screen):
-    model = mocker.MagicMock(spec=HomoscedasticBayesianModel)
+    model = mocker.Mock()
     thetas = mocker.MagicMock(spec=ThetaHolder)
     model.variance.side_effect = [1, 2, 3]
     thetas.n_thetas = 3
@@ -153,7 +153,7 @@ def test_get_homoescedastic_variances(mocker, screen):
 
 
 def test_get_heteroescedastic_variances(mocker, screen):
-    model = mocker.MagicMock(spec=HomoscedasticBayesianModel)
+    model = mocker.Mock()
     thetas = mocker.MagicMock(spec=ThetaHolder)
 
     model.variance.side_effect = [
@@ -174,7 +174,7 @@ def test_get_heteroescedastic_variances(mocker, screen):
 
 
 def test_get_heteroescedastic_variances_raises_wrong_shape(mocker, screen):
-    model = mocker.MagicMock(spec=HomoscedasticBayesianModel)
+    model = mocker.Mock()
     thetas = mocker.MagicMock(spec=ThetaHolder)
 
     model.variance.side_effect = [
@@ -189,7 +189,7 @@ def test_get_heteroescedastic_variances_raises_wrong_shape(mocker, screen):
 
 
 def test_get_homoescedastic_variances_raises_on_na(mocker, screen):
-    model = mocker.MagicMock(spec=HomoscedasticBayesianModel)
+    model = mocker.Mock()
     thetas = mocker.MagicMock(spec=ThetaHolder)
     model.variance.side_effect = [1, 2, np.nan]
     thetas.n_thetas = 3
@@ -199,7 +199,7 @@ def test_get_homoescedastic_variances_raises_on_na(mocker, screen):
 
 
 def test_get_heteroescedastic_variances_raises_on_na(mocker, screen):
-    model = mocker.MagicMock(spec=HomoscedasticBayesianModel)
+    model = mocker.Mock()
     thetas = mocker.MagicMock(spec=ThetaHolder)
 
     model.variance.side_effect = [
