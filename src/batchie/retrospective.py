@@ -231,9 +231,9 @@ class PairwisePlateGenerator(RetrospectivePlateGenerator):
                 eligible_plate_names, size=n_to_assign, replace=True
             )
 
-            new_plate_names[
-                single_treatment_screen.sample_names == sample_name
-            ] = assignments
+            new_plate_names[single_treatment_screen.sample_names == sample_name] = (
+                assignments
+            )
 
         single_screen_with_generated_plates = Screen(
             treatment_names=single_treatment_screen.treatment_names,
