@@ -3,7 +3,14 @@ from unittest import mock
 import numpy as np
 import pytest
 
-from batchie.core import BayesianModel, Screen, ThetaHolder, ScreenSubset
+from batchie.core import (
+    BayesianModel,
+    HomoscedasticModel,
+    HeteroscedasticModel,
+    Screen,
+    ThetaHolder,
+    ScreenSubset,
+)
 from batchie.distance_calculation import ChunkedDistanceMatrix
 from batchie.scoring import gaussian_dbal
 
@@ -92,51 +99,67 @@ def test_dbal_fast_gauss_scoring_vec():
     rng = np.random.default_rng(0)
 
     n_thetas = 10
-    n_plates = 5
+    n_plates = 10
     max_n_experiments = 96
 
-    def create_plate():
-        n_experiments = rng.choice(range(1, max_n_experiments))
+    # Given 10 plates, one of which has very high prediction variance
+    variances = np.vstack(
+        [
+            rng.gamma(1, 1, size=(n_plates - 1, n_thetas, max_n_experiments)),
+            rng.gamma(10, 1, size=(1, n_thetas, max_n_experiments)),
+        ]
+    )
 
-        return rng.random((n_thetas, n_experiments))
-
-    per_plate_predictions = [create_plate() for _ in range(n_plates)]
-
-    variances = rng.random((n_thetas,))
+    predictions = rng.normal(
+        loc=0.0,
+        scale=1.0,
+        size=(
+            n_plates,
+            n_thetas,
+            max_n_experiments,
+        ),
+    )
 
     dists = rng.random((n_thetas, n_thetas))
 
-    result = gaussian_dbal.dbal_fast_gauss_scoring_vec(
-        per_plate_predictions=per_plate_predictions,
+    # When: we calculate the gaussian DBAL scores
+    result = gaussian_dbal.dbal_fast_gauss_scoring_vectorized(
+        predictions=predictions,
         variances=variances,
         distance_matrix=dists,
         rng=rng,
+        max_combos=120,
     )
 
+    # Then: we expect the plate with the highest variance to have the lowest score
     assert result.shape == (n_plates,)
+    assert np.argmin(result) == 9
 
 
 def test_dbal_fast_gauss_scoring_vec_fails_if_not_enough_thetas():
     rng = np.random.default_rng(0)
 
-    n_thetas = 2
+    n_thetas = 10
     n_plates = 10
     max_n_experiments = 96
 
-    def create_plate():
-        n_experiments = rng.choice(range(1, max_n_experiments))
+    variances = rng.gamma(1, 1, size=(n_plates, n_thetas, max_n_experiments))
 
-        return rng.random((n_thetas, n_experiments))
+    predictions = rng.normal(
+        loc=0.0,
+        scale=1.0,
+        size=(
+            n_plates,
+            n_thetas,
+            max_n_experiments,
+        ),
+    )
 
-    per_plate_predictions = [create_plate() for _ in range(n_plates)]
-
-    variances = rng.random((n_thetas,))
-
-    dists = rng.random((n_thetas, n_thetas))
+    dists = rng.random((n_thetas - 1, n_thetas - 1))
 
     with pytest.raises(ValueError):
-        gaussian_dbal.dbal_fast_gauss_scoring_vec(
-            per_plate_predictions=per_plate_predictions,
+        gaussian_dbal.dbal_fast_gauss_scoring_vectorized(
+            predictions=predictions,
             variances=variances,
             distance_matrix=dists,
             rng=rng,
@@ -150,21 +173,23 @@ def test_dbal_fast_gauss_scoring_vec_fails_if_theta_mismatch():
     n_plates = 10
     max_n_experiments = 96
 
-    def create_plate():
-        n_experiments = rng.choice(range(1, max_n_experiments))
-        random_n_thetas = rng.choice(range(1, n_thetas))
+    variances = rng.gamma(1, 1, size=(n_plates, n_thetas, max_n_experiments))
 
-        return rng.random((random_n_thetas, n_experiments))
+    predictions = rng.normal(
+        loc=0.0,
+        scale=1.0,
+        size=(
+            n_plates,
+            n_thetas,
+            max_n_experiments,
+        ),
+    )
 
-    per_plate_predictions = [create_plate() for _ in range(n_plates)]
-
-    variances = rng.random((n_thetas,))
-
-    dists = rng.random((n_thetas, n_thetas))
+    dists = rng.random((n_thetas - 1, n_thetas))
 
     with pytest.raises(ValueError):
-        gaussian_dbal.dbal_fast_gauss_scoring_vec(
-            per_plate_predictions=per_plate_predictions,
+        gaussian_dbal.dbal_fast_gauss_scoring_vectorized(
+            predictions=predictions,
             variances=variances,
             distance_matrix=dists,
             rng=rng,
@@ -178,27 +203,114 @@ def test_dbal_fast_gauss_scoring_vec_fails_if_variance_dimension_is_wrong():
     n_plates = 10
     max_n_experiments = 96
 
-    def create_plate():
-        n_experiments = rng.choice(range(1, max_n_experiments))
+    variances = rng.gamma(1, 1, size=(n_plates, n_thetas - 1, max_n_experiments))
 
-        return rng.random((n_thetas, n_experiments))
+    predictions = rng.normal(
+        loc=0.0,
+        scale=1.0,
+        size=(
+            n_plates,
+            n_thetas,
+            max_n_experiments,
+        ),
+    )
 
-    per_plate_predictions = [create_plate() for _ in range(n_plates)]
-
-    variances = rng.random((n_thetas - 1,))
-
-    dists = rng.random((n_thetas, n_thetas))
+    dists = rng.random((n_thetas - 1, n_thetas))
 
     with pytest.raises(ValueError):
-        gaussian_dbal.dbal_fast_gauss_scoring_vec(
-            per_plate_predictions=per_plate_predictions,
+        gaussian_dbal.dbal_fast_gauss_scoring_vectorized(
+            predictions=predictions,
             variances=variances,
             distance_matrix=dists,
             rng=rng,
         )
 
 
-def test_gaussian_dbal_scorer_plates(
+def test_dbal_fast_gaussian_scoring_homoscedastic():
+    rng = np.random.default_rng(0)
+
+    n_thetas = 10
+    n_plates = 10
+    max_n_experiments = 96
+
+    predictions = []
+
+    for i in range(n_plates):
+        plate_size = rng.choice(np.arange(10, max_n_experiments))
+        predictions.append(
+            rng.normal(
+                loc=0.0,
+                scale=1.0,
+                size=(
+                    n_thetas,
+                    plate_size,
+                ),
+            )
+        )
+
+    variances = np.vstack(
+        [
+            rng.gamma(1, 1, size=(n_plates - 1, n_thetas)),
+            rng.gamma(10, 1, size=(1, n_thetas)),
+        ]
+    )
+
+    dists = rng.random((n_thetas, n_thetas))
+
+    result = gaussian_dbal.dbal_fast_gaussian_scoring_homoscedastic(
+        per_plate_predictions=predictions,
+        variances=variances,
+        distance_matrix=dists,
+        rng=rng,
+        max_combos=120,
+    )
+
+    assert result.shape == (n_plates,)
+    assert np.argmin(result) == 9
+
+
+def test_dbal_fast_gaussian_scoring_heteroscedastic():
+    rng = np.random.default_rng(0)
+
+    n_thetas = 10
+    n_plates = 10
+    max_n_experiments = 96
+
+    predictions = []
+    variances = []
+
+    for i in range(n_plates):
+        plate_size = rng.choice(np.arange(10, max_n_experiments))
+        predictions.append(
+            rng.normal(
+                loc=0.0,
+                scale=1.0,
+                size=(
+                    n_thetas,
+                    plate_size,
+                ),
+            )
+        )
+        if i < 9:
+            variances.append(rng.gamma(1, 1, size=(n_thetas, plate_size)))
+        else:
+            variances.append(rng.gamma(10, 1, size=(n_thetas, plate_size)))
+
+    dists = rng.random((n_thetas, n_thetas))
+
+    result = gaussian_dbal.dbal_fast_gaussian_scoring_heteroscedastic(
+        per_plate_predictions=predictions,
+        variances=variances,
+        distance_matrix=dists,
+        rng=rng,
+        max_combos=120,
+    )
+
+    assert result.shape == (n_plates,)
+    assert np.argmin(result) == 9
+
+
+def test_gaussian_dbal_scorer_homoscedastic(
     mocker, unobserved_dataset, chunked_distance_matrix
 ):
     rng = np.random.default_rng(0)
@@ -206,10 +318,12 @@ def test_gaussian_dbal_scorer_plates(
 
     assert chunked_distance_matrix.is_complete()
 
-    model = mock.MagicMock(BayesianModel)
+    class M(BayesianModel, HomoscedasticModel):
+        pass
+
+    model = mock.Mock(spec=M)
     theta_holder = mock.MagicMock(ThetaHolder)
 
-    # theta_holder.get_variance.return_value = 1.0
     theta_holder.n_thetas = chunked_distance_matrix.size
     model.predict.return_value = 1.0
     model.variance.return_value = 1.0
@@ -217,7 +331,43 @@ def test_gaussian_dbal_scorer_plates(
     plates = {p.plate_id: p for p in unobserved_dataset.plates}
 
     mocker.patch(
-        "batchie.scoring.gaussian_dbal.dbal_fast_gauss_scoring_vec",
+        "batchie.scoring.gaussian_dbal.dbal_fast_gauss_scoring_vectorized",
+        return_value=np.array([1.0, 2.0, 3.0, 4.0]),
+    )
+
+    result = scorer.score(
+        model=model,
+        plates=plates,
+        distance_matrix=chunked_distance_matrix,
+        samples=theta_holder,
+        rng=rng,
+        progress_bar=False,
+    )
+    assert result == {0: 1.0, 1: 2.0, 2: 1.0, 3: 2.0}
+
+
+def test_gaussian_dbal_scorer_heteroscedastic(
+    mocker, unobserved_dataset, chunked_distance_matrix
+):
+    rng = np.random.default_rng(0)
+    scorer = gaussian_dbal.GaussianDBALScorer(max_chunk=2, max_triples=5000)
+
+    assert chunked_distance_matrix.is_complete()
+
+    class M(BayesianModel, HeteroscedasticModel):
+        pass
+
+    model = mock.Mock(spec=M)
+    theta_holder = mock.MagicMock(ThetaHolder)
+
+    theta_holder.n_thetas = chunked_distance_matrix.size
+    model.predict.return_value = 1.0
+    model.variance.return_value = np.ones((2,))
+
+    plates = {p.plate_id: p for p in unobserved_dataset.plates}
+
+    mocker.patch(
+        "batchie.scoring.gaussian_dbal.dbal_fast_gauss_scoring_vectorized",
         return_value=np.array([1.0, 2.0, 3.0, 4.0]),
     )
 
@@ -240,10 +390,12 @@ def test_gaussian_dbal_scorer_subsets(
 
     assert chunked_distance_matrix.is_complete()
 
-    model = mock.MagicMock(BayesianModel)
+    class M(BayesianModel, HomoscedasticModel):
+        pass
+
+    model = mock.Mock(spec=M)
     theta_holder = mock.MagicMock(ThetaHolder)
 
-    # theta_holder.get_variance.return_value = 1.0
     theta_holder.n_thetas = chunked_distance_matrix.size
     model.predict.return_value = 1.0
     model.variance.return_value = 1.0
@@ -254,7 +406,7 @@ def test_gaussian_dbal_scorer_subsets(
         subsets[k] = ScreenSubset(v.screen, v.selection_vector)
 
     mocker.patch(
-        "batchie.scoring.gaussian_dbal.dbal_fast_gauss_scoring_vec",
+        "batchie.scoring.gaussian_dbal.dbal_fast_gauss_scoring_vectorized",
         return_value=np.array([1.0, 2.0, 3.0, 4.0]),
     )
 
@@ -275,10 +427,12 @@ def test_gaussian_dbal_scorer_empty(unobserved_dataset, chunked_distance_matrix)
 
     assert chunked_distance_matrix.is_complete()
 
-    model = mock.MagicMock(BayesianModel)
+    class M(BayesianModel, HomoscedasticModel):
+        pass
+
+    model = mock.Mock(spec=M)
     theta_holder = mock.MagicMock(ThetaHolder)
 
-    # theta_holder.get_variance.return_value = 1.0
     theta_holder.n_thetas = chunked_distance_matrix.size
     model.predict.return_value = 1.0
     model.variance.return_value = 1.0

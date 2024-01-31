@@ -5,9 +5,31 @@ import pytest
 import numpy as np
 
 from batchie.common import FloatingPointType
-from batchie.core import BayesianModel, ThetaHolder
+from batchie.core import (
+    BayesianModel,
+    HomoscedasticModel,
+    HeteroscedasticModel,
+    ThetaHolder,
+)
 from batchie.data import Screen
 from batchie.models import main
+
+
+@pytest.fixture(scope="module")
+def screen():
+    return Screen(
+        observations=np.array([0.1, 0.2, 0, 0, 0, 0]),
+        observation_mask=np.array([True, True, False, False, False, False]),
+        sample_names=np.array(["a", "a", "b", "b", "c", "c"], dtype=str),
+        plate_names=np.array(["a", "a", "b", "b", "c", "c"], dtype=str),
+        treatment_names=np.array(
+            [["a", "b"], ["a", "b"], ["a", "b"], ["a", "b"], ["a", "b"], ["a", "b"]],
+            dtype=str,
+        ),
+        treatment_doses=np.array(
+            [[2.0, 2.0], [1.0, 2.0], [2.0, 1.0], [2.0, 0.1], [2.0, 1.0], [2.0, 1.0]]
+        ),
+    )
 
 
 def test_model_evaluation():
@@ -52,23 +74,9 @@ def test_model_evaluation_rmse():
     assert me.rmse() > 0
 
 
-def test_predict_all(mocker):
+def test_predict_all(mocker, screen):
     model = mocker.MagicMock(spec=BayesianModel)
     thetas = mocker.MagicMock(spec=ThetaHolder)
-
-    screen = Screen(
-        observations=np.array([0.1, 0.2, 0, 0, 0, 0]),
-        observation_mask=np.array([True, True, False, False, False, False]),
-        sample_names=np.array(["a", "a", "b", "b", "c", "c"], dtype=str),
-        plate_names=np.array(["a", "a", "b", "b", "c", "c"], dtype=str),
-        treatment_names=np.array(
-            [["a", "b"], ["a", "b"], ["a", "b"], ["a", "b"], ["a", "b"], ["a", "b"]],
-            dtype=str,
-        ),
-        treatment_doses=np.array(
-            [[2.0, 2.0], [1.0, 2.0], [2.0, 1.0], [2.0, 0.1], [2.0, 1.0], [2.0, 1.0]]
-        ),
-    )
 
     thetas.n_thetas = 5
 
@@ -79,23 +87,9 @@ def test_predict_all(mocker):
     assert result.shape == (5, 6)
 
 
-def test_predict_avg(mocker):
+def test_predict_avg(mocker, screen):
     model = mocker.MagicMock(spec=BayesianModel)
     thetas = mocker.MagicMock(spec=ThetaHolder)
-
-    screen = Screen(
-        observations=np.array([0.1, 0.2, 0, 0, 0, 0]),
-        observation_mask=np.array([True, True, False, False, False, False]),
-        sample_names=np.array(["a", "a", "b", "b", "c", "c"], dtype=str),
-        plate_names=np.array(["a", "a", "b", "b", "c", "c"], dtype=str),
-        treatment_names=np.array(
-            [["a", "b"], ["a", "b"], ["a", "b"], ["a", "b"], ["a", "b"], ["a", "b"]],
-            dtype=str,
-        ),
-        treatment_doses=np.array(
-            [[2.0, 2.0], [1.0, 2.0], [2.0, 1.0], [2.0, 0.1], [2.0, 1.0], [2.0, 1.0]]
-        ),
-    )
 
     thetas.n_thetas = 5
 
@@ -106,23 +100,9 @@ def test_predict_avg(mocker):
     assert result.shape == (6,)
 
 
-def test_predict_raises_for_bad_values(mocker):
+def test_predict_raises_for_bad_values(mocker, screen):
     model = mocker.MagicMock(spec=BayesianModel)
     thetas = mocker.MagicMock(spec=ThetaHolder)
-
-    screen = Screen(
-        observations=np.array([0.1, 0.2, 0, 0, 0, 0]),
-        observation_mask=np.array([True, True, False, False, False, False]),
-        sample_names=np.array(["a", "a", "b", "b", "c", "c"], dtype=str),
-        plate_names=np.array(["a", "a", "b", "b", "c", "c"], dtype=str),
-        treatment_names=np.array(
-            [["a", "b"], ["a", "b"], ["a", "b"], ["a", "b"], ["a", "b"], ["a", "b"]],
-            dtype=str,
-        ),
-        treatment_doses=np.array(
-            [[2.0, 2.0], [1.0, 2.0], [2.0, 1.0], [2.0, 0.1], [2.0, 1.0], [2.0, 1.0]]
-        ),
-    )
 
     thetas.n_thetas = 5
 
@@ -139,23 +119,9 @@ def test_predict_raises_for_bad_values(mocker):
         main.predict_avg(model, screen, thetas)
 
 
-def test_correlation_matrix(mocker):
+def test_correlation_matrix(mocker, screen):
     model = mocker.MagicMock(spec=BayesianModel)
     thetas = mocker.MagicMock(spec=ThetaHolder)
-
-    screen = Screen(
-        observations=np.array([0.1, 0.2, 0, 0, 0, 0]),
-        observation_mask=np.array([True, True, False, False, False, False]),
-        sample_names=np.array(["a", "a", "b", "b", "c", "c"], dtype=str),
-        plate_names=np.array(["a", "a", "b", "b", "c", "c"], dtype=str),
-        treatment_names=np.array(
-            [["a", "b"], ["a", "b"], ["a", "b"], ["a", "b"], ["a", "b"], ["a", "b"]],
-            dtype=str,
-        ),
-        treatment_doses=np.array(
-            [[2.0, 2.0], [1.0, 2.0], [2.0, 1.0], [2.0, 0.1], [2.0, 1.0], [2.0, 1.0]]
-        ),
-    )
 
     thetas.n_thetas = 5
 
@@ -174,3 +140,74 @@ def test_correlation_matrix(mocker):
 
     assert result.shape == (3, 3)
     assert np.all(result["c"].diff()[1:] > 0)
+
+
+def test_get_homoescedastic_variances(mocker, screen):
+    model = mocker.Mock()
+    thetas = mocker.MagicMock(spec=ThetaHolder)
+    model.variance.side_effect = [1, 2, 3]
+    thetas.n_thetas = 3
+
+    result = main.get_homoescedastic_variances(model, screen, thetas)
+    np.testing.assert_array_equal(result, np.array([1, 2, 3], dtype=FloatingPointType))
+
+
+def test_get_heteroescedastic_variances(mocker, screen):
+    model = mocker.Mock()
+    thetas = mocker.MagicMock(spec=ThetaHolder)
+
+    model.variance.side_effect = [
+        np.array([1, 2, 3, 4, 5, 6], dtype=FloatingPointType),
+        np.array([7, 8, 9, 10, 11, 12], dtype=FloatingPointType),
+        np.array([13, 14, 15, 16, 17, 18], dtype=FloatingPointType),
+    ]
+    thetas.n_thetas = 3
+
+    result = main.get_heteroescedastic_variances(model, screen, thetas)
+    np.testing.assert_array_equal(
+        result,
+        np.array(
+            [[1, 2, 3, 4, 5, 6], [7, 8, 9, 10, 11, 12], [13, 14, 15, 16, 17, 18]],
+            dtype=FloatingPointType,
+        ),
+    )
+
+
+def test_get_heteroescedastic_variances_raises_wrong_shape(mocker, screen):
+    model = mocker.Mock()
+    thetas = mocker.MagicMock(spec=ThetaHolder)
+
+    model.variance.side_effect = [
+        np.array([1, 2, 3, 4, 5, 6, 1], dtype=FloatingPointType),
+        np.array([7, 8, 9, 10, 11, 12], dtype=FloatingPointType),
+        np.array([13, 14, 15, 16, 17, 18], dtype=FloatingPointType),
+    ]
+    thetas.n_thetas = 3
+
+    with pytest.raises(ValueError):
+        main.get_heteroescedastic_variances(model, screen, thetas)
+
+
+def test_get_homoescedastic_variances_raises_on_na(mocker, screen):
+    model = mocker.Mock()
+    thetas = mocker.MagicMock(spec=ThetaHolder)
+    model.variance.side_effect = [1, 2, np.nan]
+    thetas.n_thetas = 3
+
+    with pytest.raises(ValueError):
+        main.get_homoescedastic_variances(model, screen, thetas)
+
+
+def test_get_heteroescedastic_variances_raises_on_na(mocker, screen):
+    model = mocker.Mock()
+    thetas = mocker.MagicMock(spec=ThetaHolder)
+
+    model.variance.side_effect = [
+        np.array([1, 2, 3, 4, 5, np.nan], dtype=FloatingPointType),
+        np.array([7, 8, 9, 10, 11, 12], dtype=FloatingPointType),
+        np.array([13, 14, 15, 16, 17, 18], dtype=FloatingPointType),
+    ]
+    thetas.n_thetas = 3
+
+    with pytest.raises(ValueError):
+        main.get_heteroescedastic_variances(model, screen, thetas)
