@@ -14,7 +14,13 @@ from batchie.common import (
     CONTROL_SENTINEL_VALUE,
     copy_array_with_control_treatments_set_to_zero,
 )
-from batchie.core import MCMCModel, Theta, ThetaHolder
+from batchie.core import (
+    BayesianModel,
+    HomoscedasticModel,
+    MCMCModel,
+    Theta,
+    ThetaHolder,
+)
 from batchie.data import ScreenBase, create_single_treatment_effect_map
 from batchie.fast_mvn import sample_mvn_from_precision
 from dataclasses import dataclass
@@ -424,7 +430,7 @@ class LegacySparseDrugComboInteractionImpl:
         return Mu
 
 
-class SparseDrugComboInteraction(MCMCModel):
+class SparseDrugComboInteraction(BayesianModel, HomoscedasticModel, MCMCModel):
     def __init__(
         self,
         n_embedding_dimensions: int,  # embedding dimension

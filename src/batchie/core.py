@@ -1,7 +1,6 @@
 import json
 import logging
 from abc import ABC, abstractmethod
-from typing import Union
 import numpy as np
 
 from batchie.common import ArrayType, FloatingPointType
@@ -187,15 +186,6 @@ class BayesianModel(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def variance(self, data: ScreenBase) -> Union[FloatingPointType, ArrayType]:
-        """
-        Return the variance of the model.
-
-        :return: A single floating point number or an array of variances for each item in the Experiment.
-        """
-        raise NotImplementedError
-
-    @abstractmethod
     def set_rng(self, rng: np.random.Generator):
         """
         Set the PRNG for this model instance.
@@ -254,7 +244,7 @@ class BayesianModel(ABC):
         raise NotImplementedError
 
 
-class MCMCModel(BayesianModel):
+class MCMCModel:
     """
     This class subclasses BayesianModel and implements :py:meth:`batchie.core.MCMCModel.step`
     """
@@ -266,11 +256,12 @@ class MCMCModel(BayesianModel):
 
         In the case of an MCMC model, this would mean taking one more MCMC step. Other types
         of models should implement accordingly.
+
         """
         raise NotImplementedError
 
 
-class VIModel(BayesianModel):
+class VIModel:
     """
     This class subclasses BayesianModel and implements :py:meth:`batchie.core.VIModel.sample`
     """
@@ -279,6 +270,29 @@ class VIModel(BayesianModel):
     def sample(self, num_samples: int) -> list[Theta]:
         """
         Returns a list of Theta samples. Length of the list should be num_samples.
+
+        """
+        raise NotImplementedError
+
+
+class HomoscedasticModel:
+    @abstractmethod
+    def variance(self, data: ScreenBase) -> FloatingPointType:
+        """
+        Return the variance of the model.
+
+        :return: A single floating point number representing the variance of this models predictions.
+        """
+        raise NotImplementedError
+
+
+class HeteroscedasticModel:
+    @abstractmethod
+    def variance(self, data: ScreenBase) -> ArrayType:
+        """
+        Return the variance of the model.
+
+        :return: An array containing the variance of the prediction for each experiment in the screen.
         """
         raise NotImplementedError
 

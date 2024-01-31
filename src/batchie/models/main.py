@@ -7,7 +7,12 @@ from itertools import combinations
 import pandas
 
 from batchie.common import FloatingPointType, ArrayType, CONTROL_SENTINEL_VALUE
-from batchie.core import BayesianModel, ThetaHolder
+from batchie.core import (
+    BayesianModel,
+    HomoscedasticModel,
+    HeteroscedasticModel,
+    ThetaHolder,
+)
 from batchie.data import ScreenBase, Screen
 
 
@@ -111,22 +116,50 @@ def predict_all(model: BayesianModel, screen: ScreenBase, thetas: ThetaHolder):
     return result
 
 
-def variance_all(model: BayesianModel, screen: ScreenBase, thetas: ThetaHolder):
+def get_homoescedastic_variances(model, screen: ScreenBase, thetas: ThetaHolder):
     """
     Get the variance for the experiment data using the model parameterized with each theta in thetas.
 
     :param model: The model to use for prediction
     :param screen: The data to predict
     :param thetas: The set of model parameters to use for prediction
-    :return: A matrix of shape (n_samples, n_experiments) containing the
-             predictions for each model / experiment combination,
-             or a vector of shape (n_samples,).
+    :return: A vector of shape (n_thetas,)
     """
 
     results = []
     for theta_index in range(thetas.n_thetas):
         model.set_model_state(thetas.get_theta(theta_index))
         result = model.variance(screen)
+        results.append(result)
+        if np.isnan(result):
+            raise ValueError(
+                "NaN predictions were created, please check screen and theta values"
+            )
+
+    return np.array(results, dtype=FloatingPointType)
+
+
+def get_heteroescedastic_variances(model, screen: ScreenBase, thetas: ThetaHolder):
+    """
+    Get the variance for the experiment data using the model parameterized with each theta in thetas.
+
+    :param model: The model to use for prediction
+    :param screen: The data to predict
+    :param thetas: The set of model parameters to use for prediction
+    :return: A matrix of shape (n_thetas, n_experiments) containing the
+             prediction variances for each model / experiment combination.
+    """
+
+    results = []
+    for theta_index in range(thetas.n_thetas):
+        model.set_model_state(thetas.get_theta(theta_index))
+        result = model.variance(screen)
+
+        if not result.size == screen.size:
+            raise ValueError(
+                "The variance array returned by the model is not the same size as the screen"
+            )
+
         results.append(result)
         if np.any(np.isnan(result)):
             raise ValueError(

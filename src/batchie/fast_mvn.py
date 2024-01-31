@@ -1,4 +1,5 @@
 """Methods for sampling from multivariate normal distributions."""
+
 import numpy as np
 import scipy as sp
 from scipy.linalg import solve_triangular
