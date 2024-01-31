@@ -170,13 +170,6 @@ class BayesianModel(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def get_model_state(self) -> Theta:
-        """
-        Get the internal state of the model.
-        """
-        raise NotImplementedError
-
-    @abstractmethod
     def predict(self, data: ScreenBase) -> ArrayType:
         """
         Predict the outcome of an :py:class:`batchie.data.ExperimentBase`.
@@ -248,6 +241,13 @@ class MCMCModel:
     """
     This class subclasses BayesianModel and implements :py:meth:`batchie.core.MCMCModel.step`
     """
+
+    @abstractmethod
+    def get_model_state(self) -> Theta:
+        """
+        Get the internal state of the model.
+        """
+        raise NotImplementedError
 
     @abstractmethod
     def step(self):
