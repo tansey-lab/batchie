@@ -112,3 +112,55 @@ def predicted_vs_observed_scatterplot_per_sample(
 
     fig.tight_layout()
     fig.savefig(output_fn)
+
+
+def filter_df_groups_by_percentile(df: DataFrame, gbkey, val_key, percentile: float):
+    return df[
+        df.groupby(gbkey)[val_key].transform(lambda x: x > np.percentile(x, percentile))
+    ]
+
+
+def per_sample_violin_plot(
+    model_evaluation: ModelEvaluation, output_fn: str, percentile=0.0
+):
+    fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(12, 6))
+
+    df = DataFrame()
+
+    df["observed"] = model_evaluation.observations
+    df["prediction"] = model_evaluation.mean_predictions
+    df["variance"] = np.var(model_evaluation.predictions, axis=1)
+    df["sample"] = model_evaluation.sample_names
+
+    sns.violinplot(
+        x="sample",
+        y="observed",
+        data=filter_df_groups_by_percentile(df, "sample", "observed", percentile),
+        ax=ax1,
+        hue="sample",
+    )
+    ax1.set_xlabel("Sample name")
+    ax1.set_ylabel("Observed viability")
+
+    sns.violinplot(
+        x="sample",
+        y="prediction",
+        data=filter_df_groups_by_percentile(df, "sample", "prediction", percentile),
+        ax=ax2,
+        hue="sample",
+    )
+    ax2.set_xlabel("Sample name")
+    ax2.set_ylabel("Mean predicted viability")
+
+    sns.violinplot(
+        x="sample",
+        y="variance",
+        data=filter_df_groups_by_percentile(df, "sample", "variance", percentile),
+        ax=ax3,
+        hue="sample",
+    )
+    ax3.set_xlabel("Sample name")
+    ax3.set_ylabel("Variance of mean predicted viability")
+
+    fig.tight_layout()
+    fig.savefig(output_fn)
