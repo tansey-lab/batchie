@@ -146,7 +146,7 @@ def main():
     summary_statistics = {
         "mse": me.mse(),
         "mse_variance": me.mse_variance(),
-        "mse_inter_chain_variance": me.mse_inter_chain_variance(),
+        "inter_chain_mse_variance": me.inter_chain_mse_variance(),
     }
 
     with open(os.path.join(args.output_dir, "summary_statistics.json"), "w") as f:
