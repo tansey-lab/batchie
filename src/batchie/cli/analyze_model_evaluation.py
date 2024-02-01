@@ -1,14 +1,14 @@
 import argparse
 import logging
 import os
-import numpy as np
+import json
 
 from batchie import introspection, log_config, plotting
 from batchie.cli.argument_parsing import KVAppendAction, cast_dict_to_type
 from batchie.common import N_UNIQUE_SAMPLES, N_UNIQUE_TREATMENTS
 from batchie.core import BayesianModel, ThetaHolder
 from batchie.data import Screen
-from batchie.models.main import predict_all, ModelEvaluation, correlation_matrix
+from batchie.models.main import ModelEvaluation, correlation_matrix
 
 logger = logging.getLogger(__name__)
 
@@ -131,3 +131,23 @@ def main():
             args.output_dir, "predicted_vs_observed_by_sample_scatterplot.pdf"
         ),
     )
+
+    plotting.per_sample_violin_plot(
+        me,
+        os.path.join(args.output_dir, "per_sample_violin_plot.pdf"),
+    )
+
+    plotting.per_sample_violin_plot(
+        me,
+        os.path.join(args.output_dir, "per_sample_violin_plot__99th_percentiles.pdf"),
+        percentile=99,
+    )
+
+    summary_statistics = {
+        "mse": me.mse(),
+        "mse_variance": me.mse_variance(),
+        "inter_chain_mse_variance": me.inter_chain_mse_variance(),
+    }
+
+    with open(os.path.join(args.output_dir, "summary_statistics.json"), "w") as f:
+        json.dump(summary_statistics, f, indent=4)

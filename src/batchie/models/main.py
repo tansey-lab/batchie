@@ -52,20 +52,73 @@ class ModelEvaluation:
         if not chain_ids.shape[0] == predictions.shape[1]:
             raise ValueError("chain_ids must have one entry per theta")
 
-        self.predictions = predictions
-        self.observations = observations
-        self.chain_ids = chain_ids
-        self.sample_names = sample_names
+        self._predictions = predictions
+        self._observations = observations
+        self._chain_ids = chain_ids
+        self._sample_names = sample_names
 
-    def rmse(self):
+    def mse(self):
         """
-        Calculate root mean square error
+        Overall mean squared error
         """
-        return ((self.predictions - self.observations) ** 2).mean()
+        return ((self.predictions - self.observations[:, None]) ** 2).mean()
+
+    def mse_variance(self):
+        """
+        Calculate variance of mean squared error
+        """
+        return np.var(
+            ((self.predictions - self.observations[:, None]) ** 2).mean(axis=1)
+        )
+
+    def inter_chain_mse_variance(self):
+        """
+        Calculate variance of mean square error between chains
+        """
+        mses = []
+
+        for chain_id in np.unique(self.chain_ids):
+
+            selection_vector = self.chain_ids == chain_id
+            chain_mse = (
+                (self.predictions[:, selection_vector] - self.observations[:, None])
+                ** 2
+            ).mean()
+            mses.append(chain_mse)
+
+        return np.var(np.array(mses))
 
     @property
     def mean_predictions(self):
         return self.predictions.mean(axis=1)
+
+    @property
+    def predictions(self) -> ArrayType:
+        """
+        The predictions made by the model, shape (n_experiments, n_thetas)
+        """
+        return self._predictions
+
+    @property
+    def observations(self) -> ArrayType:
+        """
+        Observed data, shape (n_experiments,)
+        """
+        return self._observations
+
+    @property
+    def chain_ids(self) -> ArrayType:
+        """
+        The chain id for each theta, shape (n_thetas,)
+        """
+        return self._chain_ids
+
+    @property
+    def sample_names(self) -> ArrayType:
+        """
+        The sample name for each prediction, shape (n_experiments,)
+        """
+        return self._sample_names
 
     def save_h5(self, fn):
         with h5py.File(fn, "w") as f:

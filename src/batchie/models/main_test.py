@@ -46,7 +46,7 @@ def test_model_evaluation():
             chain_ids=chain_ids,
             sample_names=sample_names.astype(str),
         )
-        me.rmse()
+        me.mse()
         me.save_h5(os.path.join(tmpdir, "model_evaluation.h5"))
         new_me = main.ModelEvaluation.load_h5(
             os.path.join(tmpdir, "model_evaluation.h5")
@@ -58,7 +58,7 @@ def test_model_evaluation():
         shutil.rmtree(tmpdir)
 
 
-def test_model_evaluation_rmse():
+def test_model_evaluation_mse():
     preds = np.random.random((10, 10))
     obs = np.ones((10,))
     chain_ids = np.ones(10, dtype=int)
@@ -71,7 +71,75 @@ def test_model_evaluation_rmse():
         sample_names=sample_names,
     )
 
-    assert me.rmse() > 0
+    assert me.mse() > 0
+
+
+def test_model_evaluation_mse_var():
+    rng = np.random.default_rng(42)
+    preds = rng.random((10, 10))
+    obs = np.ones((10,))
+    chain_ids = np.ones(10, dtype=int)
+    sample_names = np.array(["1"] * 10, dtype=str)
+
+    me = main.ModelEvaluation(
+        predictions=preds,
+        observations=obs,
+        chain_ids=chain_ids,
+        sample_names=sample_names,
+    )
+
+    assert me.mse_variance() > 0
+
+    preds = np.zeros((10, 10))
+    obs = np.ones((10,))
+    chain_ids = np.ones(10, dtype=int)
+    sample_names = np.array(["1"] * 10, dtype=str)
+
+    me2 = main.ModelEvaluation(
+        predictions=preds,
+        observations=obs,
+        chain_ids=chain_ids,
+        sample_names=sample_names,
+    )
+
+    assert me2.mse_variance() < me.mse_variance()
+
+
+def test_model_evaluation_interchain_mse_variance():
+    rng = np.random.default_rng(42)
+    preds = np.hstack(
+        [
+            rng.normal(loc=1, scale=0.1, size=(10, 6)),
+            rng.normal(loc=10, scale=0.1, size=(10, 6)),
+        ]
+    )
+    preds2 = np.hstack(
+        [
+            rng.normal(loc=1, scale=0.1, size=(10, 6)),
+            rng.normal(loc=2, scale=0.1, size=(10, 6)),
+        ]
+    )
+    obs = rng.random(size=(10,))
+    chain_ids = np.array(([1] * 6) + ([2] * 6), dtype=int)
+    sample_names = np.array(["1"] * 10, dtype=str)
+
+    me = main.ModelEvaluation(
+        predictions=preds,
+        observations=obs,
+        chain_ids=chain_ids,
+        sample_names=sample_names,
+    )
+
+    me2 = main.ModelEvaluation(
+        predictions=preds2,
+        observations=obs,
+        chain_ids=chain_ids,
+        sample_names=sample_names,
+    )
+
+    assert me.inter_chain_mse_variance() > 0
+    assert me2.inter_chain_mse_variance() > 0
+    assert me.inter_chain_mse_variance() > me2.inter_chain_mse_variance()
 
 
 def test_predict_all(mocker, screen):
