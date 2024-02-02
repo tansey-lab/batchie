@@ -9,8 +9,6 @@ import pandas
 from batchie.common import FloatingPointType, ArrayType, CONTROL_SENTINEL_VALUE
 from batchie.core import (
     BayesianModel,
-    HomoscedasticModel,
-    HeteroscedasticModel,
     ThetaHolder,
 )
 from batchie.data import ScreenBase, Screen
@@ -93,7 +91,7 @@ class ModelEvaluation:
             )
 
 
-def predict_all(model: BayesianModel, screen: ScreenBase, thetas: ThetaHolder):
+def predict_viability_all(screen: ScreenBase, thetas: ThetaHolder):
     """
     Predict the experiment data using the model parameterized with each theta in thetas.
 
@@ -101,12 +99,12 @@ def predict_all(model: BayesianModel, screen: ScreenBase, thetas: ThetaHolder):
     :param screen: The data to predict
     :param thetas: The set of model parameters to use for prediction
     :return: A matrix of shape (n_samples, n_experiments) containing the
-             predictions for each model / experiment combination
+             viability predictions for each model / experiment combination
     """
     result = np.zeros((thetas.n_thetas, screen.size), dtype=FloatingPointType)
     for theta_index in range(thetas.n_thetas):
-        model.set_model_state(thetas.get_theta(theta_index))
-        result[theta_index, :] = model.predict(screen)
+        theta = thetas.get_theta(theta_index)
+        result[theta_index, :] = theta.predict_viability(screen)
 
         if np.isnan(result[theta_index, :]).any():
             raise ValueError(
@@ -116,30 +114,30 @@ def predict_all(model: BayesianModel, screen: ScreenBase, thetas: ThetaHolder):
     return result
 
 
-def get_homoescedastic_variances(model, screen: ScreenBase, thetas: ThetaHolder):
+def predict_mean_all(screen: ScreenBase, thetas: ThetaHolder):
     """
-    Get the variance for the experiment data using the model parameterized with each theta in thetas.
+    Predict the experiment data using the model parameterized with each theta in thetas.
 
     :param model: The model to use for prediction
     :param screen: The data to predict
     :param thetas: The set of model parameters to use for prediction
-    :return: A vector of shape (n_thetas,)
+    :return: A matrix of shape (n_samples, n_experiments) containing the
+             mean predictions for each model / experiment combination
     """
-
-    results = []
+    result = np.zeros((thetas.n_thetas, screen.size), dtype=FloatingPointType)
     for theta_index in range(thetas.n_thetas):
-        model.set_model_state(thetas.get_theta(theta_index))
-        result = model.variance(screen)
-        results.append(result)
-        if np.isnan(result):
+        theta = thetas.get_theta(theta_index)
+        result[theta_index, :] = theta.predict_mean(screen)
+
+        if np.isnan(result[theta_index, :]).any():
             raise ValueError(
                 "NaN predictions were created, please check screen and theta values"
             )
 
-    return np.array(results, dtype=FloatingPointType)
+    return result
 
 
-def get_heteroescedastic_variances(model, screen: ScreenBase, thetas: ThetaHolder):
+def predict_variance_all(screen: ScreenBase, thetas: ThetaHolder):
     """
     Get the variance for the experiment data using the model parameterized with each theta in thetas.
 
@@ -152,8 +150,8 @@ def get_heteroescedastic_variances(model, screen: ScreenBase, thetas: ThetaHolde
 
     results = []
     for theta_index in range(thetas.n_thetas):
-        model.set_model_state(thetas.get_theta(theta_index))
-        result = model.variance(screen)
+        theta = thetas.get_theta(theta_index)
+        result = theta.predict_variance(screen)
 
         if not result.size == screen.size:
             raise ValueError(
@@ -170,7 +168,7 @@ def get_heteroescedastic_variances(model, screen: ScreenBase, thetas: ThetaHolde
     return result
 
 
-def predict_avg(model: BayesianModel, screen: ScreenBase, thetas: ThetaHolder):
+def predict_mean_avg(screen: ScreenBase, thetas: ThetaHolder):
     """
     :param model: The model to use for prediction
     :param screen: The data to predict
@@ -181,9 +179,34 @@ def predict_avg(model: BayesianModel, screen: ScreenBase, thetas: ThetaHolder):
     result = np.zeros((screen.size,), dtype=FloatingPointType)
 
     for theta_index in range(thetas.n_thetas):
-        model.set_model_state(thetas.get_theta(theta_index))
+        theta = thetas.get_theta(theta_index)
 
-        sub_result = model.predict(screen)
+        sub_result = theta.predict_mean(screen)
+
+        if np.isnan(sub_result).any():
+            raise ValueError(
+                "NaN predictions were created, please check screen and theta values"
+            )
+
+        result = result + sub_result
+
+    return result / thetas.n_thetas
+
+
+def predict_viability_avg(screen: ScreenBase, thetas: ThetaHolder):
+    """
+    :param model: The model to use for prediction
+    :param screen: The data to predict
+    :param thetas: The set of model parameters to use for prediction
+    :return: A matrix of shape (n_experiments,) containing the
+             viability predictions for each experiment combination
+    """
+    result = np.zeros((screen.size,), dtype=FloatingPointType)
+
+    for theta_index in range(thetas.n_thetas):
+        theta = thetas.get_theta(theta_index)
+
+        sub_result = theta.predict_viability(screen)
 
         if np.isnan(sub_result).any():
             raise ValueError(
@@ -235,7 +258,7 @@ def generate_full_combinatoric_space(sample_id: int, screen: ScreenBase):
     )
 
 
-def correlation_matrix(model: BayesianModel, screen: ScreenBase, thetas: ThetaHolder):
+def correlation_matrix(screen: ScreenBase, thetas: ThetaHolder):
     """
     Predict over the entire space of treatment combinations for each unique sample in
     screen and create a correlation matrix between samples based on how similar they are
@@ -255,7 +278,7 @@ def correlation_matrix(model: BayesianModel, screen: ScreenBase, thetas: ThetaHo
     for sample_id in screen.unique_sample_ids:
         combinatoric_space = generate_full_combinatoric_space(sample_id, screen)
 
-        predictions.append(predict_avg(model, combinatoric_space, thetas))
+        predictions.append(predict_mean_avg(combinatoric_space, thetas))
         index.append(id_to_name[sample_id])
 
     predictions = np.stack(predictions)

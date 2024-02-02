@@ -2,9 +2,13 @@ import json
 import logging
 from abc import ABC, abstractmethod
 import numpy as np
-
+from typing import Union
+from numbers import Number
+import h5py
 from batchie.common import ArrayType, FloatingPointType
 from batchie.data import ScreenBase, Plate, Screen, ScreenSubset
+import importlib
+
 
 logger = logging.getLogger(__name__)
 
@@ -15,7 +19,59 @@ class Theta:
     Should be implemented by a dataclass or similarly serializable class.
     """
 
-    pass
+    @abstractmethod
+    def predict_viability(self, data: ScreenBase) -> ArrayType:
+        """
+        Predict the conditional mean of an :py:class:`batchie.data.ExperimentBase` in viability space.
+
+        :return: An array of means for each item in the Experiment.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def predict_mean(self, data: ScreenBase) -> ArrayType:
+        """
+        Predict the conditional mean of an :py:class:`batchie.data.ExperimentBase` in modeling space.
+
+        :return: An array of means for each item in the Experiment.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def predict_variance(self, data: ScreenBase) -> ArrayType:
+        """
+        Predict the conditional variance of an :py:class:`batchie.data.ExperimentBase`.
+
+        :return: An array of variances for each item in the Experiment.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def private_parameters_dict(self) -> dict[str, ArrayType]:
+        """
+        The private parameters of a :py:class:`batchie.core.Theta`.
+
+        :return: a dictionary mapping class variables to arrays/numerical values.
+        """
+        raise NotImplementedError
+
+    def shared_parameters_dict(self) -> dict[str, ArrayType]:
+        """
+        The shared parameters of a :py:class:`batchie.core.Theta`.
+
+        :return: a dictionary mapping class variables to arrays.
+        """
+        return {}
+
+    @classmethod
+    @abstractmethod
+    def from_dicts(cls, private_params: dict, shared_params: dict):
+        """
+        Instantiate :py:class:`batchie.core.Theta` from dictionary
+
+        :return: a dictionary mapping class variables to arrays/numerical values.
+        """
+        raise NotImplementedError
 
 
 class ThetaHolder(ABC):
@@ -25,49 +81,111 @@ class ThetaHolder(ABC):
     """
 
     def __init__(self, n_thetas: int, *args, **kwargs):
-        self._cursor = 0
-        self._n_thetas = n_thetas
+        self._n_thetas: int = n_thetas
+        self.thetas: list[Theta] = []
 
-    @abstractmethod
-    def _save_theta(self, theta: Theta, sample_index: int):
-        raise NotImplementedError
-
-    @abstractmethod
     def get_theta(self, step_index: int) -> Theta:
         """
         Returns the parameter set at the given index.
 
         :param step_index: The index of the parameter set to return.
         """
-        raise NotImplementedError
+        if (step_index > (len(self.thetas) - 1)) or (step_index < 0):
+            raise ValueError("step_index out of bounds")
 
-    @abstractmethod
-    def save_h5(self, fn: str):
-        """
-        Save the parameter sets to an H5 file.
+        return self.thetas[step_index]
 
-        :param fn: The filename to save to.
-        """
-        raise NotImplementedError
-
-    @abstractmethod
     def combine(self, other):
         """
         Combine these parameters sets with another container of parameter sets.
 
         :param other: Another ThetaHolder instance.
         """
-        raise NotImplementedError
+        if type(self) != type(other):
+            raise ValueError("Cannot combine with different type")
+
+        n_thetas = self.n_thetas + other.n_thetas
+        result = ThetaHolder(n_thetas)
+        result.thetas = self.thetas + other.thetas
+        return result
+
+    def save_h5(self, fn: str):
+        """
+        Save the parameter sets to an H5 file.
+
+        :param fn: The filename to save to.
+        """
+
+        if len(self.thetas) == 0:
+            raise ValueError("Cannot save an empty ThetaHolder")
+
+        ## Only get shared parameters of first theta
+        shared_params = self.thetas[0].shared_parameters_dict()
+
+        ## Only get the class of first theta
+        theta_class = self.thetas[0].__class__.__name__
+        theta_module = self.thetas[0].__class__.__module__
+
+        with h5py.File(fn, "w") as f:
+            f.attrs.create("n_thetas", self.n_thetas)
+            f.attrs.create("theta_class", theta_class)
+            f.attrs.create("theta_module", theta_module)
+
+            shared_grp = f.create_group("shared_params")
+            for key, val in shared_params.items():
+                if isinstance(val, ArrayType):
+                    shared_grp.create_dataset(key, data=val, compression="gzip")
+                else:
+                    shared_grp.attrs.create(key, val)
+
+            private_grp = f.create_group("private_params")
+            for i, theta in enumerate(self.thetas):
+                i_grp = private_grp.create_group(str(i))
+                private_params = theta.private_parameters_dict()
+                for key, val in private_params.items():
+                    if isinstance(val, ArrayType):
+                        i_grp.create_dataset(key, data=val, compression="gzip")
+                    else:
+                        i_grp.attrs.create(key, val)
 
     @staticmethod
-    @abstractmethod
     def load_h5(path: str):
         """
         Load a ThetaHolder from an H5 file.
 
         :param path: The path to the H5 file.
         """
-        raise NotImplementedError
+        with h5py.File(path, "r") as f:
+            n_thetas = f.attrs["n_thetas"]
+            result = ThetaHolder(n_thetas=n_thetas)
+
+            theta_class = f.attrs["theta_class"]
+            theta_module = f.attrs["theta_module"]
+            ThetaClass = getattr(importlib.import_module(theta_module), theta_class)
+
+            ## Unpack shared parameters
+            shared_params = {}
+            shared_grp = f["shared_params"]
+            shared_params.update(shared_grp.attrs.items())
+            for key in shared_grp.keys():
+                shared_params[key] = shared_grp[key][:]
+
+            private_grp = f["private_params"]
+            theta_keys = sorted(list(private_grp.keys()), key=int)
+            for theta_key in theta_keys:
+                i_grp = private_grp[theta_key]
+                private_params = {}
+                private_params.update(i_grp.attrs.items())
+
+                for key in i_grp.keys():
+                    private_params[key] = i_grp[key][:]
+
+                theta = ThetaClass.from_dicts(
+                    private_params=private_params, shared_params=shared_params
+                )
+                result.add_theta(theta)
+
+        return result
 
     def add_theta(self, theta: Theta):
         """
@@ -76,11 +194,10 @@ class ThetaHolder(ABC):
         :param theta: The parameter set to add.
         """
         # test if we are at the end of the chain
-        if self._cursor >= self.n_thetas:
+        if len(self.thetas) >= self.n_thetas:
             raise ValueError("Cannot add more samples to the results object")
 
-        self._save_theta(theta, self._cursor)
-        self._cursor += 1
+        self.thetas.append(theta)
 
     @property
     def n_thetas(self):
@@ -98,17 +215,17 @@ class ThetaHolder(ABC):
         """
         :return: True if the container is full, False otherwise.
         """
-        return self._cursor == self.n_thetas
+        return len(self.thetas) == self.n_thetas
 
     @classmethod
     def concat(cls, instances: list):
         """
-        Combine multiple instances of SamplesHolder into one.
+        Combine multiple instances of ThetaHolder into one.
 
         :param instances: A list of ThetaHolder instances.
         """
         if len(instances) == 0:
-            raise ValueError("Cannot concatenate an empty list of SamplesHolders")
+            raise ValueError("Cannot concatenate an empty list of ThetaHolder")
         if len(instances) == 1:
             return instances[0]
 
@@ -116,7 +233,7 @@ class ThetaHolder(ABC):
 
         for instance in instances[1:]:
             if type(instance) != type(first):
-                raise ValueError("Cannot concatenate different types of SamplesHolders")
+                raise ValueError("Cannot concatenate different types of ThetaHolder")
 
             first = first.combine(instance)
 
@@ -154,29 +271,6 @@ class BayesianModel(ABC):
     ):
         self.n_unique_treatments = n_unique_treatments
         self.n_unique_samples = n_unique_samples
-
-    @abstractmethod
-    def reset_model(self):
-        """
-        Reset the internal state of the model to its initial state.
-        """
-        raise NotImplementedError
-
-    @abstractmethod
-    def set_model_state(self, parameters: Theta):
-        """
-        Set the internal state of the model to the given parameter set.
-        """
-        raise NotImplementedError
-
-    @abstractmethod
-    def predict(self, data: ScreenBase) -> ArrayType:
-        """
-        Predict the outcome of an :py:class:`batchie.data.ExperimentBase`.
-
-        :return: An array of predictions for each item in the Experiment.
-        """
-        raise NotImplementedError
 
     @abstractmethod
     def set_rng(self, rng: np.random.Generator):
@@ -226,21 +320,18 @@ class BayesianModel(ABC):
         """
         raise NotImplementedError
 
-    @abstractmethod
-    def get_results_holder(self, n_samples: int) -> ThetaHolder:
-        """
-        Construct a :py:meth:`batchie.core.ThetaHolder` instance that is compatible
-        with this mode and has capacity n_samples.
-
-        :param n_samples: The number of samples to allocate space for.
-        """
-        raise NotImplementedError
-
 
 class MCMCModel:
     """
     This class subclasses BayesianModel and implements :py:meth:`batchie.core.MCMCModel.step`
     """
+
+    @abstractmethod
+    def reset_model(self):
+        """
+        Reset the internal state of the model to its initial state.
+        """
+        raise NotImplementedError
 
     @abstractmethod
     def get_model_state(self) -> Theta:
@@ -271,28 +362,6 @@ class VIModel:
         """
         Returns a list of Theta samples. Length of the list should be num_samples.
 
-        """
-        raise NotImplementedError
-
-
-class HomoscedasticModel:
-    @abstractmethod
-    def variance(self, data: ScreenBase) -> FloatingPointType:
-        """
-        Return the variance of the model.
-
-        :return: A single floating point number representing the variance of this models predictions.
-        """
-        raise NotImplementedError
-
-
-class HeteroscedasticModel:
-    @abstractmethod
-    def variance(self, data: ScreenBase) -> ArrayType:
-        """
-        Return the variance of the model.
-
-        :return: An array containing the variance of the prediction for each experiment in the screen.
         """
         raise NotImplementedError
 

@@ -9,7 +9,7 @@ from batchie.cli.argument_parsing import KVAppendAction, cast_dict_to_type
 from batchie.common import N_UNIQUE_SAMPLES, N_UNIQUE_TREATMENTS
 from batchie.core import BayesianModel, ThetaHolder
 from batchie.data import Screen
-from batchie.models.main import predict_all, ModelEvaluation
+from batchie.models.main import predict_viability_all, ModelEvaluation
 
 logger = logging.getLogger(__name__)
 
@@ -92,7 +92,7 @@ def main():
 
     model: BayesianModel = args.model_cls(**args.model_params)
 
-    theta_holder: ThetaHolder = model.get_results_holder(n_samples=1)
+    theta_holder: ThetaHolder = ThetaHolder(n_samples=1)
 
     theta_holders = [theta_holder.load_h5(x) for x in args.thetas]
 
@@ -104,7 +104,7 @@ def main():
 
     chain_ids = np.array(chain_ids, dtype=int)
 
-    predictions = predict_all(
+    predictions = predict_viability_all(
         screen=screen,
         thetas=thetas,
         model=model,

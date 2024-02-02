@@ -8,7 +8,7 @@ from batchie.cli.argument_parsing import KVAppendAction, cast_dict_to_type
 from batchie.common import N_UNIQUE_SAMPLES, N_UNIQUE_TREATMENTS
 from batchie.core import BayesianModel, ThetaHolder
 from batchie.data import Screen
-from batchie.models.main import predict_all, ModelEvaluation, correlation_matrix
+from batchie.models.main import ModelEvaluation, correlation_matrix
 
 logger = logging.getLogger(__name__)
 
@@ -101,7 +101,7 @@ def main():
 
     model.add_observations(screen.subset_observed())
 
-    theta_holder: ThetaHolder = model.get_results_holder(n_samples=1)
+    theta_holder: ThetaHolder = ThetaHolder(n_samples=1)
 
     theta_holders = [theta_holder.load_h5(x) for x in args.thetas]
 
@@ -113,7 +113,7 @@ def main():
 
     logger.info("Calculating correlation matrix")
 
-    corr = correlation_matrix(model, screen, thetas)
+    corr = correlation_matrix(screen, thetas)
 
     logger.info("Creating plots")
 

@@ -7,8 +7,7 @@ import numpy as np
 from batchie.common import FloatingPointType
 from batchie.core import (
     BayesianModel,
-    HomoscedasticModel,
-    HeteroscedasticModel,
+    Theta,
     ThetaHolder,
 )
 from batchie.data import Screen
@@ -82,7 +81,7 @@ def test_predict_all(mocker, screen):
 
     model.predict.return_value = np.ones((screen.size,), dtype=FloatingPointType)
 
-    result = main.predict_all(model, screen, thetas)
+    result = main.predict_viability_all(model, screen, thetas)
 
     assert result.shape == (5, 6)
 
@@ -101,22 +100,23 @@ def test_predict_avg(mocker, screen):
 
 
 def test_predict_raises_for_bad_values(mocker, screen):
-    model = mocker.MagicMock(spec=BayesianModel)
-    thetas = mocker.MagicMock(spec=ThetaHolder)
-
-    thetas.n_thetas = 5
+    theta = mocker.MagicMock(spec=Theta)
+    thetas = ThetaHolder(5)
 
     rv = np.ones((screen.size,), dtype=FloatingPointType)
-
     rv[0] = np.nan
 
-    model.predict.return_value = rv
+    theta.predict_viability.return_value = rv
+    theta.predict_mean_all.return_value = rv
+
+    for _ in range(5):
+        thetas.add_theta(theta)
 
     with pytest.raises(ValueError):
-        main.predict_all(model, screen, thetas)
+        main.predict_viability_all(screen, thetas)
 
     with pytest.raises(ValueError):
-        main.predict_avg(model, screen, thetas)
+        main.predict_mean_all(screen, thetas)
 
 
 def test_correlation_matrix(mocker, screen):
@@ -136,7 +136,7 @@ def test_correlation_matrix(mocker, screen):
 
     model.predict.side_effect = predict
 
-    result = main.correlation_matrix(model, screen, thetas)
+    result = main.correlation_matrix(screen, thetas)
 
     assert result.shape == (3, 3)
     assert np.all(result["c"].diff()[1:] > 0)

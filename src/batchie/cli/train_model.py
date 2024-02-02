@@ -117,7 +117,7 @@ def main():
 
     model: BayesianModel = args.model_cls(**args.model_params)
 
-    samples_holder: ThetaHolder = model.get_results_holder(n_samples=args.n_samples)
+    samples_holder: ThetaHolder = ThetaHolder(n_samples=args.n_samples)
 
     observed_subset = data.subset_observed()
 
