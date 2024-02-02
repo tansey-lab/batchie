@@ -50,7 +50,7 @@ class SparseDrugComboMCMCSample(Theta):
         else:
             raise NotImplementedError("SparseDrugCombo only supports 1 or 2 treatments")
 
-    def predict_mean(self, data: ScreenBase) -> ArrayType:
+    def predict_conditional_mean(self, data: ScreenBase) -> ArrayType:
         if data.treatment_arity == 1:
             return predict_single_drug(self, data, viability=False)
         elif data.treatment_arity == 2:
@@ -58,7 +58,7 @@ class SparseDrugComboMCMCSample(Theta):
         else:
             raise NotImplementedError("SparseDrugCombo only supports 1 or 2 treatments")
 
-    def predict_variance(self, data: ScreenBase) -> ArrayType:
+    def predict_conditional_variance(self, data: ScreenBase) -> ArrayType:
         v = np.repeat(1 / self.precision, repeats=data.size)
         return v
 

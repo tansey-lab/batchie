@@ -46,7 +46,7 @@ class SparseDrugComboInteractionMCMCSample(Theta):
                 "SparseDrugComboInteraction only supports data sets with combinations of 2 treatments"
             )
 
-        interaction = self.predict_mean(data)
+        interaction = self.predict_conditional_mean(data)
         single_effect = np.clip(
             [
                 self.single_effect_lookup[c, dd1] * self.single_effect_lookup[c, dd2]
@@ -62,7 +62,7 @@ class SparseDrugComboInteractionMCMCSample(Theta):
         viability = np.exp(interaction + np.log(single_effect))
         return np.clip(viability, a_min=0.01, a_max=0.99)
 
-    def predict_mean(self, data: ScreenBase) -> ArrayType:
+    def predict_conditional_mean(self, data: ScreenBase) -> ArrayType:
         if not data.treatment_arity == 2:
             raise ValueError(
                 "SparseDrugComboInteraction only supports data sets with combinations of 2 treatments"
@@ -79,7 +79,7 @@ class SparseDrugComboInteractionMCMCSample(Theta):
         )
         return interaction
 
-    def predict_variance(self, data: ScreenBase) -> ArrayType:
+    def predict_conditional_variance(self, data: ScreenBase) -> ArrayType:
         v = np.repeat(1.0 / self.precision, repeats=data.size)
         return v
 

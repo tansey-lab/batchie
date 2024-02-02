@@ -103,11 +103,11 @@ class GridComboSample(Theta):
         return result
 
     def predict_viability(self, data: ScreenBase) -> ArrayType:
-        return self.predict_mean(
+        return self.predict_conditional_mean(
             data
         )  ## Probability space = viability space for this model
 
-    def predict_mean(self, data: ScreenBase) -> ArrayType:
+    def predict_conditional_mean(self, data: ScreenBase) -> ArrayType:
         sample_ids, drug_ids_1, drug_ids_2, log_conc1, log_conc2 = unpack_data(
             data=data, drugname2idx=self.drugname2idx, use_mask=False
         )
@@ -173,7 +173,7 @@ class GridComboSample(Theta):
         mu = mu.detach().numpy()
         return mu
 
-    def predict_variance(self, data: ScreenBase) -> ArrayType:
+    def predict_conditional_variance(self, data: ScreenBase) -> ArrayType:
         sample_ids, drug_ids_1, drug_ids_2, log_conc1, log_conc2 = unpack_data(
             data=data, drugname2idx=self.drugname2idx, use_mask=False
         )
@@ -187,7 +187,7 @@ class GridComboSample(Theta):
         log_conc2 = torch.from_numpy(log_conc2).float()
         log_conc2 = torch.nan_to_num(log_conc2)  ## Just 0 out the nans
 
-        mu = torch.from_numpy(self.predict_mean(data)).float()
+        mu = torch.from_numpy(self.predict_conditional_mean(data)).float()
 
         n_data = sample_ids.shape[0]
 

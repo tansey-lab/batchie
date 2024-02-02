@@ -29,7 +29,7 @@ class Theta:
         raise NotImplementedError
 
     @abstractmethod
-    def predict_mean(self, data: ScreenBase) -> ArrayType:
+    def predict_conditional_mean(self, data: ScreenBase) -> ArrayType:
         """
         Predict the conditional mean of an :py:class:`batchie.data.ExperimentBase` in modeling space.
 
@@ -38,7 +38,7 @@ class Theta:
         raise NotImplementedError
 
     @abstractmethod
-    def predict_variance(self, data: ScreenBase) -> ArrayType:
+    def predict_conditional_variance(self, data: ScreenBase) -> ArrayType:
         """
         Predict the conditional variance of an :py:class:`batchie.data.ExperimentBase`.
 

@@ -180,7 +180,7 @@ def predict_mean_all(screen: ScreenBase, thetas: ThetaHolder):
     result = np.zeros((thetas.n_thetas, screen.size), dtype=FloatingPointType)
     for theta_index in range(thetas.n_thetas):
         theta = thetas.get_theta(theta_index)
-        result[theta_index, :] = theta.predict_mean(screen)
+        result[theta_index, :] = theta.predict_conditional_mean(screen)
 
         if np.isnan(result[theta_index, :]).any():
             raise ValueError(
@@ -204,7 +204,7 @@ def predict_variance_all(screen: ScreenBase, thetas: ThetaHolder):
     results = []
     for theta_index in range(thetas.n_thetas):
         theta = thetas.get_theta(theta_index)
-        result = theta.predict_variance(screen)
+        result = theta.predict_conditional_variance(screen)
 
         if not result.size == screen.size:
             raise ValueError(
@@ -234,7 +234,7 @@ def predict_mean_avg(screen: ScreenBase, thetas: ThetaHolder):
     for theta_index in range(thetas.n_thetas):
         theta = thetas.get_theta(theta_index)
 
-        sub_result = theta.predict_mean(screen)
+        sub_result = theta.predict_conditional_mean(screen)
 
         if np.isnan(sub_result).any():
             raise ValueError(
