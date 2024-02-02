@@ -92,7 +92,7 @@ def main():
 
     model: BayesianModel = args.model_cls(**args.model_params)
 
-    theta_holder: ThetaHolder = ThetaHolder(n_samples=1)
+    theta_holder: ThetaHolder = ThetaHolder(n_thetas=1)
 
     theta_holders = [theta_holder.load_h5(x) for x in args.thetas]
 
