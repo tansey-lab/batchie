@@ -4,6 +4,7 @@ import tempfile
 
 from batchie.data import Screen
 from batchie.models import sparse_combo
+from batchie.core import ThetaHolder
 
 
 @pytest.fixture
@@ -137,12 +138,7 @@ def test_results_holder_accumulate(test_dataset):
         n_unique_samples=test_dataset.n_unique_samples,
     )
 
-    results_holder = sparse_combo.SparseDrugComboResults(
-        n_thetas=2,
-        n_embedding_dimensions=5,
-        n_unique_treatments=test_dataset.treatment_arity,
-        n_unique_samples=test_dataset.n_unique_samples,
-    )
+    results_holder = ThetaHolder(n_thetas=2)
 
     while not results_holder.is_complete:
         model.step()
@@ -157,12 +153,7 @@ def test_results_holder_serde(test_dataset):
         n_unique_samples=test_dataset.n_unique_samples,
     )
 
-    results_holder = sparse_combo.SparseDrugComboResults(
-        n_thetas=2,
-        n_embedding_dimensions=5,
-        n_unique_treatments=test_dataset.treatment_arity,
-        n_unique_samples=test_dataset.n_unique_samples,
-    )
+    results_holder = ThetaHolder(n_thetas=2)
     results_holder.add_theta(model.get_model_state())
 
     # create temporary file
@@ -170,7 +161,7 @@ def test_results_holder_serde(test_dataset):
     with tempfile.NamedTemporaryFile() as f:
         results_holder.save_h5(f.name)
 
-        results_holder2 = sparse_combo.SparseDrugComboResults.load_h5(f.name)
+        results_holder2 = ThetaHolder.load_h5(f.name)
 
     assert results_holder2.n_unique_samples == results_holder.n_thetas
     np.testing.assert_array_equal(results_holder2.V2, results_holder.V2)
