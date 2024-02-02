@@ -24,9 +24,6 @@ from batchie.data import ScreenBase, create_single_treatment_effect_map
 from batchie.fast_mvn import sample_mvn_from_precision
 from dataclasses import dataclass
 
-from common import ArrayType
-from data import ScreenBase
-
 logger = logging.getLogger(__name__)
 
 

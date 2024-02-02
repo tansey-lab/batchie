@@ -21,8 +21,6 @@ from batchie.common import (
     FloatingPointType,
 )
 
-from common import ArrayType
-
 logger = logging.getLogger(__name__)
 
 
