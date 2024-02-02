@@ -107,7 +107,6 @@ def main():
     predictions = predict_viability_all(
         screen=screen,
         thetas=thetas,
-        model=model,
     ).T
 
     me = ModelEvaluation(

@@ -632,8 +632,6 @@ class SparseDrugCombo(BayesianModel, MCMCModel):
             W=self.wrapped_model.W.copy().astype(FloatingPointType),
             V2=self.wrapped_model.V2.copy().astype(FloatingPointType),
             V1=self.wrapped_model.V1.copy().astype(FloatingPointType),
-            predict_interactions=self.predict_interactions,
-            interaction_log_transform=self.interaction_log_transform,
         )
 
     def step(self):

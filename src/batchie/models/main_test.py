@@ -142,14 +142,14 @@ def test_model_evaluation_interchain_mse_variance():
 
 
 def test_predict_all(mocker, screen):
-    model = mocker.MagicMock(spec=BayesianModel)
-    thetas = mocker.MagicMock(spec=ThetaHolder)
 
-    thetas.n_thetas = 5
+    thetas = ThetaHolder(n_thetas=5)
+    for _ in range(5):
+        theta = mocker.MagicMock(spec=Theta)
+        theta.predict.return_value = np.ones((screen.size,), dtype=FloatingPointType)
+        thetas.add_theta(theta)
 
-    model.predict.return_value = np.ones((screen.size,), dtype=FloatingPointType)
-
-    result = main.predict_viability_all(model, screen, thetas)
+    result = main.predict_viability_all(screen, thetas)
 
     assert result.shape == (5, 6)
 
@@ -211,72 +211,46 @@ def test_correlation_matrix(mocker, screen):
     assert np.all(result["c"].diff()[1:] > 0)
 
 
-def test_get_homoescedastic_variances(mocker, screen):
-    model = mocker.Mock()
-    thetas = mocker.MagicMock(spec=ThetaHolder)
-    model.variance.side_effect = [1, 2, 3]
-    thetas.n_thetas = 3
-
-    result = main.get_homoescedastic_variances(model, screen, thetas)
-    np.testing.assert_array_equal(result, np.array([1, 2, 3], dtype=FloatingPointType))
-
-
 def test_get_heteroescedastic_variances(mocker, screen):
-    model = mocker.Mock()
-    thetas = mocker.MagicMock(spec=ThetaHolder)
 
-    model.variance.side_effect = [
-        np.array([1, 2, 3, 4, 5, 6], dtype=FloatingPointType),
-        np.array([7, 8, 9, 10, 11, 12], dtype=FloatingPointType),
-        np.array([13, 14, 15, 16, 17, 18], dtype=FloatingPointType),
-    ]
-    thetas.n_thetas = 3
+    thetas = ThetaHolder(n_thetas=3)
+    for i in range(3):
+        theta = mocker.Mock(Theta)
+        theta.predict_conditional_variance = np.arange(
+            i, i + 5, dtype=FloatingPointType
+        )
+        thetas.add_theta(theta)
 
-    result = main.get_heteroescedastic_variances(model, screen, thetas)
+    result = main.predict_variance_all(screen, thetas)
     np.testing.assert_array_equal(
         result,
         np.array(
-            [[1, 2, 3, 4, 5, 6], [7, 8, 9, 10, 11, 12], [13, 14, 15, 16, 17, 18]],
+            [[0, 1, 2, 3, 4, 5], [1, 2, 3, 4, 5, 6], [2, 3, 4, 5, 6, 7]],
             dtype=FloatingPointType,
         ),
     )
 
 
 def test_get_heteroescedastic_variances_raises_wrong_shape(mocker, screen):
-    model = mocker.Mock()
-    thetas = mocker.MagicMock(spec=ThetaHolder)
-
-    model.variance.side_effect = [
-        np.array([1, 2, 3, 4, 5, 6, 1], dtype=FloatingPointType),
-        np.array([7, 8, 9, 10, 11, 12], dtype=FloatingPointType),
-        np.array([13, 14, 15, 16, 17, 18], dtype=FloatingPointType),
-    ]
-    thetas.n_thetas = 3
+    thetas = ThetaHolder(n_thetas=3)
+    for i in range(3):
+        theta = mocker.Mock(Theta)
+        theta.predict_conditional_variance = np.arange(i + 5, dtype=FloatingPointType)
+        thetas.add_theta(theta)
 
     with pytest.raises(ValueError):
-        main.get_heteroescedastic_variances(model, screen, thetas)
-
-
-def test_get_homoescedastic_variances_raises_on_na(mocker, screen):
-    model = mocker.Mock()
-    thetas = mocker.MagicMock(spec=ThetaHolder)
-    model.variance.side_effect = [1, 2, np.nan]
-    thetas.n_thetas = 3
-
-    with pytest.raises(ValueError):
-        main.get_homoescedastic_variances(model, screen, thetas)
+        main.predict_variance_all(screen, thetas)
 
 
 def test_get_heteroescedastic_variances_raises_on_na(mocker, screen):
-    model = mocker.Mock()
-    thetas = mocker.MagicMock(spec=ThetaHolder)
-
-    model.variance.side_effect = [
-        np.array([1, 2, 3, 4, 5, np.nan], dtype=FloatingPointType),
-        np.array([7, 8, 9, 10, 11, 12], dtype=FloatingPointType),
-        np.array([13, 14, 15, 16, 17, 18], dtype=FloatingPointType),
-    ]
-    thetas.n_thetas = 3
+    thetas = ThetaHolder(n_thetas=3)
+    for i in range(3):
+        theta = mocker.Mock(Theta)
+        v = np.arange(i, i + 5, dtype=FloatingPointType)
+        if i == 0:
+            v[-1] = np.nan
+        theta.predict_conditional_variance = v
+        thetas.add_theta(theta)
 
     with pytest.raises(ValueError):
-        main.get_heteroescedastic_variances(model, screen, thetas)
+        main.predict_variance_all(screen, thetas)
