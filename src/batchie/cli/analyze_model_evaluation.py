@@ -101,7 +101,7 @@ def main():
 
     model.add_observations(screen.subset_observed())
 
-    theta_holder: ThetaHolder = ThetaHolder(n_samples=1)
+    theta_holder: ThetaHolder = ThetaHolder(n_thetas=1)
 
     theta_holders = [theta_holder.load_h5(x) for x in args.thetas]
 
