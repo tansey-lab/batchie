@@ -70,3 +70,30 @@ def test_predicted_vs_observed_scatterplot_per_sample():
         )
     finally:
         shutil.rmtree(tmpdir)
+
+
+def test_per_sample_violin_plot():
+    rng = np.random.default_rng(42)
+    preds = rng.random(size=(130, 10))
+    obs = rng.random(size=(130,))
+    chain_ids = np.ones(10, dtype=int)
+    sample_names = np.array(
+        ["A", "A", "A", "B", "B", "B", "C", "C", "C", "C", "D", "D", "D"] * 10
+    )
+    me = ModelEvaluation(
+        predictions=preds,
+        observations=obs,
+        chain_ids=chain_ids,
+        sample_names=sample_names,
+    )
+    tmpdir = tempfile.mkdtemp()
+
+    try:
+        plotting.per_sample_violin_plot(
+            me, os.path.join(tmpdir, "fig.pdf"), percentile=0
+        )
+        plotting.per_sample_violin_plot(
+            me, os.path.join(tmpdir, "fig_95p.pdf"), percentile=95
+        )
+    finally:
+        shutil.rmtree(tmpdir)
