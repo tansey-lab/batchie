@@ -16,7 +16,6 @@ from batchie.common import (
 )
 from batchie.core import (
     BayesianModel,
-    HomoscedasticModel,
     MCMCModel,
     Theta,
     ThetaHolder,
@@ -501,7 +500,7 @@ class LegacySparseDrugComboInteractionImpl:
             self.Mu = np.clip(self.Mu, self.min_Mu, self.max_Mu)
 
 
-class SparseDrugComboInteraction(BayesianModel, HomoscedasticModel, MCMCModel):
+class SparseDrugComboInteraction(BayesianModel, MCMCModel):
     def __init__(
         self,
         n_embedding_dimensions: int,  # embedding dimension

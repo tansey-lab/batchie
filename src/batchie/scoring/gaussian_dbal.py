@@ -7,8 +7,6 @@ from batchie.common import ArrayType
 from batchie.core import (
     Scorer,
     BayesianModel,
-    HomoscedasticModel,
-    HeteroscedasticModel,
     ThetaHolder,
 )
 from batchie.data import ScreenSubset

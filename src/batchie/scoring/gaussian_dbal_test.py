@@ -5,8 +5,6 @@ import pytest
 
 from batchie.core import (
     BayesianModel,
-    HomoscedasticModel,
-    HeteroscedasticModel,
     Screen,
     ThetaHolder,
     ScreenSubset,
@@ -318,7 +316,7 @@ def test_gaussian_dbal_scorer_homoscedastic(
 
     assert chunked_distance_matrix.is_complete()
 
-    class M(BayesianModel, HomoscedasticModel):
+    class M(BayesianModel):
         pass
 
     model = mock.Mock(spec=M)
@@ -354,7 +352,7 @@ def test_gaussian_dbal_scorer_heteroscedastic(
 
     assert chunked_distance_matrix.is_complete()
 
-    class M(BayesianModel, HeteroscedasticModel):
+    class M(BayesianModel):
         pass
 
     model = mock.Mock(spec=M)
@@ -390,7 +388,7 @@ def test_gaussian_dbal_scorer_subsets(
 
     assert chunked_distance_matrix.is_complete()
 
-    class M(BayesianModel, HomoscedasticModel):
+    class M(BayesianModel):
         pass
 
     model = mock.Mock(spec=M)
@@ -427,7 +425,7 @@ def test_gaussian_dbal_scorer_empty(unobserved_dataset, chunked_distance_matrix)
 
     assert chunked_distance_matrix.is_complete()
 
-    class M(BayesianModel, HomoscedasticModel):
+    class M(BayesianModel):
         pass
 
     model = mock.Mock(spec=M)
