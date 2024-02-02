@@ -35,8 +35,6 @@ class SparseDrugComboMCMCSample(Theta):
     V0: ArrayType
     alpha: float
     precision: float
-    predict_interactions: bool
-    interaction_log_transform: bool
 
     def predict_viability(self, data: ScreenBase) -> ArrayType:
         if data.treatment_arity == 1:
