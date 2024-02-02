@@ -15,7 +15,7 @@ from batchie.core import (
     RetrospectivePlateSmoother,
 )
 from batchie.data import Screen, Plate
-from batchie.models.main import predict_avg
+from batchie.models.main import predict_viability_avg
 
 logger = logging.getLogger(__name__)
 
@@ -761,7 +761,7 @@ def calculate_mse(
     :param thetas: The set of model parameters to use for prediction
     :return: The average mean squared error between predicted and observed values
     """
-    preds = predict_avg(
+    preds = predict_viability_avg(
         model=model,
         screen=observed_screen,
         thetas=thetas,

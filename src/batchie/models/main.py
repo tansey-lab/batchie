@@ -331,7 +331,7 @@ def correlation_matrix(screen: ScreenBase, thetas: ThetaHolder):
     for sample_id in screen.unique_sample_ids:
         combinatoric_space = generate_full_combinatoric_space(sample_id, screen)
 
-        predictions.append(predict_mean_avg(combinatoric_space, thetas))
+        predictions.append(predict_viability_avg(combinatoric_space, thetas))
         index.append(id_to_name[sample_id])
 
     predictions = np.stack(predictions)

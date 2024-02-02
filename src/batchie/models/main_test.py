@@ -155,14 +155,15 @@ def test_predict_all(mocker, screen):
 
 
 def test_predict_avg(mocker, screen):
-    model = mocker.MagicMock(spec=BayesianModel)
-    thetas = mocker.MagicMock(spec=ThetaHolder)
+    theta = mocker.MagicMock(spec=Theta)
+    theta.predict_viability.return_value = np.ones(
+        (screen.size,), dtype=FloatingPointType
+    )
+    thetas = ThetaHolder(5)
+    for _ in range(5):
+        thetas.add_theta(theta)
 
-    thetas.n_thetas = 5
-
-    model.predict.return_value = np.ones((screen.size,), dtype=FloatingPointType)
-
-    result = main.predict_avg(model, screen, thetas)
+    result = main.predict_viability_avg(screen, thetas)
 
     assert result.shape == (6,)
 
