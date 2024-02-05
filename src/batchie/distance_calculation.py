@@ -242,7 +242,7 @@ def calculate_pairwise_distance_matrix_on_predictions(
     progress: bool = False,
 ) -> ChunkedDistanceMatrix:
     """
-    Calculate the pairwise distance matrix between predictions.
+    Calculate the pairwise distance matrix between predictions in viability space.
 
     For all pairs of thetas in the given :py:class:`ThetaHolder`, predictions will be made on the unobserved
     conditions in the given :py:class:`Experiment` and the distance between the predictions produced by the two
@@ -272,12 +272,10 @@ def calculate_pairwise_distance_matrix_on_predictions(
 
     for i, j in tqdm.tqdm(indices) if progress else indices:
         sample_i = thetas.get_theta(i)
-        model.set_model_state(sample_i)
-        i_pred = model.predict(data)
+        i_pred = sample_i.predict_viability(data)
 
         sample_j = thetas.get_theta(j)
-        model.set_model_state(sample_j)
-        j_pred = model.predict(data)
+        j_pred = sample_j.predict_viability(data)
 
         value = distance_metric.distance(i_pred, j_pred)
 

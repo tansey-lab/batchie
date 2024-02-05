@@ -10,10 +10,8 @@ from scipy.special import logit, expit
 
 from batchie.core import (
     BayesianModel,
-    HomoscedasticModel,
     MCMCModel,
     Theta,
-    ThetaHolder,
 )
 from batchie.data import ScreenBase
 from batchie.fast_mvn import sample_mvn_from_precision
@@ -38,144 +36,32 @@ class SparseDrugComboMCMCSample(Theta):
     alpha: float
     precision: float
 
+    def predict_viability(self, data: ScreenBase) -> ArrayType:
+        if data.treatment_arity == 1:
+            return predict_single_drug(self, data, viability=True)
+        elif data.treatment_arity == 2:
+            return predict(self, data, viability=True)
+        else:
+            raise NotImplementedError("SparseDrugCombo only supports 1 or 2 treatments")
 
-class SparseDrugComboResults(ThetaHolder):
-    def __init__(
-        self,
-        n_unique_samples: int,
-        n_unique_treatments: int,
-        n_embedding_dimensions: int,
-        n_thetas: int,
-    ):
-        super().__init__(n_thetas)
-        self.n_unique_samples = n_unique_samples
-        self.n_unique_treatments = n_unique_treatments
-        self.n_embedding_dimensions = n_embedding_dimensions
+    def predict_conditional_mean(self, data: ScreenBase) -> ArrayType:
+        if data.treatment_arity == 1:
+            return predict_single_drug(self, data, viability=False)
+        elif data.treatment_arity == 2:
+            return predict(self, data, viability=False)
+        else:
+            raise NotImplementedError("SparseDrugCombo only supports 1 or 2 treatments")
 
-        self.V2 = np.zeros(
-            (n_thetas, self.n_unique_treatments, self.n_embedding_dimensions),
-            dtype=FloatingPointType,
-        )
-        self.V1 = np.zeros(
-            (n_thetas, self.n_unique_treatments, self.n_embedding_dimensions),
-            dtype=FloatingPointType,
-        )
-        self.W = np.zeros(
-            (n_thetas, self.n_unique_samples, self.n_embedding_dimensions),
-            dtype=FloatingPointType,
-        )
-        self.V0 = np.zeros(
-            (
-                n_thetas,
-                self.n_unique_treatments,
-            ),
-            FloatingPointType,
-        )
-        self.W0 = np.zeros(
-            (
-                n_thetas,
-                self.n_unique_samples,
-            ),
-            FloatingPointType,
-        )
+    def predict_conditional_variance(self, data: ScreenBase) -> ArrayType:
+        v = np.repeat(1 / self.precision, repeats=data.size)
+        return v
 
-        self.alpha = np.zeros((n_thetas,), FloatingPointType)
-        self.precision = np.zeros((n_thetas,), FloatingPointType)
+    def private_parameters_dict(self) -> dict[str, ArrayType]:
+        return self.__dict__
 
-    def combine(self, other):
-        if type(self) != type(other):
-            raise ValueError("Cannot combine with different type")
-
-        if self.n_embedding_dimensions != other.n_embedding_dimensions:
-            raise ValueError("Cannot combine with different embedding dimensions")
-
-        if self.n_unique_samples != other.n_unique_samples:
-            raise ValueError("Cannot combine with different number of unique samples")
-
-        if self.n_unique_treatments != other.n_unique_treatments:
-            raise ValueError(
-                "Cannot combine with different number of unique treatments"
-            )
-
-        output = SparseDrugComboResults(
-            n_unique_samples=self.n_unique_samples,
-            n_unique_treatments=self.n_unique_treatments,
-            n_embedding_dimensions=self.n_embedding_dimensions,
-            n_thetas=self.n_thetas + other.n_thetas,
-        )
-
-        for i in range(self.n_thetas):
-            sample = self.get_theta(i)
-            output.add_theta(sample)
-
-        for i in range(other.n_thetas):
-            sample = other.get_theta(i)
-            output.add_theta(sample)
-
-        return output
-
-    def get_theta(self, step_index: int) -> SparseDrugComboMCMCSample:
-        # Test if this is beyond the step we are current at with the cursor
-        if step_index >= self._cursor:
-            raise ValueError("Cannot get a step beyond the current cursor position")
-
-        return SparseDrugComboMCMCSample(
-            W=self.W[step_index],
-            W0=self.W0[step_index],
-            V2=self.V2[step_index],
-            V1=self.V1[step_index],
-            V0=self.V0[step_index],
-            alpha=self.alpha[step_index].item(),
-            precision=self.precision[step_index].item(),
-        )
-
-    def _save_theta(self, sample: SparseDrugComboMCMCSample, sample_index: int):
-        self.V2[sample_index] = sample.V2
-        self.V1[sample_index] = sample.V1
-        self.W[sample_index] = sample.W
-        self.V0[sample_index] = sample.V0
-        self.W0[sample_index] = sample.W0
-        self.alpha[sample_index] = sample.alpha
-        self.precision[sample_index] = sample.precision
-
-    def save_h5(self, fn: str):
-        with h5py.File(fn, "w") as f:
-            f.create_dataset("V2", data=self.V2, compression="gzip")
-            f.create_dataset("V1", data=self.V1, compression="gzip")
-            f.create_dataset("W", data=self.W, compression="gzip")
-            f.create_dataset("V0", data=self.V0, compression="gzip")
-            f.create_dataset("W0", data=self.W0, compression="gzip")
-            f.create_dataset("alpha", data=self.alpha, compression="gzip")
-            f.create_dataset("precision", data=self.precision, compression="gzip")
-
-            # Save the cursor value metadata
-            f.attrs["cursor"] = self._cursor
-
-    @staticmethod
-    def load_h5(path: str):
-        with h5py.File(path, "r") as f:
-            n_unique_samples = f["W"].shape[1]
-            n_unique_treatments = f["V0"].shape[1]
-            n_embedding_dimensions = f["W"].shape[2]
-            n_samples = f["W"].shape[0]
-
-            results = SparseDrugComboResults(
-                n_unique_samples=n_unique_samples,
-                n_unique_treatments=n_unique_treatments,
-                n_embedding_dimensions=n_embedding_dimensions,
-                n_thetas=n_samples,
-            )
-
-            results.V2 = f["V2"][:]
-            results.V1 = f["V1"][:]
-            results.W = f["W"][:]
-            results.V0 = f["V0"][:]
-            results.W0 = f["W0"][:]
-            results.alpha = f["alpha"][:]
-            results.precision = f["precision"][:]
-            results._cursor = f.attrs["cursor"]
-
-        return results
+    @classmethod
+    def from_dicts(cls, private_params, shared_params):
+        return cls(**private_params)
 
 
 class LegacySparseDrugComboImpl:
@@ -697,7 +583,7 @@ class LegacySparseDrugComboImpl:
         return [1.0 / np.sqrt(self.prec)] + self.Mu.tolist()
 
 
-class SparseDrugCombo(BayesianModel, HomoscedasticModel, MCMCModel):
+class SparseDrugCombo(BayesianModel, MCMCModel):
     def __init__(
         self,
         n_embedding_dimensions: int,  # embedding dimension
@@ -737,17 +623,6 @@ class SparseDrugCombo(BayesianModel, HomoscedasticModel, MCMCModel):
             max_Mu=max_Mu,
         )
 
-    def set_model_state(self, theta: SparseDrugComboMCMCSample):
-        self.wrapped_model.reset_model()
-        self.wrapped_model.W0 = theta.W0.astype(np.float32)
-        self.wrapped_model.W = theta.W.astype(np.float32)
-        self.wrapped_model.V0 = theta.V0.astype(np.float32)
-        self.wrapped_model.V1 = theta.V1.astype(np.float32)
-        self.wrapped_model.V2 = theta.V2.astype(np.float32)
-        self.wrapped_model.alpha = theta.alpha
-        self.wrapped_model.prec = theta.precision
-        self.wrapped_model._reconstruct_Mu()
-
     def get_model_state(self) -> SparseDrugComboMCMCSample:
         return SparseDrugComboMCMCSample(
             precision=self.wrapped_model.prec,
@@ -758,31 +633,6 @@ class SparseDrugCombo(BayesianModel, HomoscedasticModel, MCMCModel):
             V2=self.wrapped_model.V2.copy().astype(FloatingPointType),
             V1=self.wrapped_model.V1.copy().astype(FloatingPointType),
         )
-
-    def predict(self, data: ScreenBase) -> ArrayType:
-        state = self.get_model_state()
-        if data.treatment_arity == 1:
-            return predict_single_drug(state, data)
-        elif data.treatment_arity == 2:
-            predictions = predict(state, data)
-            if self.predict_interactions:
-                single_effects = data.single_treatment_effects
-
-                if single_effects is None:
-                    raise ValueError(
-                        "Cannot predict interactions without observed single treatment effects"
-                    )
-
-                return interactions_to_logits(
-                    predictions, single_effects, self.interaction_log_transform
-                )
-            else:
-                return predictions
-        else:
-            raise NotImplementedError("SparseDrugCombo only supports 1 or 2 treatments")
-
-    def variance(self, data: ScreenBase) -> FloatingPointType:
-        return 1.0 / self.wrapped_model.prec
 
     def step(self):
         self.wrapped_model.mcmc_step()
@@ -819,19 +669,11 @@ class SparseDrugCombo(BayesianModel, HomoscedasticModel, MCMCModel):
     def n_obs(self) -> int:
         return self.wrapped_model.n_obs()
 
-    def get_results_holder(self, n_samples: int) -> ThetaHolder:
-        return SparseDrugComboResults(
-            n_unique_samples=self.n_unique_samples,
-            n_unique_treatments=self.n_unique_treatments,
-            n_embedding_dimensions=self.n_embedding_dimensions,
-            n_thetas=n_samples,
-        )
-
     def reset_model(self):
         self.wrapped_model.reset_model()
 
 
-def predict(mcmc_sample: SparseDrugComboMCMCSample, data: ScreenBase):
+def predict(mcmc_sample: SparseDrugComboMCMCSample, data: ScreenBase, viability: bool):
     interaction2 = np.sum(
         mcmc_sample.W[data.sample_ids]
         * copy_array_with_control_treatments_set_to_zero(
@@ -865,10 +707,16 @@ def predict(mcmc_sample: SparseDrugComboMCMCSample, data: ScreenBase):
         )
     )
     Mu = intercept + interaction1 + interaction2
-    return np.clip(expit(Mu), a_min=0.01, a_max=0.99)
+
+    if viability:
+        return np.clip(expit(Mu), a_min=0.01, a_max=0.99)
+    else:
+        return Mu
 
 
-def predict_single_drug(mcmc_sample: SparseDrugComboMCMCSample, data: ScreenBase):
+def predict_single_drug(
+    mcmc_sample: SparseDrugComboMCMCSample, data: ScreenBase, viability: bool
+):
     interaction1 = np.sum(
         mcmc_sample.W[data.sample_ids]
         * copy_array_with_control_treatments_set_to_zero(
@@ -884,7 +732,11 @@ def predict_single_drug(mcmc_sample: SparseDrugComboMCMCSample, data: ScreenBase
         )
     )
     Mu = intercept + interaction1
-    return np.clip(expit(Mu), a_min=0.01, a_max=0.99)
+
+    if viability:
+        return np.clip(expit(Mu), a_min=0.01, a_max=0.99)
+    else:
+        return Mu
 
 
 def interactions_to_logits(

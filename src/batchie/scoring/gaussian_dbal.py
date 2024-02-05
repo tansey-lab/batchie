@@ -7,16 +7,13 @@ from batchie.common import ArrayType
 from batchie.core import (
     Scorer,
     BayesianModel,
-    HomoscedasticModel,
-    HeteroscedasticModel,
     ThetaHolder,
 )
 from batchie.data import ScreenSubset
 from batchie.distance_calculation import ChunkedDistanceMatrix
 from batchie.models.main import (
-    predict_all,
-    get_heteroescedastic_variances,
-    get_homoescedastic_variances,
+    predict_mean_all,
+    predict_variance_all,
 )
 
 
@@ -294,46 +291,39 @@ class GaussianDBALScorer(Scorer):
                 else:
                     plate_subgroup_mask = plate_subgroup_mask | plate.selection_vector
 
-            per_plate_predictions = [
-                predict_all(screen=plate, model=model, thetas=samples)
+            per_plate_means = [
+                predict_mean_all(screen=plate, thetas=samples)
                 for plate in current_plates
             ]
 
-            match model:
-                case HomoscedasticModel():
-                    variances = np.vstack(
-                        [
-                            get_homoescedastic_variances(
-                                model=model, screen=plate, thetas=samples
-                            )
-                            for plate in current_plates
-                        ]
-                    )
-                    vals = dbal_fast_gaussian_scoring_homoscedastic(
-                        per_plate_predictions=per_plate_predictions,
-                        variances=variances,
-                        distance_matrix=dense_distance_matrix,
-                        rng=rng,
-                        max_combos=self.max_triples,
-                    )
-                case HeteroscedasticModel():
-                    variances = [
-                        get_heteroescedastic_variances(
-                            model=model, screen=plate, thetas=samples
-                        )
-                        for plate in current_plates
-                    ]
-                    vals = dbal_fast_gaussian_scoring_heteroscedastic(
-                        per_plate_predictions=per_plate_predictions,
-                        variances=variances,
-                        distance_matrix=dense_distance_matrix,
-                        rng=rng,
-                        max_combos=self.max_triples,
-                    )
-                case other:
+            per_plate_variances = [
+                predict_variance_all(screen=plate, thetas=samples)
+                for plate in current_plates
+            ]
+
+            for plate_predictions, plate_variances in zip(
+                per_plate_means, per_plate_variances
+            ):
+                if plate_predictions.shape != plate_variances.shape:
                     raise ValueError(
-                        f"Method not supported for model type: {type(other)}"
+                        "plate_predictions and plate_variances must have the same shape"
                     )
+
+            padded_means = pad_ragged_arrays_to_dense_array(
+                per_plate_means, pad_value=0.0
+            )
+
+            padded_variances = pad_ragged_arrays_to_dense_array(
+                per_plate_variances, pad_value=np.nan
+            )
+
+            vals = dbal_fast_gauss_scoring_vectorized(
+                predictions=padded_means,
+                variances=padded_variances,
+                distance_matrix=dense_distance_matrix,
+                rng=rng,
+                max_combos=self.max_triples,
+            )
 
             result.update(dict(zip(plate_subgroup, vals)))
             progress_bar.update(len(current_plates))

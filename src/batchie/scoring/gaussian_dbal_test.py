@@ -5,14 +5,14 @@ import pytest
 
 from batchie.core import (
     BayesianModel,
-    HomoscedasticModel,
-    HeteroscedasticModel,
     Screen,
     ThetaHolder,
+    Theta,
     ScreenSubset,
 )
 from batchie.distance_calculation import ChunkedDistanceMatrix
 from batchie.scoring import gaussian_dbal
+from batchie.common import FloatingPointType
 
 
 @pytest.fixture
@@ -310,59 +310,26 @@ def test_dbal_fast_gaussian_scoring_heteroscedastic():
     assert np.argmin(result) == 9
 
 
-def test_gaussian_dbal_scorer_homoscedastic(
-    mocker, unobserved_dataset, chunked_distance_matrix
-):
+def test_gaussian_dbal_scorer(mocker, unobserved_dataset, chunked_distance_matrix):
     rng = np.random.default_rng(0)
     scorer = gaussian_dbal.GaussianDBALScorer(max_chunk=2, max_triples=5000)
 
     assert chunked_distance_matrix.is_complete()
 
-    class M(BayesianModel, HomoscedasticModel):
-        pass
-
-    model = mock.Mock(spec=M)
+    model = mock.MagicMock(BayesianModel)
     theta_holder = mock.MagicMock(ThetaHolder)
 
-    theta_holder.n_thetas = chunked_distance_matrix.size
-    model.predict.return_value = 1.0
-    model.variance.return_value = 1.0
+    theta_holder.n_thetas.return_value = chunked_distance_matrix.size
 
-    plates = {p.plate_id: p for p in unobserved_dataset.plates}
+    theta = mocker.Mock(Theta)
 
-    mocker.patch(
-        "batchie.scoring.gaussian_dbal.dbal_fast_gauss_scoring_vectorized",
-        return_value=np.array([1.0, 2.0, 3.0, 4.0]),
-    )
+    def fake_predict(data: Screen):
+        return np.ones(data.size, dtype=FloatingPointType)
 
-    result = scorer.score(
-        model=model,
-        plates=plates,
-        distance_matrix=chunked_distance_matrix,
-        samples=theta_holder,
-        rng=rng,
-        progress_bar=False,
-    )
-    assert result == {0: 1.0, 1: 2.0, 2: 1.0, 3: 2.0}
-
-
-def test_gaussian_dbal_scorer_heteroscedastic(
-    mocker, unobserved_dataset, chunked_distance_matrix
-):
-    rng = np.random.default_rng(0)
-    scorer = gaussian_dbal.GaussianDBALScorer(max_chunk=2, max_triples=5000)
-
-    assert chunked_distance_matrix.is_complete()
-
-    class M(BayesianModel, HeteroscedasticModel):
-        pass
-
-    model = mock.Mock(spec=M)
-    theta_holder = mock.MagicMock(ThetaHolder)
-
-    theta_holder.n_thetas = chunked_distance_matrix.size
-    model.predict.return_value = 1.0
-    model.variance.return_value = np.ones((2,))
+    theta.predict_conditional_variance.side_effect = fake_predict
+    theta.predict_viability.side_effect = fake_predict
+    theta.predict_conditional_mean.side_effect = fake_predict
+    theta_holder.get_theta.return_value = theta
 
     plates = {p.plate_id: p for p in unobserved_dataset.plates}
 
@@ -390,15 +357,20 @@ def test_gaussian_dbal_scorer_subsets(
 
     assert chunked_distance_matrix.is_complete()
 
-    class M(BayesianModel, HomoscedasticModel):
-        pass
-
-    model = mock.Mock(spec=M)
+    model = mock.MagicMock(BayesianModel)
     theta_holder = mock.MagicMock(ThetaHolder)
 
-    theta_holder.n_thetas = chunked_distance_matrix.size
-    model.predict.return_value = 1.0
-    model.variance.return_value = 1.0
+    theta_holder.n_thetas.return_value = chunked_distance_matrix.size
+
+    theta = mocker.Mock(Theta)
+
+    def fake_predict(data: Screen):
+        return np.ones(data.size, dtype=FloatingPointType)
+
+    theta.predict_conditional_variance.side_effect = fake_predict
+    theta.predict_viability.side_effect = fake_predict
+    theta.predict_conditional_mean.side_effect = fake_predict
+    theta_holder.get_theta.return_value = theta
 
     plates = {p.plate_id: p for p in unobserved_dataset.plates}
     subsets = {}
@@ -421,21 +393,28 @@ def test_gaussian_dbal_scorer_subsets(
     assert result == {0: 1.0, 1: 2.0, 2: 1.0, 3: 2.0}
 
 
-def test_gaussian_dbal_scorer_empty(unobserved_dataset, chunked_distance_matrix):
+def test_gaussian_dbal_scorer_empty(
+    mocker, unobserved_dataset, chunked_distance_matrix
+):
     rng = np.random.default_rng(0)
     scorer = gaussian_dbal.GaussianDBALScorer(max_chunk=2, max_triples=5000)
 
     assert chunked_distance_matrix.is_complete()
 
-    class M(BayesianModel, HomoscedasticModel):
-        pass
-
-    model = mock.Mock(spec=M)
+    model = mock.MagicMock(BayesianModel)
     theta_holder = mock.MagicMock(ThetaHolder)
 
-    theta_holder.n_thetas = chunked_distance_matrix.size
-    model.predict.return_value = 1.0
-    model.variance.return_value = 1.0
+    theta_holder.n_thetas.return_value = chunked_distance_matrix.size
+
+    theta = mocker.Mock(Theta)
+
+    def fake_predict(data: Screen):
+        return np.ones(data.size, dtype=FloatingPointType)
+
+    theta.predict_conditional_variance.side_effect = fake_predict
+    theta.predict_viability.side_effect = fake_predict
+    theta.predict_conditional_mean.side_effect = fake_predict
+    theta_holder.get_theta.return_value = theta
 
     res = scorer.score(
         model=model,

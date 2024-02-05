@@ -148,7 +148,7 @@ def main():
 
     scorer: Scorer = args.scorer_cls(**args.scorer_params)
 
-    thetas_holder: ThetaHolder = model.get_results_holder(n_samples=1)
+    thetas_holder: ThetaHolder = ThetaHolder(n_thetas=1)
 
     thetas = thetas_holder.concat([thetas_holder.load_h5(x) for x in args.thetas])
 

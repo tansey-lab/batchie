@@ -101,7 +101,7 @@ def main():
 
     model.add_observations(screen.subset_observed())
 
-    theta_holder: ThetaHolder = model.get_results_holder(n_samples=1)
+    theta_holder: ThetaHolder = ThetaHolder(n_thetas=1)
 
     theta_holders = [theta_holder.load_h5(x) for x in args.thetas]
 
@@ -113,7 +113,7 @@ def main():
 
     logger.info("Calculating correlation matrix")
 
-    corr = correlation_matrix(model, screen, thetas)
+    corr = correlation_matrix(screen, thetas)
 
     logger.info("Creating plots")
 

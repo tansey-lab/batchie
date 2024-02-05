@@ -5,10 +5,11 @@ import tempfile
 import numpy as np
 import pytest
 
+from batchie.core import ThetaHolder
 from batchie.cli import analyze_model_evaluation
 from batchie.data import Screen
 from batchie.models.main import ModelEvaluation
-from batchie.models.sparse_combo import SparseDrugComboResults
+from batchie.models.sparse_combo import SparseDrugComboMCMCSample
 
 
 @pytest.fixture
@@ -49,14 +50,18 @@ def test_main(mocker, dataset):
     dataset.save_h5(os.path.join(tmpdir, "screen.h5"))
 
     n_thetas = 10
-    results_holder = SparseDrugComboResults(
-        n_thetas=n_thetas,
-        n_unique_samples=dataset.n_unique_samples,
-        n_unique_treatments=dataset.n_unique_treatments,
-        n_embedding_dimensions=5,
-    )
-
-    results_holder._cursor = n_thetas
+    results_holder = ThetaHolder(n_thetas=n_thetas)
+    for _ in range(n_thetas):
+        theta = SparseDrugComboMCMCSample(
+            W=np.zeros((5, 5)),
+            W0=np.zeros((5,)),
+            V2=np.zeros((10, 5)),
+            V1=np.zeros((10, 5)),
+            V0=np.zeros((10,)),
+            alpha=5.0,
+            precision=100.0,
+        )
+        results_holder.add_theta(theta)
 
     results_holder.save_h5(os.path.join(tmpdir, "samples.h5"))
 

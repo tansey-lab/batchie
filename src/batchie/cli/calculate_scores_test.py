@@ -8,8 +8,9 @@ import pytest
 from batchie.cli import calculate_scores
 from batchie.data import Screen
 from batchie.distance_calculation import ChunkedDistanceMatrix
-from batchie.models.sparse_combo import SparseDrugComboResults
+from batchie.models.sparse_combo import SparseDrugComboMCMCSample
 from batchie.scoring.main import ChunkedScoresHolder
+from batchie.core import ThetaHolder
 
 
 @pytest.fixture
@@ -66,14 +67,19 @@ def test_main(mocker, test_dataset, test_dist_matrix):
     ]
 
     test_dataset.save_h5(os.path.join(tmpdir, "data.h5"))
-    results_holder = SparseDrugComboResults(
-        n_thetas=10,
-        n_unique_samples=test_dataset.n_unique_samples,
-        n_unique_treatments=test_dataset.n_unique_treatments,
-        n_embedding_dimensions=5,
-    )
-
-    results_holder._cursor = 10
+    n_thetas = 10
+    results_holder = ThetaHolder(n_thetas=n_thetas)
+    for _ in range(n_thetas):
+        theta = SparseDrugComboMCMCSample(
+            W=np.zeros((5, 5)),
+            W0=np.zeros((5,)),
+            V2=np.zeros((10, 5)),
+            V1=np.zeros((10, 5)),
+            V0=np.zeros((10,)),
+            alpha=5.0,
+            precision=100.0,
+        )
+        results_holder.add_theta(theta)
 
     results_holder.save_h5(os.path.join(tmpdir, "samples.h5"))
 
@@ -115,14 +121,19 @@ def test_main_exclude(mocker, test_dataset, test_dist_matrix):
     ]
 
     test_dataset.save_h5(os.path.join(tmpdir, "data.h5"))
-    results_holder = SparseDrugComboResults(
-        n_thetas=10,
-        n_unique_samples=test_dataset.n_unique_samples,
-        n_unique_treatments=test_dataset.n_unique_treatments,
-        n_embedding_dimensions=5,
-    )
-
-    results_holder._cursor = 10
+    n_thetas = 10
+    results_holder = ThetaHolder(n_thetas=n_thetas)
+    for _ in range(n_thetas):
+        theta = SparseDrugComboMCMCSample(
+            W=np.zeros((5, 5)),
+            W0=np.zeros((5,)),
+            V2=np.zeros((10, 5)),
+            V1=np.zeros((10, 5)),
+            V0=np.zeros((10,)),
+            alpha=5.0,
+            precision=100.0,
+        )
+        results_holder.add_theta(theta)
 
     results_holder.save_h5(os.path.join(tmpdir, "samples.h5"))
 

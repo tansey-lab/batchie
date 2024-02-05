@@ -4,6 +4,7 @@ import tempfile
 
 from batchie.data import Screen
 from batchie.models import sparse_combo
+from batchie.core import ThetaHolder
 
 
 @pytest.fixture
@@ -76,9 +77,7 @@ def test_sparse_drug_combo_mcmc_step_without_observed_data(test_dataset):
     "predict_interactions,interaction_log_transform",
     [(True, True), (False, False), (True, False), (False, True)],
 )
-def test_predict_and_set_model_state(
-    test_dataset, predict_interactions, interaction_log_transform
-):
+def test_predict(test_dataset, predict_interactions, interaction_log_transform):
     model = sparse_combo.SparseDrugCombo(
         n_embedding_dimensions=5,
         n_unique_treatments=test_dataset.treatment_arity,
@@ -88,29 +87,21 @@ def test_predict_and_set_model_state(
     )
 
     model.step()
-    sample = model.get_model_state()
+    theta = model.get_model_state()
 
-    prediction = model.predict(test_dataset)
+    prediction = theta.predict_viability(test_dataset)
 
     assert prediction.shape == (test_dataset.size,)
     if not predict_interactions:
         assert np.all(prediction >= 0.0)
         assert np.all(prediction <= 1.0)
 
-    model.reset_model()
-    model.set_model_state(sample)
-    prediction2 = model.predict(test_dataset)
-
-    np.testing.assert_array_equal(prediction, prediction2)
-
 
 @pytest.mark.parametrize(
     "predict_interactions,interaction_log_transform",
     [(True, True), (False, False), (True, False), (False, True)],
 )
-def test_variance_and_set_model_state(
-    test_dataset, predict_interactions, interaction_log_transform
-):
+def test_variance(test_dataset, predict_interactions, interaction_log_transform):
     model = sparse_combo.SparseDrugCombo(
         n_embedding_dimensions=5,
         n_unique_treatments=test_dataset.treatment_arity,
@@ -120,14 +111,10 @@ def test_variance_and_set_model_state(
     )
 
     model.step()
-    sample = model.get_model_state()
-    variance = model.variance(test_dataset)
+    theta = model.get_model_state()
+    variance = theta.predict_conditional_variance(test_dataset)
 
-    model.reset_model()
-    model.set_model_state(sample)
-    variance2 = model.variance(test_dataset)
-
-    np.testing.assert_array_equal(variance, variance2)
+    np.all(variance >= 0.0)
 
 
 def test_results_holder_accumulate(test_dataset):
@@ -137,12 +124,7 @@ def test_results_holder_accumulate(test_dataset):
         n_unique_samples=test_dataset.n_unique_samples,
     )
 
-    results_holder = sparse_combo.SparseDrugComboResults(
-        n_thetas=2,
-        n_embedding_dimensions=5,
-        n_unique_treatments=test_dataset.treatment_arity,
-        n_unique_samples=test_dataset.n_unique_samples,
-    )
+    results_holder = ThetaHolder(n_thetas=2)
 
     while not results_holder.is_complete:
         model.step()
@@ -157,23 +139,19 @@ def test_results_holder_serde(test_dataset):
         n_unique_samples=test_dataset.n_unique_samples,
     )
 
-    results_holder = sparse_combo.SparseDrugComboResults(
-        n_thetas=2,
-        n_embedding_dimensions=5,
-        n_unique_treatments=test_dataset.treatment_arity,
-        n_unique_samples=test_dataset.n_unique_samples,
-    )
-    results_holder.add_theta(model.get_model_state())
+    results_holder = ThetaHolder(n_thetas=2)
+
+    theta = model.get_model_state()
+    model.step()
+    theta2 = model.get_model_state()
+    results_holder.add_theta(theta)
+    results_holder.add_theta(theta2)
 
     # create temporary file
 
     with tempfile.NamedTemporaryFile() as f:
         results_holder.save_h5(f.name)
 
-        results_holder2 = sparse_combo.SparseDrugComboResults.load_h5(f.name)
-
-    assert results_holder2.n_unique_samples == results_holder.n_thetas
-    np.testing.assert_array_equal(results_holder2.V2, results_holder.V2)
-    np.testing.assert_array_equal(results_holder2.V1, results_holder.V1)
-    np.testing.assert_array_equal(results_holder2.V0, results_holder.V0)
-    np.testing.assert_array_equal(results_holder2.W, results_holder.W)
+        results_holder2 = ThetaHolder.load_h5(f.name)
+        assert results_holder2.get_theta(0).equals(results_holder.get_theta(0))
+        assert results_holder2.get_theta(1).equals(results_holder.get_theta(1))

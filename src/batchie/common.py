@@ -1,6 +1,6 @@
 import numpy as np
 
-ArrayType = np.array
+ArrayType = np.ndarray
 FloatingPointType = float
 
 CONTROL_SENTINEL_VALUE = -1

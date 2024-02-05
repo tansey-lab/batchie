@@ -16,7 +16,6 @@ from batchie.common import (
 )
 from batchie.core import (
     BayesianModel,
-    HomoscedasticModel,
     MCMCModel,
     Theta,
     ThetaHolder,
@@ -35,119 +34,80 @@ class SparseDrugComboInteractionMCMCSample(Theta):
     W: ArrayType
     V2: ArrayType
     precision: float
+    single_effect_lookup: dict
 
-
-class SparseDrugComboInteractionResults(ThetaHolder):
-    def __init__(
-        self,
-        n_unique_samples: int,
-        n_unique_treatments: int,
-        n_embedding_dimensions: int,
-        n_thetas: int,
-    ):
-        super().__init__(n_thetas)
-        self.n_unique_samples = n_unique_samples
-        self.n_unique_treatments = n_unique_treatments
-        self.n_embedding_dimensions = n_embedding_dimensions
-
-        self.V2 = np.zeros(
-            (n_thetas, self.n_unique_treatments, self.n_embedding_dimensions),
-            dtype=np.float32,
-        )
-        self.W = np.zeros(
-            (n_thetas, self.n_unique_samples, self.n_embedding_dimensions),
-            dtype=np.float32,
-        )
-
-        self.alpha = np.zeros((n_thetas,), np.float32)
-        self.precision = np.zeros((n_thetas,), np.float32)
-
-    def get_theta(self, step_index: int) -> SparseDrugComboInteractionMCMCSample:
-        """Get one sample from the MCMC chain"""
-        # Test if this is beyond the step we are current at with the cursor
-        if step_index >= self._cursor:
-            raise ValueError("Cannot get a step beyond the current cursor position")
-
-        return SparseDrugComboInteractionMCMCSample(
-            W=self.W[step_index],
-            V2=self.V2[step_index],
-            precision=self.precision[step_index].item(),
-        )
-
-    def _save_theta(
-        self,
-        sample: SparseDrugComboInteractionMCMCSample,
-        sample_index: int,
-    ):
-        self.V2[sample_index] = sample.V2
-        self.W[sample_index] = sample.W
-        self.precision[sample_index] = sample.precision
-
-    def combine(self, other):
-        if type(self) != type(other):
-            raise ValueError("Cannot combine with different type")
-
-        if self.n_embedding_dimensions != other.n_embedding_dimensions:
-            raise ValueError("Cannot combine with different embedding dimensions")
-
-        if self.n_unique_samples != other.n_unique_samples:
-            raise ValueError("Cannot combine with different number of unique samples")
-
-        if self.n_unique_treatments != other.n_unique_treatments:
+    def predict_viability(self, data: ScreenBase) -> ArrayType:
+        if not data.treatment_arity == 2:
             raise ValueError(
-                "Cannot combine with different number of unique treatments"
+                "SparseDrugComboInteraction only supports data sets with combinations of 2 treatments"
             )
 
-        output = SparseDrugComboInteractionResults(
-            n_unique_samples=self.n_unique_samples,
-            n_unique_treatments=self.n_unique_treatments,
-            n_embedding_dimensions=self.n_embedding_dimensions,
-            n_thetas=self.n_thetas + other.n_thetas,
+        interaction = self.predict_conditional_mean(data)
+        single_effect = np.clip(
+            [
+                self.single_effect_lookup[c, dd1] * self.single_effect_lookup[c, dd2]
+                for c, dd1, dd2 in zip(
+                    data.sample_ids,
+                    data.treatment_ids[:, 0],
+                    data.treatment_ids[:, 1],
+                )
+            ],
+            a_min=0.01,
+            a_max=0.99,
         )
+        viability = np.exp(interaction + np.log(single_effect))
+        return np.clip(viability, a_min=0.01, a_max=0.99)
 
-        for i in range(self.n_thetas):
-            sample = self.get_theta(i)
-            output.add_theta(sample)
-
-        for i in range(other.n_thetas):
-            sample = other.get_theta(i)
-            output.add_theta(sample)
-
-        return output
-
-    def save_h5(self, fn: str):
-        """Save all arrays to h5"""
-        with h5py.File(fn, "w") as f:
-            f.create_dataset("V2", data=self.V2, compression="gzip")
-            f.create_dataset("W", data=self.W, compression="gzip")
-            f.create_dataset("alpha", data=self.alpha, compression="gzip")
-            f.create_dataset("precision", data=self.precision, compression="gzip")
-
-            # Save the cursor value metadata
-            f.attrs["cursor"] = self._cursor
-
-    @staticmethod
-    def load_h5(path: str):
-        """Load saved data from h5 archive"""
-        with h5py.File(path, "r") as f:
-            n_unique_samples = f["W"].shape[1]
-            n_unique_treatments = f["V2"].shape[1]
-            n_embedding_dimensions = f["W"].shape[2]
-            n_samples = f["W"].shape[0]
-
-            results = SparseDrugComboInteractionResults(
-                n_unique_samples=n_unique_samples,
-                n_unique_treatments=n_unique_treatments,
-                n_embedding_dimensions=n_embedding_dimensions,
-                n_thetas=n_samples,
+    def predict_conditional_mean(self, data: ScreenBase) -> ArrayType:
+        if not data.treatment_arity == 2:
+            raise ValueError(
+                "SparseDrugComboInteraction only supports data sets with combinations of 2 treatments"
             )
+        interaction = np.sum(
+            self.W[data.sample_ids]
+            * copy_array_with_control_treatments_set_to_zero(
+                self.V2, data.treatment_ids[:, 0]
+            )
+            * copy_array_with_control_treatments_set_to_zero(
+                self.V2, data.treatment_ids[:, 1]
+            ),
+            -1,
+        )
+        return interaction
 
-            results.V2 = f["V2"][:]
-            results.W = f["W"][:]
-            results.precision = f["precision"][:]
-            results._cursor = f.attrs["cursor"]
+    def predict_conditional_variance(self, data: ScreenBase) -> ArrayType:
+        v = np.repeat(1.0 / self.precision, repeats=data.size)
+        return v
 
-        return results
+    def private_parameters_dict(self) -> dict[str, ArrayType]:
+        params = {"W": self.W, "V2": self.V2, "precision": self.precision}
+        return params
+
+    def shared_parameters_dict(self) -> dict[str, ArrayType]:
+        dict_items = list(self.single_effect_lookup.items())
+
+        single_effect_lookup_keys1 = np.array([x[0][0] for x in dict_items])
+        single_effect_lookup_keys2 = np.array([x[0][1] for x in dict_items])
+        single_effect_lookup_vals = np.array([x[1] for x in dict_items])
+
+        params = {
+            "single_effect_lookup_keys1": single_effect_lookup_keys1,
+            "single_effect_lookup_keys2": single_effect_lookup_keys2,
+            "single_effect_lookup_vals": single_effect_lookup_vals,
+        }
+        return params
+
+    @classmethod
+    def from_dicts(cls, private_params: dict, shared_params: dict):
+        single_effect_lookup_keys = zip(
+            shared_params["single_effect_lookup_keys1"],
+            shared_params["single_effect_lookup_keys2"],
+        )
+        single_effect_lookup = dict(
+            zip(single_effect_lookup_keys, shared_params["single_effect_lookup_vals"])
+        )
+        res = cls(single_effect_lookup=single_effect_lookup, **private_params)
+        return res
 
 
 class LegacySparseDrugComboInteractionImpl:
@@ -425,12 +385,8 @@ class LegacySparseDrugComboInteractionImpl:
         if clip:
             self.Mu = np.clip(self.Mu, self.min_Mu, self.max_Mu)
 
-    def predict(self, cline: np.ndarray, dd1: np.ndarray, dd2: np.ndarray):
-        Mu = np.sum(self.W[cline] * self.V2[dd1] * self.V2[dd2], axis=-1)
-        return Mu
 
-
-class SparseDrugComboInteraction(BayesianModel, HomoscedasticModel, MCMCModel):
+class SparseDrugComboInteraction(BayesianModel, MCMCModel):
     def __init__(
         self,
         n_embedding_dimensions: int,  # embedding dimension
@@ -459,49 +415,13 @@ class SparseDrugComboInteraction(BayesianModel, HomoscedasticModel, MCMCModel):
             max_Mu=max_Mu,
         )
 
-    def set_model_state(self, theta: SparseDrugComboInteractionMCMCSample):
-        self.wrapped_model.reset_model()
-        self.wrapped_model.W = theta.W.astype(np.float32)
-        self.wrapped_model.V2 = theta.V2.astype(np.float32)
-        self.wrapped_model._reconstruct_Mu()
-
     def get_model_state(self) -> SparseDrugComboInteractionMCMCSample:
         return SparseDrugComboInteractionMCMCSample(
             precision=self.wrapped_model.prec,
             W=self.wrapped_model.W.copy().astype(FloatingPointType),
             V2=self.wrapped_model.V2.copy().astype(FloatingPointType),
+            single_effect_lookup=self.single_effect_lookup,
         )
-
-    def predict(self, data: ScreenBase) -> ArrayType:
-        if not data.treatment_arity == 2:
-            raise ValueError(
-                "SparseDrugComboInteraction only supports data sets with combinations of 2 treatments"
-            )
-        interaction = np.sum(
-            self.wrapped_model.W[data.sample_ids]
-            * copy_array_with_control_treatments_set_to_zero(
-                self.wrapped_model.V2, data.treatment_ids[:, 0]
-            )
-            * copy_array_with_control_treatments_set_to_zero(
-                self.wrapped_model.V2, data.treatment_ids[:, 1]
-            ),
-            -1,
-        )
-
-        single_effect = np.clip(
-            [
-                self.single_effect_lookup[c, dd1] * self.single_effect_lookup[c, dd2]
-                for c, dd1, dd2 in zip(
-                    data.sample_ids,
-                    data.treatment_ids[:, 0],
-                    data.treatment_ids[:, 1],
-                )
-            ],
-            a_min=0.01,
-            a_max=0.99,
-        )
-        viability = np.exp(interaction + np.log(single_effect))
-        return np.clip(viability, a_min=0.01, a_max=0.99)
 
     def variance(self, data: ScreenBase) -> FloatingPointType:
         return 1.0 / self.wrapped_model.prec
@@ -549,14 +469,6 @@ class SparseDrugComboInteraction(BayesianModel, HomoscedasticModel, MCMCModel):
 
     def n_obs(self) -> int:
         return self.wrapped_model.n_obs()
-
-    def get_results_holder(self, n_samples: int) -> ThetaHolder:
-        return SparseDrugComboInteractionResults(
-            n_unique_samples=self.n_unique_samples,
-            n_unique_treatments=self.n_unique_treatments,
-            n_embedding_dimensions=self.n_embedding_dimensions,
-            n_thetas=n_samples,
-        )
 
     def reset_model(self):
         self.wrapped_model.reset_model()

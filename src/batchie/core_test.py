@@ -1,4 +1,5 @@
 import os
+import tempfile
 from dataclasses import dataclass
 
 import numpy as np
@@ -6,64 +7,44 @@ import pytest
 
 from batchie.common import ArrayType
 from batchie.core import ThetaHolder, Theta, RetrospectivePlateGenerator
-from batchie.data import Screen
+from batchie.data import Screen, ScreenBase
 from batchie.distance_calculation import ChunkedDistanceMatrix
 
 
 @dataclass
 class TestBayesianModelParamsImpl(Theta):
     W: ArrayType
+    A: float
+
+    def predict_conditional_mean(self, data: ScreenBase) -> ArrayType:
+        return np.zeros(data.size)
+
+    def predict_conditional_variance(self, data: ScreenBase) -> ArrayType:
+        return np.ones(data.size)
+
+    def predict_viability(self, data: ScreenBase) -> ArrayType:
+        return np.ones(data.size)
+
+    def private_parameters_dict(self) -> dict[str, ArrayType]:
+        return {"W": self.W, "A": self.A}
+
+    @classmethod
+    def from_dicts(cls, private_params: dict, shared_params: dict):
+        return cls(**private_params)
 
 
-class TestThetaHolderImpl(ThetaHolder):
-    def __init__(
-        self,
-        n_thetas: int,
-    ):
-        super().__init__(n_thetas)
+def test_theta_equals():
+    theta1 = TestBayesianModelParamsImpl(W=np.ones((2, 2)), A=1.1)
+    theta2 = TestBayesianModelParamsImpl(W=np.ones((2, 2)), A=1.1)
 
-        self.W = np.zeros(
-            (self.n_thetas, 2, 2),
-            dtype=np.float32,
-        )
-
-    def _save_theta(self, sample: TestBayesianModelParamsImpl, sample_index: int):
-        self.W[sample_index] = sample.W
-
-    def get_theta(self, step_index: int) -> TestBayesianModelParamsImpl:
-        return TestBayesianModelParamsImpl(W=self.W[step_index])
-
-    def save_h5(self, fn: str):
-        pass
-
-    def combine(self, other):
-        if type(self) != type(other):
-            raise ValueError("Cannot combine with different type")
-
-        output = TestThetaHolderImpl(
-            n_thetas=self.n_thetas + other.n_thetas,
-        )
-
-        for i in range(self.n_thetas):
-            sample = self.get_theta(i)
-            output.add_theta(sample)
-
-        for i in range(other.n_thetas):
-            sample = other.get_theta(i)
-            output.add_theta(sample)
-
-        return output
-
-    @staticmethod
-    def load_h5(path: str):
-        return TestThetaHolderImpl(1)
+    assert theta1.equals(theta2)
 
 
 def test_samples_holder():
-    holder = TestThetaHolderImpl(3)
+    holder = ThetaHolder(3)
 
     for i in range(3):
-        sample = TestBayesianModelParamsImpl(W=np.ones((2, 2)) * i)
+        sample = TestBayesianModelParamsImpl(W=np.ones((2, 2)) * i, A=1.1)
         holder.add_theta(sample)
 
     assert holder.is_complete
@@ -75,11 +56,37 @@ def test_samples_holder():
 
 
 def test_samples_holder_concat():
-    holder = TestThetaHolderImpl.concat(
-        [TestThetaHolderImpl(3), TestThetaHolderImpl(3)]
-    )
+    holder = ThetaHolder(3)
 
-    assert len(list(holder)) == 6
+    for i in range(3):
+        sample = TestBayesianModelParamsImpl(W=np.ones((2, 2)) * i, A=1.1)
+        holder.add_theta(sample)
+
+    holder2 = ThetaHolder(3)
+
+    for i in range(3):
+        sample = TestBayesianModelParamsImpl(W=np.ones((2, 2)) * i, A=1.1)
+        holder2.add_theta(sample)
+
+    holder3 = ThetaHolder.concat([holder, holder2])
+
+    assert len(list(holder3)) == 6
+
+
+def test_samples_holder_serde():
+    holder = ThetaHolder(3)
+
+    for i in range(3):
+        sample = TestBayesianModelParamsImpl(W=np.ones((2, 2)) * i, A=1.1)
+        holder.add_theta(sample)
+
+    with tempfile.NamedTemporaryFile() as f:
+        holder.save_h5(f.name)
+
+        results_holder2 = ThetaHolder.load_h5(f.name)
+
+        assert results_holder2.get_theta(0).equals(holder.get_theta(0))
+        assert results_holder2.get_theta(1).equals(holder.get_theta(1))
 
 
 @pytest.fixture

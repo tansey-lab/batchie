@@ -1,6 +1,45 @@
 import numpy as np
 import math
 import torch
+from batchie.data import ScreenBase
+
+
+def unpack_data(data: ScreenBase, drugname2idx: dict, use_mask: bool = True):
+    if use_mask:
+        mask = data.observation_mask
+    else:
+        mask = np.ones_like(data.sample_ids, dtype=np.bool_)
+
+    sample_ids = data.sample_ids[mask]
+
+    with np.errstate(divide="ignore", invalid="ignore"):
+        log_conc1 = np.log10(data.treatment_doses[mask, 0])
+        log_conc2 = np.log10(data.treatment_doses[mask, 1])
+
+    drugname2idx_ = drugname2idx.copy()
+    drugname2idx_[data.control_treatment_name] = -1
+    drug_ids_1 = np.array(
+        [drugname2idx_[drugname] for drugname in data.treatment_names[mask, 0]]
+    )
+    drug_ids_2 = np.array(
+        [drugname2idx_[drugname] for drugname in data.treatment_names[mask, 1]]
+    )
+
+    ## Make sure all 0-dose drugs are correctly labeled as control
+    drug_ids_1[log_conc1 == -np.inf] = -1
+    drug_ids_2[log_conc2 == -np.inf] = -1
+
+    ## Make sure all negative-dose drugs are correctly labeled as control
+    drug_ids_1[np.isnan(log_conc1)] = -1
+    drug_ids_2[np.isnan(log_conc2)] = -1
+
+    ## Rearrange so that single drugs only occur in drug_ids_2
+    mask = drug_ids_1 < 0
+    drug_ids_1[mask] = drug_ids_2[mask].copy()
+    drug_ids_2[mask] = -1
+    log_conc1[mask] = log_conc2[mask].copy()
+
+    return (sample_ids, drug_ids_1, drug_ids_2, log_conc1, log_conc2)
 
 
 def interp_01_vals(x: torch.FloatTensor, n_grid: int):
@@ -96,8 +135,13 @@ class BatchIterator:
 
 
 class ConcentrationGrid:
-    def __init__(
-        self,
+    def __init__(self, conc_grid: torch.FloatTensor):
+        self.conc_grid = conc_grid
+        self.n_grid = conc_grid.shape[1]
+
+    @classmethod
+    def init_from_range(
+        cls,
         log_conc_range: dict | tuple,
         drugname2idx: dict,
         n_grid: int,
@@ -132,11 +176,13 @@ class ConcentrationGrid:
         ## Append padding values to conc_grid
         min_v = conc_grid[:, 0] - log_conc_padding
         max_v = conc_grid[:, -1] + log_conc_padding
-        self.conc_grid = torch.from_numpy(
+        conc_grid = torch.from_numpy(
             np.concatenate(
                 [min_v[:, np.newaxis], conc_grid, max_v[:, np.newaxis]], axis=1
             )
         ).float()
+
+        return cls(conc_grid=conc_grid)
 
     def lookup_conc(self, log_concs: torch.FloatTensor, drug_ids: torch.LongTensor):
         ## Look up where log concentration falls within grid

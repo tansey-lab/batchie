@@ -15,7 +15,7 @@ from batchie.core import (
     RetrospectivePlateSmoother,
 )
 from batchie.data import Screen, Plate
-from batchie.models.main import predict_avg
+from batchie.models.main import predict_viability_avg
 
 logger = logging.getLogger(__name__)
 
@@ -748,21 +748,15 @@ def reveal_plates(
     )
 
 
-def calculate_mse(
-    observed_screen: Screen,
-    model: BayesianModel,
-    thetas: ThetaHolder,
-) -> float:
+def calculate_mse(observed_screen: Screen, thetas: ThetaHolder) -> float:
     """
     Calculate the mean squared error between the masked observations and the unmasked observations
 
     :param observed_screen: A :py:class:`Screen` that is fully observed
-    :param model: The model to use for prediction
     :param thetas: The set of model parameters to use for prediction
     :return: The average mean squared error between predicted and observed values
     """
-    preds = predict_avg(
-        model=model,
+    preds = predict_viability_avg(
         screen=observed_screen,
         thetas=thetas,
     )

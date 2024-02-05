@@ -78,7 +78,7 @@ def run_benchmark():
         progress_bar=True,
     )
 
-    mse = calculate_mse(model=model, observed_screen=data, thetas=res)
+    mse = calculate_mse(observed_screen=data, thetas=res)
 
     print(mse)
     print(res.get_theta(0))
