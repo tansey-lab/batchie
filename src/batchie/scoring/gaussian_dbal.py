@@ -320,7 +320,7 @@ class GaussianDBALScorer(Scorer):
             vals = dbal_fast_gauss_scoring_vectorized(
                 predictions=padded_means,
                 variances=padded_variances,
-                distance_matrix=distance_matrix,
+                distance_matrix=dense_distance_matrix,
                 rng=rng,
                 max_combos=self.max_triples,
             )

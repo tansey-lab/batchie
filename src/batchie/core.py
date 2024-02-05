@@ -73,6 +73,29 @@ class Theta:
         """
         raise NotImplementedError
 
+    def equals(self, other):
+        print("fsdsdfsd")
+        if not isinstance(other, type(self)):
+            return False
+
+        for d1, d2 in [
+            (self.private_parameters_dict(), other.private_parameters_dict()),
+            (self.shared_parameters_dict(), other.shared_parameters_dict()),
+        ]:
+            for k, v in d1.items():
+                if k not in d2:
+                    return False
+                if isinstance(v, Number):
+                    if v != d2[k]:
+                        return False
+                elif isinstance(v, ArrayType):
+                    if not np.array_equal(v, d2[k]):
+                        return False
+                else:
+                    if v != d2[k]:
+                        return False
+        return True
+
 
 class ThetaHolder(ABC):
     """
@@ -207,8 +230,8 @@ class ThetaHolder(ABC):
         return self._n_thetas
 
     def __iter__(self):
-        for i in range(self.n_thetas):
-            yield self.get_theta(i)
+        for theta in self.thetas:
+            yield theta
 
     @property
     def is_complete(self):
@@ -320,18 +343,18 @@ class BayesianModel(ABC):
         """
         raise NotImplementedError
 
-
-class MCMCModel:
-    """
-    This class subclasses BayesianModel and implements :py:meth:`batchie.core.MCMCModel.step`
-    """
-
     @abstractmethod
     def reset_model(self):
         """
         Reset the internal state of the model to its initial state.
         """
         raise NotImplementedError
+
+
+class MCMCModel:
+    """
+    This class subclasses BayesianModel and implements :py:meth:`batchie.core.MCMCModel.step`
+    """
 
     @abstractmethod
     def get_model_state(self) -> Theta:

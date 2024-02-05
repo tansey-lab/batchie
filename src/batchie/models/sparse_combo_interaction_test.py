@@ -4,6 +4,7 @@ import numpy as np
 import pytest
 
 from batchie.data import Screen
+from batchie.core import ThetaHolder
 from batchie.models import sparse_combo_interaction
 
 
@@ -49,29 +50,6 @@ def test_step_with_observed_data(test_dataset):
     model.step()
 
 
-def test_predict_and_set_model_state(test_dataset):
-    model = sparse_combo_interaction.SparseDrugComboInteraction(
-        n_embedding_dimensions=5,
-        n_unique_treatments=test_dataset.treatment_arity,
-        n_unique_samples=test_dataset.n_unique_samples,
-    )
-    model.add_observations(test_dataset)
-    model.step()
-    sample = model.get_model_state()
-
-    prediction = model.predict(test_dataset)
-
-    assert prediction.shape == (test_dataset.size,)
-
-    model.reset_model()
-    model.set_model_state(sample)
-    prediction2 = model.predict(test_dataset)
-
-    np.testing.assert_array_equal(prediction, prediction2)
-    assert (prediction < 1).all()
-    assert (prediction > 0).all()
-
-
 def test_results_holder_serde(test_dataset):
     model = sparse_combo_interaction.SparseDrugComboInteraction(
         n_embedding_dimensions=5,
@@ -79,35 +57,20 @@ def test_results_holder_serde(test_dataset):
         n_unique_samples=test_dataset.n_unique_samples,
     )
 
-    results_holder = sparse_combo_interaction.SparseDrugComboInteractionResults(
-        n_thetas=2,
-        n_embedding_dimensions=5,
-        n_unique_treatments=test_dataset.treatment_arity,
-        n_unique_samples=test_dataset.n_unique_samples,
-    )
-    results_holder.add_theta(model.get_model_state())
-    results_holder.add_theta(model.get_model_state())
+    results_holder = ThetaHolder(2)
+    theta1 = model.get_model_state()
+    model.step()
+    theta2 = model.get_model_state()
+
+    results_holder.add_theta(theta1)
+    results_holder.add_theta(theta2)
 
     # create temporary file
 
     with tempfile.NamedTemporaryFile() as f:
         results_holder.save_h5(f.name)
 
-        results_holder2 = (
-            sparse_combo_interaction.SparseDrugComboInteractionResults.load_h5(f.name)
-        )
+        results_holder2 = ThetaHolder.load_h5(f.name)
 
-    assert results_holder2.n_unique_samples == results_holder.n_thetas
-    np.testing.assert_array_equal(results_holder2.V2, results_holder.V2)
-    np.testing.assert_array_equal(results_holder2.W, results_holder.W)
-
-    results_holder2 = sparse_combo_interaction.SparseDrugComboInteractionResults(
-        n_thetas=2,
-        n_embedding_dimensions=5,
-        n_unique_treatments=test_dataset.treatment_arity,
-        n_unique_samples=test_dataset.n_unique_samples,
-    )
-
-    results_holder2.add_theta(model.get_model_state())
-    results_holder2.add_theta(model.get_model_state())
-    assert results_holder.combine(results_holder2).n_thetas == 4
+        assert results_holder2.get_theta(0).equals(results_holder.get_theta(0))
+        assert results_holder2.get_theta(1).equals(results_holder.get_theta(1))

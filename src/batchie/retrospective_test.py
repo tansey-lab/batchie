@@ -5,7 +5,7 @@ import numpy.testing
 import pytest
 
 from batchie import retrospective
-from batchie.core import BayesianModel, ThetaHolder
+from batchie.core import BayesianModel, ThetaHolder, Theta
 from batchie.data import Screen
 
 
@@ -326,17 +326,17 @@ def test_reveal_plates_catches_nan(masked_dataset):
         )
 
 
-def test_calculate_mse(test_dataset):
-    model = mock.MagicMock(BayesianModel)
-    model.predict.return_value = 1.0
-
-    samples_holder = mock.MagicMock(ThetaHolder)
+def test_calculate_mse(test_dataset, mocker):
+    samples_holder = mocker.MagicMock(ThetaHolder)
     samples_holder.n_thetas = 10
 
+    theta = mocker.MagicMock(Theta)
+    theta.predict_viability.return_value = np.ones(test_dataset.size)
+
+    samples_holder.get_theta.return_value = theta
+
     result = retrospective.calculate_mse(
-        observed_screen=test_dataset,
-        thetas=samples_holder,
-        model=model,
+        observed_screen=test_dataset, thetas=samples_holder
     )
 
     assert result == np.mean(

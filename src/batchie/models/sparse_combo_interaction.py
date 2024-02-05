@@ -84,14 +84,16 @@ class SparseDrugComboInteractionMCMCSample(Theta):
         return params
 
     def shared_parameters_dict(self) -> dict[str, ArrayType]:
-        selk1, selk2 = zip(*list(self.single_effect_lookup.keys()))
+        dict_items = list(self.single_effect_lookup.items())
+
+        single_effect_lookup_keys1 = np.array([x[0][0] for x in dict_items])
+        single_effect_lookup_keys2 = np.array([x[0][1] for x in dict_items])
+        single_effect_lookup_vals = np.array([x[1] for x in dict_items])
 
         params = {
-            "single_effect_lookup_keys1": np.array(list(selk1)),
-            "single_effect_lookup_keys2": np.array(list(selk2)),
-            "single_effect_lookup_vals": np.array(
-                list(self.single_effect_lookup.values())
-            ),
+            "single_effect_lookup_keys1": single_effect_lookup_keys1,
+            "single_effect_lookup_keys2": single_effect_lookup_keys2,
+            "single_effect_lookup_vals": single_effect_lookup_vals,
         }
         return params
 
@@ -106,119 +108,6 @@ class SparseDrugComboInteractionMCMCSample(Theta):
         )
         res = cls(single_effect_lookup=single_effect_lookup, **private_params)
         return res
-
-
-class SparseDrugComboInteractionResults(ThetaHolder):
-    def __init__(
-        self,
-        n_unique_samples: int,
-        n_unique_treatments: int,
-        n_embedding_dimensions: int,
-        n_thetas: int,
-    ):
-        super().__init__(n_thetas)
-        self.n_unique_samples = n_unique_samples
-        self.n_unique_treatments = n_unique_treatments
-        self.n_embedding_dimensions = n_embedding_dimensions
-
-        self.V2 = np.zeros(
-            (n_thetas, self.n_unique_treatments, self.n_embedding_dimensions),
-            dtype=np.float32,
-        )
-        self.W = np.zeros(
-            (n_thetas, self.n_unique_samples, self.n_embedding_dimensions),
-            dtype=np.float32,
-        )
-
-        self.alpha = np.zeros((n_thetas,), np.float32)
-        self.precision = np.zeros((n_thetas,), np.float32)
-
-    def get_theta(self, step_index: int) -> SparseDrugComboInteractionMCMCSample:
-        """Get one sample from the MCMC chain"""
-        # Test if this is beyond the step we are current at with the cursor
-        if step_index >= self._cursor:
-            raise ValueError("Cannot get a step beyond the current cursor position")
-
-        return SparseDrugComboInteractionMCMCSample(
-            W=self.W[step_index],
-            V2=self.V2[step_index],
-            precision=self.precision[step_index].item(),
-        )
-
-    def _save_theta(
-        self,
-        sample: SparseDrugComboInteractionMCMCSample,
-        sample_index: int,
-    ):
-        self.V2[sample_index] = sample.V2
-        self.W[sample_index] = sample.W
-        self.precision[sample_index] = sample.precision
-
-    def combine(self, other):
-        if type(self) != type(other):
-            raise ValueError("Cannot combine with different type")
-
-        if self.n_embedding_dimensions != other.n_embedding_dimensions:
-            raise ValueError("Cannot combine with different embedding dimensions")
-
-        if self.n_unique_samples != other.n_unique_samples:
-            raise ValueError("Cannot combine with different number of unique samples")
-
-        if self.n_unique_treatments != other.n_unique_treatments:
-            raise ValueError(
-                "Cannot combine with different number of unique treatments"
-            )
-
-        output = SparseDrugComboInteractionResults(
-            n_unique_samples=self.n_unique_samples,
-            n_unique_treatments=self.n_unique_treatments,
-            n_embedding_dimensions=self.n_embedding_dimensions,
-            n_thetas=self.n_thetas + other.n_thetas,
-        )
-
-        for i in range(self.n_thetas):
-            sample = self.get_theta(i)
-            output.add_theta(sample)
-
-        for i in range(other.n_thetas):
-            sample = other.get_theta(i)
-            output.add_theta(sample)
-
-        return output
-
-    def save_h5(self, fn: str):
-        """Save all arrays to h5"""
-        with h5py.File(fn, "w") as f:
-            f.create_dataset("V2", data=self.V2, compression="gzip")
-            f.create_dataset("W", data=self.W, compression="gzip")
-            f.create_dataset("alpha", data=self.alpha, compression="gzip")
-            f.create_dataset("precision", data=self.precision, compression="gzip")
-
-            # Save the cursor value metadata
-            f.attrs["cursor"] = self._cursor
-
-    @staticmethod
-    def load_h5(path: str):
-        """Load saved data from h5 archive"""
-        with h5py.File(path, "r") as f:
-            n_unique_samples = f["W"].shape[1]
-            n_unique_treatments = f["V2"].shape[1]
-            n_embedding_dimensions = f["W"].shape[2]
-            n_samples = f["W"].shape[0]
-
-            results = SparseDrugComboInteractionResults(
-                n_unique_samples=n_unique_samples,
-                n_unique_treatments=n_unique_treatments,
-                n_embedding_dimensions=n_embedding_dimensions,
-                n_thetas=n_samples,
-            )
-
-            results.V2 = f["V2"][:]
-            results.W = f["W"][:]
-            results.precision = f["precision"][:]
-            results._cursor = f.attrs["cursor"]
-
-        return results
 
 
 class LegacySparseDrugComboInteractionImpl:
@@ -531,6 +420,7 @@ class SparseDrugComboInteraction(BayesianModel, MCMCModel):
             precision=self.wrapped_model.prec,
             W=self.wrapped_model.W.copy().astype(FloatingPointType),
             V2=self.wrapped_model.V2.copy().astype(FloatingPointType),
+            single_effect_lookup=self.single_effect_lookup,
         )
 
     def variance(self, data: ScreenBase) -> FloatingPointType:

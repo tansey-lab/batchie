@@ -47,9 +47,21 @@ def test_samples_holder():
 
 
 def test_samples_holder_concat():
-    holder = ThetaHolder.concat([ThetaHolder(3), ThetaHolder(3)])
+    holder = ThetaHolder(3)
 
-    assert len(list(holder)) == 6
+    for i in range(3):
+        sample = TestBayesianModelParamsImpl(W=np.ones((2, 2)) * i)
+        holder.add_theta(sample)
+
+    holder2 = ThetaHolder(3)
+
+    for i in range(3):
+        sample = TestBayesianModelParamsImpl(W=np.ones((2, 2)) * i)
+        holder2.add_theta(sample)
+
+    holder3 = ThetaHolder.concat([holder, holder2])
+
+    assert len(list(holder3)) == 6
 
 
 @pytest.fixture
