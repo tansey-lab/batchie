@@ -1,4 +1,5 @@
 import os
+import tempfile
 from dataclasses import dataclass
 
 import numpy as np
@@ -13,6 +14,7 @@ from batchie.distance_calculation import ChunkedDistanceMatrix
 @dataclass
 class TestBayesianModelParamsImpl(Theta):
     W: ArrayType
+    A: float
 
     def predict_conditional_mean(self, data: ScreenBase) -> ArrayType:
         return np.zeros(data.size)
@@ -24,18 +26,25 @@ class TestBayesianModelParamsImpl(Theta):
         return np.ones(data.size)
 
     def private_parameters_dict(self) -> dict[str, ArrayType]:
-        return self.__dict__
+        return {"W": self.W, "A": self.A}
 
     @classmethod
     def from_dicts(cls, private_params: dict, shared_params: dict):
         return cls(**private_params)
 
 
+def test_theta_equals():
+    theta1 = TestBayesianModelParamsImpl(W=np.ones((2, 2)), A=1.1)
+    theta2 = TestBayesianModelParamsImpl(W=np.ones((2, 2)), A=1.1)
+
+    assert theta1.equals(theta2)
+
+
 def test_samples_holder():
     holder = ThetaHolder(3)
 
     for i in range(3):
-        sample = TestBayesianModelParamsImpl(W=np.ones((2, 2)) * i)
+        sample = TestBayesianModelParamsImpl(W=np.ones((2, 2)) * i, A=1.1)
         holder.add_theta(sample)
 
     assert holder.is_complete
@@ -50,18 +59,34 @@ def test_samples_holder_concat():
     holder = ThetaHolder(3)
 
     for i in range(3):
-        sample = TestBayesianModelParamsImpl(W=np.ones((2, 2)) * i)
+        sample = TestBayesianModelParamsImpl(W=np.ones((2, 2)) * i, A=1.1)
         holder.add_theta(sample)
 
     holder2 = ThetaHolder(3)
 
     for i in range(3):
-        sample = TestBayesianModelParamsImpl(W=np.ones((2, 2)) * i)
+        sample = TestBayesianModelParamsImpl(W=np.ones((2, 2)) * i, A=1.1)
         holder2.add_theta(sample)
 
     holder3 = ThetaHolder.concat([holder, holder2])
 
     assert len(list(holder3)) == 6
+
+
+def test_samples_holder_serde():
+    holder = ThetaHolder(3)
+
+    for i in range(3):
+        sample = TestBayesianModelParamsImpl(W=np.ones((2, 2)) * i, A=1.1)
+        holder.add_theta(sample)
+
+    with tempfile.NamedTemporaryFile() as f:
+        holder.save_h5(f.name)
+
+        results_holder2 = ThetaHolder.load_h5(f.name)
+
+        assert results_holder2.get_theta(0).equals(holder.get_theta(0))
+        assert results_holder2.get_theta(1).equals(holder.get_theta(1))
 
 
 @pytest.fixture
