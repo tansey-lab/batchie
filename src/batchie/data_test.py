@@ -15,6 +15,7 @@ from batchie.data import (
     encode_treatment_arrays_to_0_indexed_ids,
     encode_1d_array_to_0_indexed_ids,
     filter_dataset_to_treatments_that_appear_in_at_least_one_combo,
+    ExperimentSpace,
 )
 
 
@@ -499,3 +500,25 @@ def test_filter_dataset_to_unique_treatments():
 
     assert result.size == 2
     assert result.selection_vector.tolist() == [True, False, True, False]
+
+
+def test_experiment_space():
+    experiment_space = ExperimentSpace(
+        sample_mapping=(np.array(["a", "b", "c", "d"]), np.array([0, 1, 2, 3])),
+        treatment_mapping=(
+            np.array(["a", "a", "b", "b", "control"]),
+            np.array([1.0, 2.0, 1.0, 2.0, 0]),
+            np.array([0, 1, 2, 3, -1]),
+        ),
+        control_treatment_name="control",
+    )
+
+    assert experiment_space.n_unique_treatments == 4
+    assert experiment_space.n_unique_samples == 4
+    assert experiment_space.n_unique_doses == 2
+    np.testing.assert_array_equal(
+        experiment_space.doses_for_treatment("b"), np.array([1.0, 2.0])
+    )
+    np.testing.assert_array_equal(
+        experiment_space.treatment_ids_from_treatment_name("a"), np.array([0, 1])
+    )

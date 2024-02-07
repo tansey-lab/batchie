@@ -5,6 +5,7 @@ from typing import Optional, Tuple
 import h5py
 import numpy as np
 import pandas
+from dataclasses import dataclass
 
 from batchie.common import (
     ArrayType,
@@ -225,6 +226,100 @@ def create_single_treatment_effect_array(
             ]
 
     return result
+
+
+@dataclass
+class ExperimentSpace:
+    """
+    This class represents the universe of possible experimental conditions.
+
+    Models can use this object to define the size of their embeddings etc.
+    without having to look at the full dataset.
+    """
+
+    def __init__(
+        self,
+        treatment_mapping: Optional[Tuple[ArrayType, ArrayType, ArrayType]],
+        sample_mapping: Optional[Tuple[ArrayType, ArrayType]],
+        control_treatment_name: str = "",
+    ):
+        self.treatment_mapping = treatment_mapping
+        self.sample_mapping = sample_mapping
+        self.control_treatment_name = control_treatment_name
+
+    @property
+    def n_unique_samples(self):
+        return np.unique(self.sample_mapping[0]).size
+
+    @property
+    def n_unique_treatments(self):
+        return np.unique(
+            np.setdiff1d(self.treatment_mapping[2], np.array([CONTROL_SENTINEL_VALUE]))
+        ).size
+
+    @property
+    def n_unique_treatment_types(self):
+        return np.unique(
+            np.setdiff1d(
+                self.treatment_mapping[0], np.array([self.control_treatment_name])
+            )
+        ).size
+
+    @property
+    def n_unique_doses(self):
+        return np.unique(np.setdiff1d(self.treatment_mapping[1], np.array([0.0]))).size
+
+    def doses_for_treatment(self, treatment_name: str) -> ArrayType:
+        selection = self.treatment_mapping[0] == treatment_name
+        return np.sort(np.unique(self.treatment_mapping[1][selection]))
+
+    def treatment_ids_from_treatment_name(self, treatment_name: str):
+        selection = self.treatment_mapping[0] == treatment_name
+        return np.sort(np.unique(self.treatment_mapping[2][selection]))
+
+    def sample_id_from_sample_name(self, sample_name: str):
+        selection = self.sample_mapping[0] == sample_name
+        return self.sample_mapping[1][selection].item()
+
+    def sample_name_from_sample_id(self, sample_id: str):
+        selection = self.sample_mapping[1] == sample_id
+        return self.sample_mapping[0][selection].item()
+
+    @classmethod
+    def from_screen(cls, screen: "Screen"):
+        return cls(
+            treatment_mapping=screen.treatment_mapping,
+            sample_mapping=screen.sample_mapping,
+            control_treatment_name=screen.control_treatment_name,
+        )
+
+    def save_h5(self, path: str):
+        with h5py.File(path, "w") as f:
+            f.create_dataset("treatment_names", data=self.treatment_mapping[0])
+            f.create_dataset("treatment_doses", data=self.treatment_mapping[1])
+            f.create_dataset("treatment_ids", data=self.treatment_mapping[2])
+            f.create_dataset("sample_names", data=self.sample_mapping[0])
+            f.create_dataset("sample_ids", data=self.sample_mapping[1])
+            f.attrs["control_treatment_name"] = self.control_treatment_name
+
+    @classmethod
+    def load_h5(cls, path: str):
+        with h5py.File(path, "r") as f:
+            treatment_mapping = (
+                f["treatment_names"][:],
+                f["treatment_doses"][:],
+                f["treatment_ids"][:],
+            )
+            sample_mapping = (
+                f["sample_names"][:],
+                f["sample_ids"][:],
+            )
+            control_treatment_name = f.attrs["control_treatment_name"]
+        return cls(
+            treatment_mapping=treatment_mapping,
+            sample_mapping=sample_mapping,
+            control_treatment_name=control_treatment_name,
+        )
 
 
 class ScreenBase(ABC):
