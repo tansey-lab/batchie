@@ -271,7 +271,11 @@ class ExperimentSpace:
 
     def doses_for_treatment(self, treatment_name: str) -> ArrayType:
         selection = self.treatment_mapping[0] == treatment_name
-        return np.sort(np.unique(self.treatment_mapping[1][selection]))
+        return np.sort(
+            np.unique(
+                np.setdiff1d(self.treatment_mapping[1][selection], np.array([0.0]))
+            )
+        )
 
     def treatment_ids_from_treatment_name(self, treatment_name: str):
         selection = self.treatment_mapping[0] == treatment_name
@@ -281,7 +285,7 @@ class ExperimentSpace:
         selection = self.sample_mapping[0] == sample_name
         return self.sample_mapping[1][selection].item()
 
-    def sample_name_from_sample_id(self, sample_id: str):
+    def sample_name_from_sample_id(self, sample_id: int):
         selection = self.sample_mapping[1] == sample_id
         return self.sample_mapping[0][selection].item()
 
@@ -295,10 +299,15 @@ class ExperimentSpace:
 
     def save_h5(self, path: str):
         with h5py.File(path, "w") as f:
-            f.create_dataset("treatment_names", data=self.treatment_mapping[0])
+            f.create_dataset(
+                "treatment_names",
+                data=np.char.encode(self.treatment_mapping[0].astype(str)),
+            )
             f.create_dataset("treatment_doses", data=self.treatment_mapping[1])
             f.create_dataset("treatment_ids", data=self.treatment_mapping[2])
-            f.create_dataset("sample_names", data=self.sample_mapping[0])
+            f.create_dataset(
+                "sample_names", data=np.char.encode(self.sample_mapping[0].astype(str))
+            )
             f.create_dataset("sample_ids", data=self.sample_mapping[1])
             f.attrs["control_treatment_name"] = self.control_treatment_name
 
@@ -306,12 +315,12 @@ class ExperimentSpace:
     def load_h5(cls, path: str):
         with h5py.File(path, "r") as f:
             treatment_mapping = (
-                f["treatment_names"][:],
+                np.char.decode(f["treatment_names"][:], "utf-8"),
                 f["treatment_doses"][:],
                 f["treatment_ids"][:],
             )
             sample_mapping = (
-                f["sample_names"][:],
+                np.char.decode(f["sample_names"][:], "utf-8"),
                 f["sample_ids"][:],
             )
             control_treatment_name = f.attrs["control_treatment_name"]
