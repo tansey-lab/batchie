@@ -233,7 +233,6 @@ class ChunkedDistanceMatrix(DistanceMatrix):
 
 
 def calculate_pairwise_distance_matrix_on_predictions(
-    model: BayesianModel,
     thetas: ThetaHolder,
     distance_metric: DistanceMetric,
     data: Screen,
@@ -251,7 +250,6 @@ def calculate_pairwise_distance_matrix_on_predictions(
     If n_chunks > 1, then the distance matrix is split into n_chunks roughly equal chunks, and only the chunk with
     index chunk_index is calculated. This is useful for parallelization.
 
-    :param model: The model to use for prediction
     :param thetas: The set of model parameters to use for prediction
     :param distance_metric: The distance metric to use
     :param data: The data to predict

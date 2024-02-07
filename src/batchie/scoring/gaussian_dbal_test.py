@@ -339,7 +339,6 @@ def test_gaussian_dbal_scorer(mocker, unobserved_dataset, chunked_distance_matri
     )
 
     result = scorer.score(
-        model=model,
         plates=plates,
         distance_matrix=chunked_distance_matrix,
         samples=theta_holder,
@@ -383,7 +382,6 @@ def test_gaussian_dbal_scorer_subsets(
     )
 
     result = scorer.score(
-        model=model,
         plates=subsets,
         distance_matrix=chunked_distance_matrix,
         samples=theta_holder,
@@ -417,7 +415,6 @@ def test_gaussian_dbal_scorer_empty(
     theta_holder.get_theta.return_value = theta
 
     res = scorer.score(
-        model=model,
         plates={},
         distance_matrix=chunked_distance_matrix,
         samples=theta_holder,

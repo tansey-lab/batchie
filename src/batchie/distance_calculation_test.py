@@ -49,7 +49,6 @@ def test_calculate_pairwise_distance_matrix_on_predictions(test_dataset):
     samples_holder.n_thetas = 3
 
     result = distance_calculation.calculate_pairwise_distance_matrix_on_predictions(
-        model=mock.MagicMock(BayesianModel),
         thetas=samples_holder,
         distance_metric=mock.MagicMock(DistanceMetric),
         data=test_dataset,
@@ -60,7 +59,6 @@ def test_calculate_pairwise_distance_matrix_on_predictions(test_dataset):
     assert not result.is_complete()
 
     result2 = distance_calculation.calculate_pairwise_distance_matrix_on_predictions(
-        model=mock.MagicMock(BayesianModel),
         thetas=samples_holder,
         distance_metric=mock.MagicMock(DistanceMetric),
         data=test_dataset,

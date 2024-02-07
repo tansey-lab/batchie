@@ -44,10 +44,6 @@ def test_main(mocker, test_dataset, test_dist_matrix):
     tmpdir = tempfile.mkdtemp()
     command_line_args = [
         "calculate_scores",
-        "--model",
-        "SparseDrugCombo",
-        "--model-param",
-        "n_embedding_dimensions=2",
         "--scorer",
         "RandomScorer",
         "--data",
@@ -100,10 +96,6 @@ def test_main_exclude(mocker, test_dataset, test_dist_matrix):
     tmpdir = tempfile.mkdtemp()
     command_line_args = [
         "calculate_scores",
-        "--model",
-        "SparseDrugCombo",
-        "--model-param",
-        "n_embedding_dimensions=2",
         "--scorer",
         "RandomScorer",
         "--data",

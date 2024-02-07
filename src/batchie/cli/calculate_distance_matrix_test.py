@@ -12,10 +12,6 @@ def test_main_complete(mocker, test_combo_dataset):
     tmpdir = tempfile.mkdtemp()
     command_line_args = [
         "train_model",
-        "--model",
-        "SparseDrugCombo",
-        "--model-param",
-        "n_embedding_dimensions=2",
         "--distance-metric",
         "MSEDistance",
         "--n-chunks",
@@ -64,10 +60,6 @@ def test_main_partial(mocker, test_combo_dataset):
         tmpdir = tempfile.mkdtemp()
         command_line_args = [
             "train_model",
-            "--model",
-            "SparseDrugCombo",
-            "--model-param",
-            "n_embedding_dimensions=2",
             "--distance-metric",
             "MSEDistance",
             "--n-chunks",

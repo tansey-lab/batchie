@@ -5,9 +5,9 @@ from batchie import introspection
 from batchie import log_config
 from batchie import sampling
 from batchie.cli.argument_parsing import KVAppendAction, cast_dict_to_type
-from batchie.common import N_UNIQUE_SAMPLES, N_UNIQUE_TREATMENTS
+from batchie.common import EXPERIMENT_SPACE
 from batchie.core import BayesianModel, ThetaHolder
-from batchie.data import Screen
+from batchie.data import Screen, ExperimentSpace
 
 logger = logging.getLogger(__name__)
 
@@ -112,8 +112,9 @@ def main():
 
     data = Screen.load_h5(args.data)
 
-    args.model_params[N_UNIQUE_SAMPLES] = data.sample_space_size
-    args.model_params[N_UNIQUE_TREATMENTS] = data.treatment_space_size
+    experiment_space = ExperimentSpace.from_screen(data)
+
+    args.model_params[EXPERIMENT_SPACE] = experiment_space
 
     model: BayesianModel = args.model_cls(**args.model_params)
 

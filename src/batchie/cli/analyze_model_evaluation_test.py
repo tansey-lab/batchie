@@ -33,10 +33,6 @@ def test_main(mocker, dataset):
     tmpdir = tempfile.mkdtemp()
     command_line_args = [
         "evaluate_model",
-        "--model",
-        "SparseDrugCombo",
-        "--model-param",
-        "n_embedding_dimensions=5",
         "--model-evaluation",
         os.path.join(tmpdir, "model_evaluation.h5"),
         "--screen",

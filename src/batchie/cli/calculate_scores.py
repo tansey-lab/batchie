@@ -49,21 +49,6 @@ def get_parser():
         type=int,
         default=0,
     )
-
-    parser.add_argument(
-        "--model",
-        help="Fully qualified name of the model class to use.",
-        type=str,
-        required=True,
-    )
-    parser.add_argument(
-        "--model-param",
-        nargs=1,
-        action=KVAppendAction,
-        metavar="KEY=VALUE",
-        help="Model parameters",
-    )
-
     parser.add_argument(
         "--scorer",
         help="Fully qualified name of the scorer class to use.",
@@ -104,19 +89,6 @@ def get_args():
 
     args = parser.parse_args()
 
-    args.model_cls = introspection.get_class(
-        package_name="batchie", class_name=args.model, base_class=BayesianModel
-    )
-
-    required_args = introspection.get_required_init_args_with_annotations(
-        args.model_cls
-    )
-
-    if not args.model_param:
-        args.model_params = {}
-    else:
-        args.model_params = cast_dict_to_type(args.model_param, required_args)
-
     args.scorer_cls = introspection.get_class(
         package_name="batchie", class_name=args.scorer, base_class=Scorer
     )
@@ -138,13 +110,6 @@ def main():
     log_config.configure_logging(args)
 
     screen = Screen.load_h5(args.data)
-
-    args.model_params[N_UNIQUE_SAMPLES] = screen.sample_space_size
-    args.model_params[N_UNIQUE_TREATMENTS] = screen.treatment_space_size
-
-    model: BayesianModel = args.model_cls(**args.model_params)
-
-    model.add_observations(screen.subset_observed())
 
     scorer: Scorer = args.scorer_cls(**args.scorer_params)
 
@@ -170,14 +135,13 @@ def main():
     )
 
     result = score_chunk(
-        model=model,
         scorer=scorer,
-        distance_matrix=distance_matrix,
         thetas=thetas,
         screen=screen,
-        chunk_index=args.chunk_index,
-        n_chunks=args.n_chunks,
+        distance_matrix=distance_matrix,
         progress_bar=args.progress,
+        n_chunks=args.n_chunks,
+        chunk_index=args.chunk_index,
         batch_plate_ids=args.batch_plate_ids,
     )
 
