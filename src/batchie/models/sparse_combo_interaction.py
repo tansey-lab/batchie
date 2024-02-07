@@ -1,11 +1,9 @@
 import logging
 import warnings
 from collections import defaultdict
-from typing import Optional
+from dataclasses import dataclass
 
 import numpy as np
-import h5py
-from numpy.random import Generator
 from scipy.special import logit
 
 from batchie.common import (
@@ -18,11 +16,9 @@ from batchie.core import (
     BayesianModel,
     MCMCModel,
     Theta,
-    ThetaHolder,
 )
-from batchie.data import ScreenBase, create_single_treatment_effect_map
+from batchie.data import ScreenBase, create_single_treatment_effect_map, ExperimentSpace
 from batchie.fast_mvn import sample_mvn_from_precision
-from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
 
@@ -389,9 +385,8 @@ class LegacySparseDrugComboInteractionImpl:
 class SparseDrugComboInteraction(BayesianModel, MCMCModel):
     def __init__(
         self,
+        experiment_space: ExperimentSpace,
         n_embedding_dimensions: int,  # embedding dimension
-        n_unique_treatments: int,  # number of total drug/doses
-        n_unique_samples: int,  # number of total cell lines
         mult_gamma_proc: bool = True,
         local_shrinkage: bool = True,
         a0: float = 1.1,  # gamma prior hyperparmas for all precisions
@@ -400,13 +395,13 @@ class SparseDrugComboInteraction(BayesianModel, MCMCModel):
         max_Mu: float = 10.0,
     ):
         self.n_embedding_dimensions = n_embedding_dimensions
-        self.n_unique_treatments = n_unique_treatments
-        self.n_unique_samples = n_unique_samples
+        self.n_unique_treatments = experiment_space.n_unique_treatments
+        self.n_unique_samples = experiment_space.n_unique_samples
         self.single_effect_lookup = {}
         self.wrapped_model = LegacySparseDrugComboInteractionImpl(
             n_dims=n_embedding_dimensions,
-            n_drugdoses=n_unique_treatments,
-            n_clines=n_unique_samples,
+            n_drugdoses=self.n_unique_treatments,
+            n_clines=self.n_unique_samples,
             mult_gamma_proc=mult_gamma_proc,
             local_shrinkage=local_shrinkage,
             a0=a0,
@@ -422,9 +417,6 @@ class SparseDrugComboInteraction(BayesianModel, MCMCModel):
             V2=self.wrapped_model.V2.copy().astype(FloatingPointType),
             single_effect_lookup=self.single_effect_lookup,
         )
-
-    def variance(self, data: ScreenBase) -> FloatingPointType:
-        return 1.0 / self.wrapped_model.prec
 
     def step(self):
         self.wrapped_model.mcmc_step()

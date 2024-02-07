@@ -1,25 +1,25 @@
 import logging
 import warnings
 from collections import defaultdict
-from typing import Optional
 from dataclasses import dataclass
-import h5py
+from typing import Optional
+
 import numpy as np
 from numpy.random import Generator
 from scipy.special import logit, expit
 
-from batchie.core import (
-    BayesianModel,
-    MCMCModel,
-    Theta,
-)
-from batchie.data import ScreenBase
-from batchie.fast_mvn import sample_mvn_from_precision
 from batchie.common import (
     ArrayType,
     copy_array_with_control_treatments_set_to_zero,
     FloatingPointType,
 )
+from batchie.core import (
+    BayesianModel,
+    MCMCModel,
+    Theta,
+)
+from batchie.data import ScreenBase, ExperimentSpace
+from batchie.fast_mvn import sample_mvn_from_precision
 
 logger = logging.getLogger(__name__)
 
@@ -586,9 +586,8 @@ class LegacySparseDrugComboImpl:
 class SparseDrugCombo(BayesianModel, MCMCModel):
     def __init__(
         self,
-        n_embedding_dimensions: int,  # embedding dimension
-        n_unique_treatments: int,  # number of total drug/doses
-        n_unique_samples: int,  # number of total cell lines
+        experiment_space: ExperimentSpace,
+        n_embedding_dimensions: int,
         fake_intercept: bool = True,  # instead of sample fix to mean
         individual_eff: bool = True,
         mult_gamma_proc: bool = True,
@@ -603,15 +602,15 @@ class SparseDrugCombo(BayesianModel, MCMCModel):
         intercept: bool = True,
     ):
         self.n_embedding_dimensions = n_embedding_dimensions
-        self.n_unique_treatments = n_unique_treatments
-        self.n_unique_samples = n_unique_samples
+        self.n_unique_treatments = experiment_space.n_unique_treatments
+        self.n_unique_samples = experiment_space.n_unique_samples
         self._rng = rng
         self.predict_interactions = predict_interactions
         self.interaction_log_transform = interaction_log_transform
         self.wrapped_model = LegacySparseDrugComboImpl(
             n_dims=n_embedding_dimensions,
-            n_drugdoses=n_unique_treatments,
-            n_clines=n_unique_samples,
+            n_drugdoses=self.n_unique_treatments,
+            n_clines=self.n_unique_samples,
             intercept=intercept,
             fake_intercept=fake_intercept,
             individual_eff=individual_eff,

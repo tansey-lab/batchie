@@ -125,28 +125,26 @@ def test_score_chunk(test_screen):
     scorer = mock.MagicMock(spec=Scorer)
     scorer.score.return_value = {0: 0.1}
     result = main.score_chunk(
-        model=mock.MagicMock(spec=BayesianModel),
         scorer=scorer,
         thetas=mock.MagicMock(ThetaHolder),
         screen=test_screen,
         distance_matrix=mock.MagicMock(ChunkedDistanceMatrix),
         progress_bar=True,
-        chunk_index=0,
         n_chunks=3,
+        chunk_index=0,
     )
 
     assert result.scores.shape == (1,)
 
     scorer.score.return_value = {0: 0.1, 1: 0.2}
     result = main.score_chunk(
-        model=mock.MagicMock(spec=BayesianModel),
         scorer=scorer,
         thetas=mock.MagicMock(ThetaHolder),
         screen=test_screen,
         distance_matrix=mock.MagicMock(ChunkedDistanceMatrix),
         progress_bar=True,
-        chunk_index=0,
         n_chunks=1,
+        chunk_index=0,
     )
 
     assert result.scores.shape == (2,)
@@ -156,14 +154,13 @@ def test_score_chunk_with_batch_plate_ids(test_screen):
     scorer = mock.MagicMock(spec=Scorer)
     scorer.score.return_value = {0: 0.1}
     result = main.score_chunk(
-        model=mock.MagicMock(spec=BayesianModel),
         scorer=scorer,
         thetas=mock.MagicMock(ThetaHolder),
         screen=test_screen,
         distance_matrix=mock.MagicMock(ChunkedDistanceMatrix),
         progress_bar=True,
-        chunk_index=0,
         n_chunks=1,
+        chunk_index=0,
         batch_plate_ids=[0],
     )
 

@@ -142,7 +142,6 @@ def select_next_plate(
 
 
 def score_chunk(
-    model: BayesianModel,
     scorer: Scorer,
     thetas: ThetaHolder,
     screen: Screen,
@@ -156,7 +155,6 @@ def score_chunk(
     """
     Score a subset of all unobserved plates in a screen.
 
-    :param model: The model to use for scoring
     :param scorer: The scorer to use for scoring
     :param thetas: The samples to use for scoring
     :param screen: The screen to score
@@ -209,10 +207,9 @@ def score_chunk(
 
     scores: dict[int, float] = scorer.score(
         plates=plates_to_score,
-        model=model,
+        distance_matrix=distance_matrix,
         samples=thetas,
         rng=rng,
-        distance_matrix=distance_matrix,
         progress_bar=progress_bar,
     )
 

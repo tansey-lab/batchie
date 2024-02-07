@@ -1,12 +1,10 @@
 import argparse
+import json
 import logging
 import os
-import json
 
-from batchie import introspection, log_config, plotting
-from batchie.cli.argument_parsing import KVAppendAction, cast_dict_to_type
-from batchie.common import N_UNIQUE_SAMPLES, N_UNIQUE_TREATMENTS
-from batchie.core import BayesianModel, ThetaHolder
+from batchie import log_config, plotting
+from batchie.core import ThetaHolder
 from batchie.data import Screen
 from batchie.models.main import ModelEvaluation, correlation_matrix
 
@@ -38,23 +36,10 @@ def get_parser():
         nargs="+",
     )
     parser.add_argument(
-        "--model",
-        help="Fully qualified name of the BayesianModel class to use.",
-        type=str,
-        required=True,
-    )
-    parser.add_argument(
         "--output-dir",
         help="Output directory.",
         type=str,
         required=True,
-    )
-    parser.add_argument(
-        "--model-param",
-        nargs=1,
-        action=KVAppendAction,
-        metavar="KEY=VALUE",
-        help="Model parameters",
     )
     parser.add_argument(
         "--seed",
@@ -70,19 +55,6 @@ def get_args():
 
     args = parser.parse_args()
 
-    args.model_cls = introspection.get_class(
-        package_name="batchie", class_name=args.model, base_class=BayesianModel
-    )
-
-    required_args = introspection.get_required_init_args_with_annotations(
-        args.model_cls
-    )
-
-    if not args.model_param:
-        args.model_params = {}
-    else:
-        args.model_params = cast_dict_to_type(args.model_param, required_args)
-
     return args
 
 
@@ -91,15 +63,6 @@ def main():
 
     os.makedirs(args.output_dir, exist_ok=True)
     log_config.configure_logging(args)
-
-    screen = Screen.load_h5(args.screen)
-
-    args.model_params[N_UNIQUE_SAMPLES] = screen.n_unique_samples
-    args.model_params[N_UNIQUE_TREATMENTS] = screen.n_unique_treatments
-
-    model: BayesianModel = args.model_cls(**args.model_params)
-
-    model.add_observations(screen.subset_observed())
 
     theta_holder: ThetaHolder = ThetaHolder(n_thetas=1)
 

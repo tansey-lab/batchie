@@ -1,14 +1,12 @@
-import h5py
-import numpy as np
 import math
-from numbers import Number
 from itertools import combinations
 
+import h5py
+import numpy as np
 import pandas
 
-from batchie.common import FloatingPointType, ArrayType, CONTROL_SENTINEL_VALUE
+from batchie.common import FloatingPointType, ArrayType
 from batchie.core import (
-    BayesianModel,
     ThetaHolder,
 )
 from batchie.data import ScreenBase, Screen

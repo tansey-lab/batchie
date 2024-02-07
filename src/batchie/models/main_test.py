@@ -1,12 +1,12 @@
 import os
 import shutil
 import tempfile
-import pytest
+
 import numpy as np
+import pytest
 
 from batchie.common import FloatingPointType
 from batchie.core import (
-    BayesianModel,
     Theta,
     ThetaHolder,
 )

@@ -6,10 +6,10 @@ import numpy as np
 import pytest
 
 from batchie.cli import evaluate_model
+from batchie.core import ThetaHolder
 from batchie.data import Screen
 from batchie.models.main import ModelEvaluation
 from batchie.models.sparse_combo import SparseDrugComboMCMCSample
-from batchie.core import ThetaHolder
 
 
 @pytest.fixture
@@ -50,10 +50,6 @@ def test_main(mocker, training_dataset, test_dataset):
     tmpdir = tempfile.mkdtemp()
     command_line_args = [
         "evaluate_model",
-        "--model",
-        "SparseDrugCombo",
-        "--model-param",
-        "n_embedding_dimensions=5",
         "--screen",
         os.path.join(tmpdir, "test.screen.h5"),
         "--thetas",

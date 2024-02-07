@@ -264,7 +264,6 @@ class GaussianDBALScorer(Scorer):
 
     def score(
         self,
-        model: BayesianModel,
         plates: dict[int, ScreenSubset],
         distance_matrix: ChunkedDistanceMatrix,
         samples: ThetaHolder,

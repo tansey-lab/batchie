@@ -15,6 +15,7 @@ from batchie.data import (
     encode_treatment_arrays_to_0_indexed_ids,
     encode_1d_array_to_0_indexed_ids,
     filter_dataset_to_treatments_that_appear_in_at_least_one_combo,
+    ExperimentSpace,
 )
 
 
@@ -499,3 +500,71 @@ def test_filter_dataset_to_unique_treatments():
 
     assert result.size == 2
     assert result.selection_vector.tolist() == [True, False, True, False]
+
+
+def test_experiment_space():
+    experiment_space = ExperimentSpace(
+        sample_mapping=(np.array(["a", "b", "c", "d"]), np.array([0, 1, 2, 3])),
+        treatment_mapping=(
+            np.array(["a", "a", "b", "b", "control"]),
+            np.array([1.0, 2.0, 1.0, 2.0, 0]),
+            np.array([0, 1, 2, 3, -1]),
+        ),
+        control_treatment_name="control",
+    )
+
+    assert experiment_space.n_unique_treatments == 4
+    assert experiment_space.n_unique_samples == 4
+    assert experiment_space.n_unique_doses == 2
+    np.testing.assert_array_equal(
+        experiment_space.doses_for_treatment("b"), np.array([1.0, 2.0])
+    )
+    np.testing.assert_array_equal(
+        experiment_space.treatment_ids_from_treatment_name("a"), np.array([0, 1])
+    )
+    assert experiment_space.sample_id_from_sample_name("a") == 0
+    assert experiment_space.sample_name_from_sample_id(0) == "a"
+
+
+def test_experiment_space_from_screen():
+    screen = Screen(
+        observations=np.array([0.1, 0.2, 0, 0]),
+        observation_mask=np.array([True, True, False, False]),
+        sample_names=np.array(["a", "b", "c", "d"], dtype=str),
+        plate_names=np.array(["a", "a", "b", "b"], dtype=str),
+        treatment_names=np.array(
+            [["a", "b"], ["a", "b"], ["a", "b"], ["a", "b"]], dtype=str
+        ),
+        treatment_doses=np.array([[2.0, 2.0], [1.0, 2.0], [2.0, 1.0], [2.0, 0]]),
+    )
+
+    result = ExperimentSpace.from_screen(screen)
+    assert result.n_unique_treatments == 4
+    assert result.n_unique_samples == 4
+    assert result.n_unique_doses == 2
+    assert result.doses_for_treatment("b").tolist() == [1.0, 2.0]
+
+
+def test_serialize_experiment_space():
+    experiment_space = ExperimentSpace(
+        sample_mapping=(np.array(["a", "b", "c", "d"]), np.array([0, 1, 2, 3])),
+        treatment_mapping=(
+            np.array(["a", "a", "b", "b", "control"], dtype=str),
+            np.array([1.0, 2.0, 1.0, 2.0, 0]),
+            np.array([0, 1, 2, 3, -1]),
+        ),
+        control_treatment_name="control",
+    )
+
+    tmpdir = tempfile.mkdtemp()
+
+    try:
+        fn = os.path.join(tmpdir, "test.h5")
+        experiment_space.save_h5(fn)
+        loaded = ExperimentSpace.load_h5(fn)
+        assert loaded.n_unique_treatments == 4
+        assert loaded.n_unique_samples == 4
+        assert loaded.n_unique_doses == 2
+        assert loaded.doses_for_treatment("b").tolist() == [1.0, 2.0]
+    finally:
+        shutil.rmtree(tmpdir)

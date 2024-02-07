@@ -47,10 +47,9 @@ def test_size_scorer(test_dataset):
 
     result = size.SizeScorer().score(
         plates={x.plate_id: x for x in test_dataset.plates},
-        samples=mock.MagicMock(),
         distance_matrix=mock.MagicMock(),
+        samples=mock.MagicMock(),
         rng=rng,
-        model=mock.MagicMock(),
         progress_bar=False,
     )
 

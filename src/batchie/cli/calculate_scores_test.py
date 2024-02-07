@@ -6,11 +6,11 @@ import numpy as np
 import pytest
 
 from batchie.cli import calculate_scores
+from batchie.core import ThetaHolder
 from batchie.data import Screen
 from batchie.distance_calculation import ChunkedDistanceMatrix
 from batchie.models.sparse_combo import SparseDrugComboMCMCSample
 from batchie.scoring.main import ChunkedScoresHolder
-from batchie.core import ThetaHolder
 
 
 @pytest.fixture
@@ -44,10 +44,6 @@ def test_main(mocker, test_dataset, test_dist_matrix):
     tmpdir = tempfile.mkdtemp()
     command_line_args = [
         "calculate_scores",
-        "--model",
-        "SparseDrugCombo",
-        "--model-param",
-        "n_embedding_dimensions=2",
         "--scorer",
         "RandomScorer",
         "--data",
@@ -100,10 +96,6 @@ def test_main_exclude(mocker, test_dataset, test_dist_matrix):
     tmpdir = tempfile.mkdtemp()
     command_line_args = [
         "calculate_scores",
-        "--model",
-        "SparseDrugCombo",
-        "--model-param",
-        "n_embedding_dimensions=2",
         "--scorer",
         "RandomScorer",
         "--data",

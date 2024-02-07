@@ -1,10 +1,11 @@
-import numpy as np
-import pytest
 import tempfile
 
-from batchie.data import Screen
-from batchie.models import sparse_combo
+import numpy as np
+import pytest
+
 from batchie.core import ThetaHolder
+from batchie.data import Screen, ExperimentSpace
+from batchie.models import sparse_combo
 
 
 @pytest.fixture
@@ -40,8 +41,10 @@ def test_dataset():
 
 
 def test_sparse_drug_combo_mcmc_step_with_observed_data(test_dataset):
+    experiment_space = ExperimentSpace.from_screen(test_dataset)
+
     model = sparse_combo.SparseDrugCombo(
-        n_embedding_dimensions=5, n_unique_treatments=2, n_unique_samples=2
+        n_embedding_dimensions=5, experiment_space=experiment_space
     )
 
     model.add_observations(test_dataset)
@@ -50,8 +53,10 @@ def test_sparse_drug_combo_mcmc_step_with_observed_data(test_dataset):
 
 
 def test_sparse_drug_combo_refuses_to_accept_bad_observations(test_dataset):
+    experiment_space = ExperimentSpace.from_screen(test_dataset)
+
     model = sparse_combo.SparseDrugCombo(
-        n_embedding_dimensions=5, n_unique_treatments=2, n_unique_samples=2
+        n_embedding_dimensions=5, experiment_space=experiment_space
     )
 
     test_dataset.observations[0] = -1
@@ -66,8 +71,10 @@ def test_sparse_drug_combo_refuses_to_accept_bad_observations(test_dataset):
 
 
 def test_sparse_drug_combo_mcmc_step_without_observed_data(test_dataset):
+    experiment_space = ExperimentSpace.from_screen(test_dataset)
+
     model = sparse_combo.SparseDrugCombo(
-        n_embedding_dimensions=5, n_unique_treatments=5, n_unique_samples=5
+        n_embedding_dimensions=5, experiment_space=experiment_space
     )
 
     model.step()
@@ -78,10 +85,11 @@ def test_sparse_drug_combo_mcmc_step_without_observed_data(test_dataset):
     [(True, True), (False, False), (True, False), (False, True)],
 )
 def test_predict(test_dataset, predict_interactions, interaction_log_transform):
+    experiment_space = ExperimentSpace.from_screen(test_dataset)
+
     model = sparse_combo.SparseDrugCombo(
         n_embedding_dimensions=5,
-        n_unique_treatments=test_dataset.treatment_arity,
-        n_unique_samples=test_dataset.n_unique_samples,
+        experiment_space=experiment_space,
         predict_interactions=predict_interactions,
         interaction_log_transform=interaction_log_transform,
     )
@@ -102,10 +110,11 @@ def test_predict(test_dataset, predict_interactions, interaction_log_transform):
     [(True, True), (False, False), (True, False), (False, True)],
 )
 def test_variance(test_dataset, predict_interactions, interaction_log_transform):
+    experiment_space = ExperimentSpace.from_screen(test_dataset)
+
     model = sparse_combo.SparseDrugCombo(
         n_embedding_dimensions=5,
-        n_unique_treatments=test_dataset.treatment_arity,
-        n_unique_samples=test_dataset.n_unique_samples,
+        experiment_space=experiment_space,
         predict_interactions=predict_interactions,
         interaction_log_transform=interaction_log_transform,
     )
@@ -118,10 +127,11 @@ def test_variance(test_dataset, predict_interactions, interaction_log_transform)
 
 
 def test_results_holder_accumulate(test_dataset):
+    experiment_space = ExperimentSpace.from_screen(test_dataset)
+
     model = sparse_combo.SparseDrugCombo(
         n_embedding_dimensions=5,
-        n_unique_treatments=test_dataset.treatment_arity,
-        n_unique_samples=test_dataset.n_unique_samples,
+        experiment_space=experiment_space,
     )
 
     results_holder = ThetaHolder(n_thetas=2)
@@ -133,10 +143,11 @@ def test_results_holder_accumulate(test_dataset):
 
 
 def test_results_holder_serde(test_dataset):
+    experiment_space = ExperimentSpace.from_screen(test_dataset)
+
     model = sparse_combo.SparseDrugCombo(
         n_embedding_dimensions=5,
-        n_unique_treatments=test_dataset.treatment_arity,
-        n_unique_samples=test_dataset.n_unique_samples,
+        experiment_space=experiment_space,
     )
 
     results_holder = ThetaHolder(n_thetas=2)
