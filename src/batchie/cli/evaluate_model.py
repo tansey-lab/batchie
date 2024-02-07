@@ -3,12 +3,9 @@ import logging
 
 import numpy as np
 
-from batchie import introspection
 from batchie import log_config
-from batchie.cli.argument_parsing import KVAppendAction, cast_dict_to_type
-from batchie.common import EXPERIMENT_SPACE
-from batchie.core import BayesianModel, ThetaHolder
-from batchie.data import Screen, ExperimentSpace
+from batchie.core import ThetaHolder
+from batchie.data import Screen
 from batchie.models.main import predict_viability_all, ModelEvaluation
 
 logger = logging.getLogger(__name__)

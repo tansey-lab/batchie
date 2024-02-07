@@ -6,11 +6,11 @@ import numpy as np
 import pytest
 
 from batchie.cli import calculate_scores
+from batchie.core import ThetaHolder
 from batchie.data import Screen
 from batchie.distance_calculation import ChunkedDistanceMatrix
 from batchie.models.sparse_combo import SparseDrugComboMCMCSample
 from batchie.scoring.main import ChunkedScoresHolder
-from batchie.core import ThetaHolder
 
 
 @pytest.fixture

@@ -1,6 +1,8 @@
-import numpy as np
 import math
+
+import numpy as np
 import torch
+
 from batchie.data import ScreenBase
 
 

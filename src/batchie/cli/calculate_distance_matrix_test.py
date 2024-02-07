@@ -1,11 +1,13 @@
 import os.path
 import shutil
 import tempfile
+
 import numpy as np
+
 from batchie.cli import calculate_distance_matrix
+from batchie.core import ThetaHolder
 from batchie.distance_calculation import ChunkedDistanceMatrix
 from batchie.models.sparse_combo import SparseDrugComboMCMCSample
-from batchie.core import ThetaHolder
 
 
 def test_main_complete(mocker, test_combo_dataset):

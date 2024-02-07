@@ -6,10 +6,10 @@ import numpy as np
 import pytest
 
 from batchie.cli import evaluate_model
+from batchie.core import ThetaHolder
 from batchie.data import Screen
 from batchie.models.main import ModelEvaluation
 from batchie.models.sparse_combo import SparseDrugComboMCMCSample
-from batchie.core import ThetaHolder
 
 
 @pytest.fixture

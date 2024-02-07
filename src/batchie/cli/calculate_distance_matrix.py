@@ -4,8 +4,7 @@ import logging
 from batchie import introspection
 from batchie import log_config
 from batchie.cli.argument_parsing import KVAppendAction, cast_dict_to_type
-from batchie.common import N_UNIQUE_SAMPLES, N_UNIQUE_TREATMENTS
-from batchie.core import DistanceMetric, BayesianModel, ThetaHolder
+from batchie.core import DistanceMetric, ThetaHolder
 from batchie.data import Screen
 from batchie.distance_calculation import (
     calculate_pairwise_distance_matrix_on_predictions,

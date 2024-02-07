@@ -5,8 +5,8 @@ import tempfile
 import numpy as np
 import pytest
 
-from batchie.core import ThetaHolder
 from batchie.cli import analyze_model_evaluation
+from batchie.core import ThetaHolder
 from batchie.data import Screen
 from batchie.models.main import ModelEvaluation
 from batchie.models.sparse_combo import SparseDrugComboMCMCSample

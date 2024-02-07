@@ -1,30 +1,28 @@
-from batchie.common import ArrayType
-import numpy as np
-import math
 from dataclasses import dataclass
-import h5py
 
+import numpy as np
+import pyro
+import pyro.distributions as dist
+import torch
+from numpy.random._generator import Generator as Generator
+from pyro.infer import Predictive
+from pyro.infer.autoguide import AutoLowRankMultivariateNormal
+from torch.nn.functional import softplus
+from tqdm import tqdm
+
+from batchie.common import ArrayType
 from batchie.core import (
     BayesianModel,
     VIModel,
     Theta,
-    ThetaHolder,
 )
-from numpy.random._generator import Generator as Generator
-import torch
-from torch.nn.functional import softplus
-import pyro
-import pyro.distributions as dist
-from pyro.infer import Predictive
-from pyro.infer.autoguide import AutoLowRankMultivariateNormal
-from batchie.data import ScreenBase
+from batchie.data import ScreenBase, ExperimentSpace
 from batchie.models.grid_helper import (
     unpack_data,
     interp_01_vals,
     BatchIterator,
     ConcentrationGrid,
 )
-from tqdm import tqdm
 
 
 @dataclass
@@ -383,6 +381,7 @@ def scale_combo(
 class ComboGridFactorModel(BayesianModel, VIModel):
     def __init__(
         self,
+        experiment_space: ExperimentSpace,
         n_unique_samples: int,
         unique_drug_names: np.ndarray,
         log_conc_range: dict | tuple,

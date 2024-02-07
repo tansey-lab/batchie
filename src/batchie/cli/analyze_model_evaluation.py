@@ -1,7 +1,7 @@
 import argparse
+import json
 import logging
 import os
-import json
 
 from batchie import log_config, plotting
 from batchie.core import ThetaHolder
