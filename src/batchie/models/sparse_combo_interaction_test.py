@@ -3,8 +3,8 @@ import tempfile
 import numpy as np
 import pytest
 
-from batchie.data import Screen
 from batchie.core import ThetaHolder
+from batchie.data import Screen, ExperimentSpace
 from batchie.models import sparse_combo_interaction
 
 
@@ -41,8 +41,11 @@ def test_dataset():
 
 
 def test_step_with_observed_data(test_dataset):
+    experiment_space = ExperimentSpace.from_screen(test_dataset)
+
     model = sparse_combo_interaction.SparseDrugComboInteraction(
-        n_embedding_dimensions=5, n_unique_treatments=2, n_unique_samples=4
+        n_embedding_dimensions=5,
+        experiment_space=experiment_space,
     )
 
     model.add_observations(test_dataset)
@@ -51,10 +54,12 @@ def test_step_with_observed_data(test_dataset):
 
 
 def test_results_holder_serde(test_dataset):
+
+    experiment_space = ExperimentSpace.from_screen(test_dataset)
+
     model = sparse_combo_interaction.SparseDrugComboInteraction(
         n_embedding_dimensions=5,
-        n_unique_treatments=test_dataset.treatment_arity,
-        n_unique_samples=test_dataset.n_unique_samples,
+        experiment_space=experiment_space,
     )
 
     results_holder = ThetaHolder(2)

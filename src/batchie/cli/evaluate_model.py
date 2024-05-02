@@ -3,11 +3,8 @@ import logging
 
 import numpy as np
 
-from batchie import introspection
 from batchie import log_config
-from batchie.cli.argument_parsing import KVAppendAction, cast_dict_to_type
-from batchie.common import N_UNIQUE_SAMPLES, N_UNIQUE_TREATMENTS
-from batchie.core import BayesianModel, ThetaHolder
+from batchie.core import ThetaHolder
 from batchie.data import Screen
 from batchie.models.main import predict_viability_all, ModelEvaluation
 
@@ -33,23 +30,10 @@ def get_parser():
         nargs="+",
     )
     parser.add_argument(
-        "--model",
-        help="Fully qualified name of the BayesianModel class to use.",
-        type=str,
-        required=True,
-    )
-    parser.add_argument(
         "--output",
         help="Output ModelEvaluation object in h5 format.",
         type=str,
         required=True,
-    )
-    parser.add_argument(
-        "--model-param",
-        nargs=1,
-        action=KVAppendAction,
-        metavar="KEY=VALUE",
-        help="Model parameters",
     )
     parser.add_argument(
         "--seed",
@@ -65,19 +49,6 @@ def get_args():
 
     args = parser.parse_args()
 
-    args.model_cls = introspection.get_class(
-        package_name="batchie", class_name=args.model, base_class=BayesianModel
-    )
-
-    required_args = introspection.get_required_init_args_with_annotations(
-        args.model_cls
-    )
-
-    if not args.model_param:
-        args.model_params = {}
-    else:
-        args.model_params = cast_dict_to_type(args.model_param, required_args)
-
     return args
 
 
@@ -86,11 +57,6 @@ def main():
     log_config.configure_logging(args)
 
     screen = Screen.load_h5(args.screen)
-
-    args.model_params[N_UNIQUE_SAMPLES] = screen.sample_space_size
-    args.model_params[N_UNIQUE_TREATMENTS] = screen.treatment_space_size
-
-    model: BayesianModel = args.model_cls(**args.model_params)
 
     theta_holder: ThetaHolder = ThetaHolder(n_thetas=1)
 

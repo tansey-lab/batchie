@@ -6,7 +6,7 @@ from typing import Union
 from numbers import Number
 import h5py
 from batchie.common import ArrayType, FloatingPointType
-from batchie.data import ScreenBase, Plate, Screen, ScreenSubset
+from batchie.data import ScreenBase, Plate, Screen, ScreenSubset, ExperimentSpace
 import importlib
 
 
@@ -287,13 +287,8 @@ class BayesianModel(ABC):
     :py:meth:`batchie.core.BayesianModel.variance`.
     """
 
-    def __init__(
-        self,
-        n_unique_treatments: int,
-        n_unique_samples: int,
-    ):
-        self.n_unique_treatments = n_unique_treatments
-        self.n_unique_samples = n_unique_samples
+    def __init__(self, experiment_space: ExperimentSpace):
+        self.experiment_space = experiment_space
 
     @abstractmethod
     def set_rng(self, rng: np.random.Generator):
@@ -481,7 +476,6 @@ class Scorer:
 
     def score(
         self,
-        model: BayesianModel,
         plates: dict[int, ScreenSubset],
         distance_matrix: DistanceMatrix,
         samples: ThetaHolder,

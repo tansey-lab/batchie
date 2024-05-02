@@ -47,10 +47,9 @@ def test_random_scorer(test_dataset):
 
     result = rand.RandomScorer().score(
         plates={x.plate_id: x for x in test_dataset.plates},
-        model=mock.MagicMock(),
+        distance_matrix=mock.MagicMock(),
         samples=mock.MagicMock(),
         rng=rng,
-        distance_matrix=mock.MagicMock(),
         progress_bar=False,
     )
 

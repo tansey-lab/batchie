@@ -40,4 +40,5 @@ def select_unique_zipped_numpy_arrays(arrs):
 
 N_UNIQUE_TREATMENTS = "n_unique_treatments"
 N_UNIQUE_SAMPLES = "n_unique_samples"
+EXPERIMENT_SPACE = "experiment_space"
 SELECTED_PLATES_KEY = "selected_plates"

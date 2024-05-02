@@ -16,7 +16,6 @@ class RandomScorer(Scorer):
 
     def score(
         self,
-        model: BayesianModel,
         plates: dict[int, Plate],
         distance_matrix: ChunkedDistanceMatrix,
         samples: ThetaHolder,

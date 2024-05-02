@@ -1,21 +1,19 @@
 import os.path
 import shutil
 import tempfile
+
 import numpy as np
+
 from batchie.cli import calculate_distance_matrix
+from batchie.core import ThetaHolder
 from batchie.distance_calculation import ChunkedDistanceMatrix
 from batchie.models.sparse_combo import SparseDrugComboMCMCSample
-from batchie.core import ThetaHolder
 
 
 def test_main_complete(mocker, test_combo_dataset):
     tmpdir = tempfile.mkdtemp()
     command_line_args = [
         "train_model",
-        "--model",
-        "SparseDrugCombo",
-        "--model-param",
-        "n_embedding_dimensions=2",
         "--distance-metric",
         "MSEDistance",
         "--n-chunks",
@@ -64,10 +62,6 @@ def test_main_partial(mocker, test_combo_dataset):
         tmpdir = tempfile.mkdtemp()
         command_line_args = [
             "train_model",
-            "--model",
-            "SparseDrugCombo",
-            "--model-param",
-            "n_embedding_dimensions=2",
             "--distance-metric",
             "MSEDistance",
             "--n-chunks",
