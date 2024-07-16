@@ -47,6 +47,8 @@ docker pull jeffquinnmsk/batchie:latest
 pip install git+https://github.com/tansey-lab/batchie
 ```
 
+Depending on internet connectivity, installation time ranges from a few seconds to a few minutes.
+
 ## BATCHIE Data Format
 
 The main data format for BATCHIE is the `batchie.data.Screen` object.
