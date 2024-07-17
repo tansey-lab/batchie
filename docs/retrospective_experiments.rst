@@ -5,7 +5,7 @@ Below are commands to reproduce our retrospective experiments.
 
 The input ``.screen.h5`` files are available for download here:
 
-Warning: These retrospective simulation experiments require a lot of computation time. We recommended these be
+Warning: These retrospective simulation experiments require a lot of computation time. We recommend these be
 run on a high performance computing cluster or cloud computing service. Use the appropriate
 `-profile` to specify the computing environment.
 

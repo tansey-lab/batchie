@@ -34,7 +34,7 @@ Bibtex citation:
 
 ### Prerequisites
 
-Nextflow and Python (>=3.11) are required to run the BATCHIE pipeline. The `nextflow` and `python3` commands must be available on the `PATH`. 
+Nextflow and Python (>=3.11) are required to run the BATCHIE pipeline. The `nextflow` and `python3` commands must be available. 
 
 Instructions for installing nextflow are here (installation time is ~1 minute): 
 https://www.nextflow.io/docs/latest/install.html
@@ -483,3 +483,52 @@ ensure approximation of the posterior. The number of chains can be controlled wi
 
 Jobs which fail will be reattempted with higher limits on resources (bounded by the specified maximums). By default 3
 retries will be attempted for each job.
+
+## Retrospective Experiments
+
+Below are commands to reproduce our retrospective experiments.
+
+The input ``.screen.h5`` files are available for download here:
+
+Warning: These retrospective simulation experiments require a lot of computation time. We recommend these be
+run on a high performance computing cluster or cloud computing service. Use the appropriate
+`-profile` to specify the computing environment.
+
+### Merck
+
+```shell
+python3 nextflow/scripts/batchie.py --mode retrospective \
+    -c nextflow/config/merck_retrospective_simulation.config \
+    --batch-size 9 \
+    --screen merck_2016.screen.h5 \
+    --outdir merck_sim \
+    --max_memory 64G \
+    --max_cpus 1 \
+    --max_time 24h
+```
+
+### NCI Almanac
+
+```shell
+python3 nextflow/scripts/batchie.py --mode retrospective \
+    -c nextflow/config/nci_almanac_retrospective_simulation.config \
+    --batch-size 18 \
+    --screen nci_almanac.screen.h5 \
+    --outdir merck_sim \
+    --max_memory 64G \
+    --max_cpus 1 \
+    --max_time 24h
+```
+
+### GDSC^2
+
+```shell
+python3 nextflow/scripts/batchie.py --mode retrospective \
+    -c nextflow/config/gdsc_sq_retrospective_simulation.config \
+    --batch-size 36 \
+    --screen gdsc_sq.screen.h5 \
+    --outdir merck_sim \
+    --max_memory 64G \
+    --max_cpus 1 \
+    --max_time 24h
+```

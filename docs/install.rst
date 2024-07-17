@@ -6,7 +6,7 @@ Installation
 Prerequisites
 -------------
 
-Nextflow and Python (>=3.11) are required to run the BATCHIE pipeline. The `nextflow` and `python3` commands must be available on the `PATH`.
+Nextflow and Python (>=3.11) are required to run the BATCHIE pipeline. The ``nextflow`` and ``python3`` commands must be available.
 
 Instructions for installing nextflow are here (installation time is ~1 minute):
 https://www.nextflow.io/docs/latest/install.html

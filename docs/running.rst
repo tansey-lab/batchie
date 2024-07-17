@@ -12,9 +12,6 @@ nf-core configuration options, see here: https://nf-co.re/docs/usage/configurati
 Prerequisites
 -------------
 
-You must have Nextflow and docker installed to run the examples shown here.
-See :ref:`install-nextflow-docker` for more details.
-
 Because our pipeline is recursive, we are not able to run it completely in nextflow. We have a small
 python wrapper around nextflow in ``nextflow/scripts/batchie.py`` for running this
 pipeline. All that is required to run this script is a recent version of python3 and to have nextflow installed.
