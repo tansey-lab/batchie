@@ -1,5 +1,6 @@
 # BATCHIE
 
+[![DOI](https://zenodo.org/badge/DOI/10.1101/2023.12.18.572245.svg)](https://doi.org/10.1101/2023.12.18.572245)
 ![tests](https://github.com/tansey-lab/batchie/actions/workflows/python-unittest.yml/badge.svg)
 [![codecov](https://codecov.io/gh/tansey-lab/batchie/graph/badge.svg?token=UPG3BP7U7G)](https://codecov.io/gh/tansey-lab/batchie)
 
@@ -488,7 +489,7 @@ retries will be attempted for each job.
 
 Below are commands to reproduce our retrospective experiments.
 
-The input ``.screen.h5`` files are available for download here:
+The input ``.screen.h5`` files are available for download here: https://zenodo.org/records/12764821
 
 Warning: These retrospective simulation experiments require a lot of computation time. We recommend these be
 run on a high performance computing cluster or cloud computing service. Use the appropriate

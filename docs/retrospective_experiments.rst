@@ -3,7 +3,7 @@ Retrospective Experiments
 
 Below are commands to reproduce our retrospective experiments.
 
-The input ``.screen.h5`` files are available for download here:
+The input ``.screen.h5`` files are available for download here: https://zenodo.org/records/12764821
 
 Warning: These retrospective simulation experiments require a lot of computation time. We recommend these be
 run on a high performance computing cluster or cloud computing service. Use the appropriate
