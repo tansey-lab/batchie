@@ -25,6 +25,7 @@ Contents
     running
     configuration
     extension
+    retrospective_experiments
     command_line_interface
     api
 
