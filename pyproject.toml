@@ -34,12 +34,14 @@ dependencies = [
     "h5py>=3.8,<4",
     "seaborn",
     "torch",
-    "pyro-ppl"
+    "pyro-ppl",
+    "pytest",
+    "pytest-mock"
 ]
 
 [project.optional-dependencies]
 dev = ["check-manifest"]
-test = ["pytest", "pytest-mock", "tox", "coverage"]
+test = ["tox", "coverage"]
 
 [project.urls]
 "Homepage" = "https://github.com/tansey-lab/batchie"

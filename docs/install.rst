@@ -1,29 +1,41 @@
+.. _install:
+
 Installation
 ============
 
-This tutorial will walk you through the process of setting up an environment
-to run BATCHIE.
+Prerequisites
+-------------
 
-.. _install-nextflow-docker:
+Nextflow and Python (>=3.11) are required to run the BATCHIE pipeline. The ``nextflow`` and ``python3`` commands must be available.
 
-Option 1 (Recommended): Using Nextflow + Docker
------------------------------------------------
+Instructions for installing nextflow are here (installation time is ~1 minute):
+https://www.nextflow.io/docs/latest/install.html
 
-BATCHIE uses several python packages with C extensions,
-so the easiest way to get started is using the up to date
-docker image we maintain on docker hub.
+If you want to use the containerized version of BATCHIE, installing docker is necessary.
+Instructions for installing docker are here: https://docs.docker.com/get-docker/
 
-.. code::
+Option 1: Install Using pip
+---------------------------
+
+.. code-block:: sh
+
+    python3 -m venv venv
+    source venv/bin/activate
+    pip install git+https://github.com/tansey-lab/batchie
+
+On the authors an Apple M1 13" MacBook Pro (2020) with 16GB of RAM, execution of the above command took 23.114 seconds.
+
+Option 2: Using Docker
+----------------------
+
+The most reproducible way to run BATCHIE is to use our docker container.
+
+We maintain up-to-date and historical docker images on docker hub, you can pull the latest version of BATCHIE with the following command:
+
+.. code-block:: sh
 
     docker pull jeffquinnmsk/batchie:latest
 
-To install Nextflow see the instructions here: https://www.nextflow.io/docs/latest/getstarted.html
 
-Option 2: Install Using pip
----------------------------
-
-For advanced usage, BATCHIE can be installed directly as a python package using pip.
-
-.. code::
-
-    pip install git+https://github.com/tansey-lab/batchie
+Depending on internet connectivity, this should not take longer than a few minutes.
+The compressed size of the BATCHIE docker image is 5.94 GB at the time of writing.

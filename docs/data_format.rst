@@ -12,23 +12,36 @@ See below for an example of creating a screen object and saving it to disk:
 
 .. code-block:: python
 
+    import numpy as np
     from batchie.data import Screen
 
     screen = Screen(
+        # The outcome of each experiment,
+        # a float array of 0-1 values of shape (n_experiments,)
+        # If the experiment has not been observed, this can be set to 0.
         observations=np.array([0.1, 0.2, 0.0, 0.0]),
+        # The observation status of each experiment, a boolean array of shape (n_experiments,).
+        # If the experiment has been observed, the value is True, otherwise False.
         observation_mask=np.array([True, True, False, False]),
+        # The sample name of each experiment, a string array of shape (n_experiments,)
         sample_names=np.array([
             "sample_A",
             "sample_B",
             "sample_C",
             "sample_D"
         ], dtype=str),
+        # The plate to which each experiment belongs
+        # a string array of shape (n_experiments,)
         plate_names=np.array([
             "plate_A",
             "plate_A",
             "plate_B",
             "plate_B"
         ], dtype=str),
+        # The list of drug names used in each experiment
+        # a string array of shape (n_treatments, drug_combination_degree)
+        # If the experiment was not a drug combination,
+        # set other drug names to "control" (or whatever the value of `control_treatment_name` is)
         treatment_names=np.array(
             [
                 ["drug_A", "drug_B"],
@@ -37,6 +50,8 @@ See below for an example of creating a screen object and saving it to disk:
                 ["drug_A", "control"]
             ], dtype=str
         ),
+        # The list of drug doses used in each experiment
+        # a float array of shape (n_experiments, drug_combination_degree)
         treatment_doses=np.array(
             [
                 [2.0, 2.0],
@@ -45,10 +60,10 @@ See below for an example of creating a screen object and saving it to disk:
                 [2.0, 0]
             ]
         ),
+        # The control treatment name. If this value is observed in the treatment_names array,
+        # models will treat it as the absence of any drug.
         control_treatment_name="control"
     )
-
-    screen.save_h5("my_screen.screen.h5")
 
 
 Explanation of Terms

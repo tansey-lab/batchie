@@ -13,16 +13,19 @@ If you use BATCHIE please cite our `preprint <https://www.biorxiv.org/content/10
 
 
 Contents
-=========
+========
 
 .. toctree::
     :maxdepth: 2
 
     install
+    quickstart
     data_format
+    output_format
     running
     configuration
     extension
+    retrospective_experiments
     command_line_interface
     api
 
