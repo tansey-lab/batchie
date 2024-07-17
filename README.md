@@ -32,22 +32,88 @@ Bibtex citation:
 
 ## Installation
 
-### Option 1 (Recommended): Using Docker
+### Prerequisites
 
-BATCHIE uses several python packages with C extensions, so the easiest way to get
-started is using the up to date docker image we maintain on docker hub.
+Nextflow and Python (>=3.11) are required to run the BATCHIE pipeline. The `nextflow` and `python3` commands must be available on the `PATH`. 
+
+Instructions for installing nextflow are here (depending on your OS it is as simple as running one command and should not exceed a minute): 
+https://www.nextflow.io/docs/latest/install.html
+
+If you want to use the containerized version of BATCHIE, installing docker is necessary.
+Instructions for installing docker are here: https://docs.docker.com/get-docker/
+
+### Option 1: Install Using pip
+
+```
+python3 -m venv venv
+source venv/bin/activate
+pip install git+https://github.com/tansey-lab/batchie
+```
+
+On the authors an Apple M1 13" MacBook Pro (2020) with 16GB of RAM, execution of the above command took 23.114 seconds.
+
+### Option 2: Using Docker
+
+The most reproducible way to run BATCHIE is to use our docker container.
+
+We maintain up-to-date and historical docker images on docker hub, you can pull the latest version of BATCHIE with the following command:
 
 ```
 docker pull jeffquinnmsk/batchie:latest
 ```
 
-### Option 2: Install Using pip
+Depending on internet connectivity, this should not take longer than a few minutes. 
+The compressed size of the BATCHIE docker image is 5.94 GB at the time of writing.
+
+## Quickstart Demo
+
+Run a quick demo of BATCHIE on a toy dataset.
+
+Install the BATCHIE package in a local Python3 virtual environment:
 
 ```
+python3 -m venv venv
+source venv/bin/activate
 pip install git+https://github.com/tansey-lab/batchie
 ```
 
-Depending on internet connectivity, installation time ranges from a few seconds to a few minutes.
+Execute the retrospective-mode demo (For explanation of what retrospective-mode means see [here](#retrospective-mode))
+
+```shell
+python3 nextflow/scripts/batchie.py \
+    --mode retrospective \
+    -c nextflow/tests/config/integration_test_retrospective_simulation.config \
+    --batch-size 3 \
+    --screen nextflow/tests/data/unmasked_screen.h5 \
+    --outdir retrospective_sim \
+    --n_chains 2 \
+    --n_chunks 2 \
+    --max_cpus 1 \
+    --max_mem 1GB \
+    -profile local
+```
+
+On the authors an Apple M1 13" MacBook Pro (2020) with 16GB of RAM, 
+this command took 45.887 seconds to execute.
+
+Execute the prospective-mode demo (For explanation of what prospective-mode means see [here](#prospective-mode)):
+
+```shell
+python nextflow/scripts/batchie.py \
+    --mode prospective \
+    -c nextflow/tests/config/integration_test_retrospective_simulation.config \
+    --batch-size 3 \
+    --screen nextflow/tests/data/masked_screen.h5 \
+    --outdir prospective_sim \
+    --n_chains 2 \
+    --n_chunks 2 \
+    --max_cpus 1 \
+    --max_mem 1GB \
+    -profile local
+```
+
+On the authors an Apple M1 13" MacBook Pro (2020) with 16GB of RAM, 
+this command took 29.687 seconds to execute.
 
 ## BATCHIE Data Format
 
@@ -56,23 +122,36 @@ The main data format for BATCHIE is the `batchie.data.Screen` object.
 See below for an example of creating a screen object and saving it to disk:
 
 ```python
+import numpy as np
 from batchie.data import Screen
 
 screen = Screen(
+    # The outcome of each experiment,
+    # a float array of 0-1 values of shape (n_experiments,)
+    # If the experiment has not been observed, this can be set to 0.
     observations=np.array([0.1, 0.2, 0.0, 0.0]),
+    # The observation status of each experiment, a boolean array of shape (n_experiments,).
+    # If the experiment has been observed, the value is True, otherwise False.
     observation_mask=np.array([True, True, False, False]),
+    # The sample name of each experiment, a string array of shape (n_experiments,)
     sample_names=np.array([
         "sample_A",
         "sample_B",
         "sample_C",
         "sample_D"
     ], dtype=str),
+    # The plate to which each experiment belongs
+    # a string array of shape (n_experiments,)
     plate_names=np.array([
         "plate_A",
         "plate_A",
         "plate_B",
         "plate_B"
     ], dtype=str),
+    # The list of drug names used in each experiment 
+    # a string array of shape (n_treatments, drug_combination_degree)
+    # If the experiment was not a drug combination, 
+    # set other drug names to "control" (or whatever the value of `control_treatment_name` is)
     treatment_names=np.array(
         [
             ["drug_A", "drug_B"],
@@ -81,6 +160,8 @@ screen = Screen(
             ["drug_A", "control"]
         ], dtype=str
     ),
+    # The list of drug doses used in each experiment
+    # a float array of shape (n_experiments, drug_combination_degree)
     treatment_doses=np.array(
         [
             [2.0, 2.0],
@@ -89,6 +170,8 @@ screen = Screen(
             [2.0, 0]
         ]
     ),
+    # The control treatment name. If this value is observed in the treatment_names array,
+    # models will treat it as the absence of any drug.
     control_treatment_name="control"
 )
 
@@ -107,10 +190,6 @@ There are two main modes for running BATCHIE, prospective and retrospective.
 
 Our pipline adheres to nf-core standards, and accepts all the
 nf-core configuration options, see here: https://nf-co.re/docs/usage/configuration
-
-### Prerequisites
-
-You must have Nextflow and docker installed to run the examples shown here.
 
 ### Prospective Mode
 
@@ -158,7 +237,7 @@ Assume you have a `batchie.data.Screen` where
 all `batchie.data.Plate` s are observed, representing data from a high throughput screen
 that was run in the past.
 
-In retrospective simulation mode we will run these set up steps:
+In retrospective simulation mode we will run these set-up steps:
 
 1. Mask all of the observations.
 2. Sample a fraction of the unobserved experiments and set it aside as "holdout" for evaluating model accuracy.
